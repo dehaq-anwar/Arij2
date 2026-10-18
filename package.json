@@ -12,7 +12,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . && node scripts/check-logical-css.mjs && node scripts/check-motion-direction.mjs && node scripts/check-contrast.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
