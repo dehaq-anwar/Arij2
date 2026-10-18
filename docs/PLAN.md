@@ -581,6 +581,15 @@ Answered 2026-10-18 ("yes to all"). Where "yes" could not choose between two opt
 | Q8 | Interpreted as the first option: Western digits (0–9) | Arabic number formatting uses `ar-u-nu-latn`; switching to Arabic-Indic is a one-line change |
 | — | An Arabic copy of the plan is wanted | `docs/PLAN.ar.md` |
 
+Further answers, 2026-10-18 (after Phase 3):
+
+| # | Answer | Consequence |
+|---|---|---|
+| Q2 | Use the existing logo image | The supplied PNG is final; no SVG is expected. The line-drawing intro of the dove is dropped |
+| Q4d | Do not state fee amounts | The membership page says only what Satzung §4 says (entrance fee and annual fee under the Beitragsordnung, payable in advance by 31 January), without amounts |
+| Q7 | Retention: six months; notifications to info@yop-ye.org | Contact messages and rejected applications are deleted after 6 months (Phase 5). `info@yop-ye.org` receives notifications and, as the association's general address, is shown as the public contact e-mail |
+| Q1 | (Repository still public on 2026-10-18) | React Bits code is added once the repository is private; the four effects have prepared slots |
+
 ## 19. Phase 2 implementation notes
 
 Deviations from the plan and findings made while building Phase 2:
@@ -611,3 +620,24 @@ Deviations from the plan and findings made while building Phase 2:
 | Motion | Lenis runs on GSAP's ticker (one loop); reveals start hidden only when JavaScript runs and motion is allowed, with a 4 s safety fallback; horizontal offsets go through `dirX()` and a lint check enforces it | e2e verifies reduced motion, no-JS visibility, RTL mirroring and that no ScrollTriggers/tweens are left behind after navigation |
 | Placeholders | `npm run check:placeholders` lists every `[PLACEHOLDER: …]` left; `--strict` fails (launch gate) | 28 at the end of Phase 3 |
 
+
+## 21. Phase 4 implementation notes
+
+| Topic | What happened | Consequence |
+|---|---|---|
+| Rendering and cache | Pages are rendered on their first visit and cached; nothing is prerendered at build time, so `npm run build` needs no database (verified with an unreachable `DATABASE_URL`). Every CMS change marks all pages stale. The first version called `revalidatePath('/[locale]', 'layout')`, which silently did nothing: cache tags come from the file path, which includes the `(frontend)` route group. The e2e test for it failed, so it was caught | Now `revalidatePath('/', 'layout')`. e2e checks that changed page texts and new/deleted projects appear immediately |
+| Read-only container | By default Next.js writes rendered pages into `.next/server`, which is read-only in the production container | `experimental.isrFlushToDisk: false`: the cache lives in memory; after a restart each page is rendered again once. Smoke test of the image (read-only, empty database): migrations run on first start, all pages answer 200, CMS changes appear, no write errors |
+| Environment variables | `NEXT_PUBLIC_*` values are frozen into the build, also in server code; a Docker image built without `.env` would have lost the server URL and the indexing switch | Renamed to `SERVER_URL` and `ALLOW_INDEXING`, read at runtime. **Rename them in existing `.env` files** |
+| Database enum | A select field named `status` in projects collided with the `_status` enum of drafts (`enum_projects_status`) and broke the migration | The field is called `stage` (planned / ongoing / completed) |
+| Translations | Untranslated projects/news show the German text, marked `lang="de"` and with a notice. Their canonical URL is the German page; hreflang and the sitemap list only languages that really have the text | Checked by e2e (Arabic fallback, English translation, alternates, sitemap) |
+| Visibility rules | Drafts, people without consent, partners without permission and the internal source of statistics are filtered by the collections' access rules, so the REST API gives visitors exactly what the pages show | e2e checks pages and API |
+| Seed content | `npm run seed` fills the CMS with placeholders and marked drafts only; it never overwrites existing content. Pages work with an empty CMS too | Seeding production: run it once against the new database before the first visit (or restart the app afterwards: the script cannot refresh the running app's cache). Documented in Phase 6 |
+| Test data | Projects, a post, a statistic, people and partners named "E2E …" exist only in a separate database whose name must end in `_e2e`; it is rebuilt on every e2e run. CI runs PostgreSQL 18.6 as a service | 131 e2e tests (103 in Phase 3) |
+| Rich text | Rendered as React elements (never raw HTML). Alignment and indentation from the editor are ignored (they are physical left/right); placeholder and draft paragraphs are framed; links to projects/news use the localized paths | |
+| Donations | Bank details only as entered in the CMS (placeholder until then), IBAN grouped and always left-to-right; the tax-status text only from the CMS, with a warning in its field description | e2e checks that no page claims tax deductibility or donation receipts |
+| Contact | `info@yop-ye.org` (SiteSettings) on the contact page and in the footer; address placeholder; phone hidden unless enabled. Both forms are placeholders until Phase 5 | |
+| Search engines | `robots.txt` disallows everything and pages carry `noindex` until `ALLOW_INDEXING=true` at launch; `sitemap.xml` is generated per request | |
+| First admin account | On an empty database, Payload's "create first user" screen/endpoint is open to anyone until the first account exists | Phase 5: create the first admin with a command on the server instead, and keep `/admin` unreachable until then |
+| Images | No media in the e2e tests (CI has no S3). Image output (`next/image` from `/api/media/file/…`) is checked with real images in Phase 6 | |
+| React Bits | Still waiting for the repository to become private | Slots marked in the hero, statistics and cards |
+| Placeholders | `npm run check:placeholders` now finds 89 in the source (seed texts and code fallbacks, each in three languages). The launch gate on the CMS content itself follows in Phase 6 | |

@@ -1,10 +1,19 @@
 {
   "Metadata": {
-    "siteName": "\u2066Youth of Peace e.V.\u2069",
+    "siteName": "⁦Youth of Peace e.V.⁩",
     "description": "[PLACEHOLDER: وصف قصير للموقع لمحركات البحث]"
   },
   "Common": {
-    "skipToContent": "انتقل إلى المحتوى"
+    "skipToContent": "انتقل إلى المحتوى",
+    "allProjects": "كل المشاريع",
+    "allNews": "كل الأخبار",
+    "backToProjects": "العودة إلى المشاريع",
+    "backToNews": "العودة إلى الأخبار",
+    "readMore": "اقرأ المزيد",
+    "publishedOn": "نُشر في {date}",
+    "asOf": "بتاريخ {date}",
+    "lastUpdated": "آخر تحديث: {date}",
+    "notTranslated": "هذا المحتوى غير متوفر بالعربية بعد، وتُعرض النسخة الألمانية."
   },
   "Navigation": {
     "home": "الرئيسية",
@@ -35,32 +44,67 @@
     "registerLabel": "سجل الجمعيات",
     "register": "VR 201778، محكمة فورت المحلية (Amtsgericht Fürth)",
     "navHeading": "روابط",
-    "contactHeading": "التواصل",
-    "address": "[PLACEHOLDER: العنوان البريدي]",
-    "email": "[PLACEHOLDER: البريد الإلكتروني]"
+    "contactHeading": "التواصل"
   },
   "Placeholder": {
-    "pageContent": "[PLACEHOLDER: يُنشأ محتوى هذه الصفحة في نظام إدارة المحتوى في المرحلة 4.]",
     "legalNotice": "[PLACEHOLDER: الإشعار القانوني (Impressum وفق § 5 DDG) – تقدّم الجمعية نصه.]",
     "privacy": "[PLACEHOLDER: سياسة الخصوصية – تقدّم الجمعية نصها.]"
   },
   "Home": {
     "missionHeading": "رسالتنا",
-    "mission": "[PLACEHOLDER: الرسالة في جملة واحدة]",
     "focusHeading": "مجالات عملنا",
-    "focusSummary": "[PLACEHOLDER: وصف قصير]",
-    "focusYouthEmpowerment": "تمكين الشباب",
-    "focusPeacebuilding": "بناء السلام",
-    "focusIntegration": "الاندماج",
-    "focusEntrepreneurship": "ريادة الأعمال لدى الشباب",
-    "newsHeading": "آخر الأخبار",
-    "newsEmpty": "لم تُنشر أي أخبار بعد.",
-    "ctaHeading": "شارك معنا",
-    "ctaText": "[PLACEHOLDER: دعوة قصيرة للانضمام إلى العضوية أو دعم الجمعية]"
+    "newsHeading": "آخر الأخبار"
   },
   "NotFound": {
     "title": "الصفحة غير موجودة",
     "text": "الصفحة المطلوبة غير موجودة أو نُقلت إلى مكان آخر.",
     "backHome": "العودة إلى الصفحة الرئيسية"
+  },
+  "Projects": {
+    "empty": "لم تُنشر أي مشاريع بعد.",
+    "stage": "المرحلة",
+    "stage_planned": "مخطط له",
+    "stage_ongoing": "جارٍ",
+    "stage_completed": "مكتمل",
+    "location": "المكان",
+    "period": "المدة",
+    "focusAreas": "مجالات العمل",
+    "partners": "الشركاء",
+    "gallery": "الصور"
+  },
+  "NewsPage": {
+    "empty": "لم تُنشر أي أخبار بعد.",
+    "relatedProjects": "مشاريع ذات صلة"
+  },
+  "About": {
+    "storyHeading": "قصتنا",
+    "valuesHeading": "قيمنا",
+    "boardHeading": "مجلس الإدارة",
+    "boardEmpty": "[PLACEHOLDER: مجلس الإدارة – تُضاف الإدخالات بعد الموافقة في نظام إدارة المحتوى]"
+  },
+  "Membership": {
+    "whoCanJoinHeading": "من يمكنه الانضمام",
+    "feesHeading": "الاشتراكات",
+    "processHeading": "خطوات الانضمام",
+    "applyHeading": "تقديم الطلب",
+    "contactCta": "لديك أسئلة؟ راسلنا"
+  },
+  "Support": {
+    "bankDetails": "بيانات الحساب البنكي",
+    "accountHolder": "صاحب الحساب",
+    "bank": "البنك",
+    "reference": "مرجع الدفع",
+    "bankPlaceholder": "[PLACEHOLDER: بيانات الحساب البنكي]",
+    "partnersHeading": "شركاؤنا",
+    "contactCta": "تواصل معنا"
+  },
+  "Contact": {
+    "detailsHeading": "طرق التواصل معنا",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "hours": "أوقات التواصل",
+    "formHeading": "أرسل رسالة",
+    "formPlaceholder": "[PLACEHOLDER: نموذج التواصل – يُضاف في المرحلة 5]"
   }
 }

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
-import { locales, routes } from './fixtures'
+import { detailPages, locales, routes } from './fixtures'
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -10,20 +10,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
     // Reduced motion: every element is in its final, visible state when axe checks contrast.
     test.use({ colorScheme, reducedMotion: 'reduce' })
 
-    for (const route of routes) {
-      for (const locale of locales) {
-        test(`${route[locale]}`, async ({ page }) => {
-          await page.goto(route[locale])
-          await page.waitForFunction(() =>
-            document.documentElement.hasAttribute('data-motion-ready'),
-          )
-          const { violations } = await new AxeBuilder({ page }).withTags(tags).analyze()
-          const summary = violations.map(
-            (v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
-          )
-          expect(summary).toEqual([])
-        })
-      }
+    const paths = [...routes.flatMap((route) => locales.map((l) => route[l])), ...detailPages]
+    for (const path of paths) {
+      test(path, async ({ page }) => {
+        await page.goto(path)
+        await page.waitForFunction(() => document.documentElement.hasAttribute('data-motion-ready'))
+        const { violations } = await new AxeBuilder({ page }).withTags(tags).analyze()
+        const summary = violations.map(
+          (v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
+        )
+        expect(summary).toEqual([])
+      })
     }
 
     test('mobile menu (open)', async ({ page }) => {

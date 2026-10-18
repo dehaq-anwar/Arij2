@@ -26,7 +26,8 @@
     "migrate:status": "payload migrate:status",
     "check:audit": "node scripts/check-audit.mjs",
     "test:e2e": "playwright test",
-    "check:placeholders": "node scripts/check-placeholders.mjs"
+    "check:placeholders": "node scripts/check-placeholders.mjs",
+    "seed": "payload run scripts/seed.ts"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

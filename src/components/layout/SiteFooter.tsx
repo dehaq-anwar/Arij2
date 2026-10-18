@@ -1,16 +1,36 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 
+import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
 import { OrgName } from '@/components/ui/OrgName'
-import { Placeholder } from '@/components/ui/Placeholder'
 import { Link } from '@/i18n/navigation'
+import type { Locale } from '@/i18n/routing'
+import { getGlobal } from '@/lib/cms/queries'
 import { legalNav, mainNav, membershipLink } from '@/lib/navigation'
+import type { SiteSetting } from '@/payload-types'
 
 import { Logo } from './Logo'
+
+type Platform = NonNullable<SiteSetting['socialLinks']>[number]['platform']
+
+const platformNames: Record<Platform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  x: 'X',
+  tiktok: 'TikTok',
+  mastodon: 'Mastodon',
+  telegram: 'Telegram',
+  whatsapp: 'WhatsApp',
+}
 
 export async function SiteFooter() {
   const t = await getTranslations('Footer')
   const nav = await getTranslations('Navigation')
+  const settings = await getGlobal('site-settings', (await getLocale()) as Locale)
+  const { email, address } = settings.contact ?? {}
+  const social = settings.socialLinks ?? []
   const year = new Date().getFullYear()
 
   return (
@@ -47,10 +67,31 @@ export async function SiteFooter() {
         <div>
           <h2 className="font-bold">{t('contactHeading')}</h2>
           <address className="mt-3 space-y-2 not-italic">
-            <Placeholder inline>{t('address')}</Placeholder>
-            <br />
-            <Placeholder inline>{t('email')}</Placeholder>
+            {address ? (
+              <div className="whitespace-pre-line">
+                <CmsText as="span" text={address} />
+              </div>
+            ) : null}
+            {email ? (
+              <p>
+                <a href={`mailto:${email}`} dir="ltr">
+                  {email}
+                </a>
+              </p>
+            ) : null}
           </address>
+          {social.length ? (
+            // Plain links only: no embedded widgets, so no third-party requests or cookies.
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+              {social.map((link) => (
+                <li key={link.id ?? link.url}>
+                  <a href={link.url} className="inline-block py-1" translate="no">
+                    {platformNames[link.platform]}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </Container>
 

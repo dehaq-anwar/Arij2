@@ -1,6 +1,12 @@
+import { randomBytes } from 'node:crypto'
+
 import { defineConfig, devices } from '@playwright/test'
 
-const port = Number(process.env.E2E_PORT ?? 3100)
+// Set once in the main process; the web server (which creates the test editor account) and
+// the test workers inherit both values.
+process.env.E2E_PORT ??= '3100'
+process.env.E2E_EDITOR_PASSWORD ??= randomBytes(24).toString('base64url')
+const port = Number(process.env.E2E_PORT)
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -27,8 +33,8 @@ export default defineConfig({
   webServer: {
     command: 'node scripts/e2e-server.mjs',
     url: `http://127.0.0.1:${port}/`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: { E2E_PORT: String(port) },
+    // Always a fresh server: it rebuilds the test database with the current fixtures.
+    reuseExistingServer: false,
+    timeout: 180_000,
   },
 })

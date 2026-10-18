@@ -1,7 +1,11 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { PlaceholderPage } from '@/components/sections/PlaceholderPage'
+import { BoardGrid, Timeline, ValuesGrid } from '@/components/sections/AboutSections'
+import { Container } from '@/components/ui/Container'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { RichText } from '@/components/ui/RichText'
+import { getBoard, getGlobal } from '@/lib/cms/queries'
 import { resolveLocale } from '@/lib/locale-page'
 import { localizedAlternates } from '@/lib/seo'
 
@@ -14,8 +18,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function AboutPage({ params }: Props) {
-  await resolveLocale(params)
+  const locale = await resolveLocale(params)
   const nav = await getTranslations('Navigation')
-  const t = await getTranslations('Placeholder')
-  return <PlaceholderPage title={nav('about')} text={t('pageContent')} />
+  const [about, board] = await Promise.all([getGlobal('about-page', locale), getBoard(locale)])
+
+  return (
+    <>
+      <PageHeader title={nav('about')} />
+      <Container className="py-12">
+        <RichText data={about.intro} locale={locale} className="text-lg" />
+        <Timeline story={about.story} />
+        <ValuesGrid values={about.values} />
+        <BoardGrid members={board} intro={about.boardIntro} />
+      </Container>
+    </>
+  )
 }

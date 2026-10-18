@@ -7,8 +7,9 @@ type Href = Parameters<typeof getPathname>[0]['href']
 
 /**
  * Canonical URL plus hreflang alternates for a page that exists in all languages
- * (x-default points to German, the default). Pages whose content is only partly
- * translated pass the locales that actually have it.
+ * (x-default points to German, the default). Items that are only partly translated pass
+ * the locales that actually have them; a language version that only shows the German
+ * fallback names the German page as canonical, so search engines see no duplicate.
  */
 export function localizedAlternates(
   href: Href,
@@ -17,7 +18,7 @@ export function localizedAlternates(
 ): Metadata['alternates'] {
   const path = (l: Locale) => getPathname({ locale: l, href })
   return {
-    canonical: path(locale),
+    canonical: path(available.includes(locale) ? locale : routing.defaultLocale),
     languages: {
       ...Object.fromEntries(available.map((l) => [l, path(l)])),
       'x-default': path(routing.defaultLocale),

@@ -65,21 +65,31 @@ test.describe('with motion allowed', () => {
   })
 
   test('animations are cleaned up on route changes (no leaks)', async ({ page }) => {
+    // Reference: the number of live animations on a fresh load of each page.
+    await page.goto('/ueber-uns')
+    await waitForMotion(page)
+    const about = await settled(page)
     await page.goto('/')
     await waitForMotion(page)
-    const fresh = await settled(page)
-    expect(fresh.scrollTriggers).toBeGreaterThan(0)
+    const home = await settled(page)
+    expect(home.scrollTriggers).toBeGreaterThan(0)
 
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' })
+    const legal = page.getByRole('navigation', { name: 'Rechtliches' })
+    const triggers = async () => (await motion(page)).scrollTriggers
     for (let round = 0; round < 3; round++) {
       await nav.getByRole('link', { name: 'Über uns' }).click()
       await expect(page).toHaveURL('/ueber-uns')
-      await expect.poll(async () => (await motion(page)).scrollTriggers).toBe(0)
+      await expect.poll(triggers).toBe(about.scrollTriggers)
+      // The legal notice has no animations: nothing from the previous pages may survive.
+      await legal.getByRole('link', { name: 'Impressum' }).click()
+      await expect(page).toHaveURL('/impressum')
+      await expect.poll(triggers).toBe(0)
       await page.getByRole('banner').getByRole('link', { name: 'Youth of Peace e.V.' }).click()
       await expect(page).toHaveURL('/')
-      await expect.poll(async () => (await motion(page)).scrollTriggers).toBe(fresh.scrollTriggers)
+      await expect.poll(triggers).toBe(home.scrollTriggers)
     }
-    expect(await settled(page)).toEqual(fresh)
+    expect(await settled(page)).toEqual(home)
   })
 })
 

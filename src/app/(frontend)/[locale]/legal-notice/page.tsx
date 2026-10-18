@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { PlaceholderPage } from '@/components/sections/PlaceholderPage'
+import { LegalPage } from '@/components/sections/LegalPage'
+import { getGlobal } from '@/lib/cms/queries'
 import { resolveLocale } from '@/lib/locale-page'
 import { localizedAlternates } from '@/lib/seo'
 
@@ -14,8 +15,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function LegalNoticePage({ params }: Props) {
-  await resolveLocale(params)
+  const locale = await resolveLocale(params)
   const nav = await getTranslations('Navigation')
   const t = await getTranslations('Placeholder')
-  return <PlaceholderPage title={nav('legalNotice')} text={t('legalNotice')} />
+  const page = await getGlobal('legal-notice', locale)
+  return (
+    <LegalPage
+      title={nav('legalNotice')}
+      content={page.content}
+      lastUpdated={page.lastUpdated}
+      placeholder={t('legalNotice')}
+      locale={locale}
+    />
+  )
 }

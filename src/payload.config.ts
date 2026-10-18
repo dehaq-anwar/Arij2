@@ -2,7 +2,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { postgresAdapter } from '@payloadcms/db-postgres'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { ar } from '@payloadcms/translations/languages/ar'
 import { de } from '@payloadcms/translations/languages/de'
@@ -10,12 +9,26 @@ import { en } from '@payloadcms/translations/languages/en'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 
+import { FocusAreas } from './cms/collections/FocusAreas'
 import { Media } from './cms/collections/Media'
+import { News } from './cms/collections/News'
+import { Partners } from './cms/collections/Partners'
+import { Projects } from './cms/collections/Projects'
+import { Statistics } from './cms/collections/Statistics'
+import { TeamMembers } from './cms/collections/TeamMembers'
 import { Users } from './cms/collections/Users'
+import { richTextEditor } from './cms/fields/richText'
+import { AboutPage } from './cms/globals/AboutPage'
+import { ContactPage } from './cms/globals/ContactPage'
+import { HomePage } from './cms/globals/HomePage'
+import { LegalNotice, PrivacyPolicy } from './cms/globals/LegalPages'
+import { MembershipPage } from './cms/globals/MembershipPage'
+import { SiteSettings } from './cms/globals/SiteSettings'
+import { SupportPage } from './cms/globals/SupportPage'
 import { migrations } from './migrations'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
-const serverURL = process.env.NEXT_PUBLIC_SERVER_URL ?? ''
+const serverURL = process.env.SERVER_URL ?? ''
 
 export default buildConfig({
   serverURL,
@@ -26,8 +39,18 @@ export default buildConfig({
     importMap: { baseDir: path.resolve(dirname) },
     meta: { titleSuffix: ' – Youth of Peace e.V.' },
   },
-  collections: [Users, Media],
-  editor: lexicalEditor(),
+  collections: [Projects, News, FocusAreas, TeamMembers, Statistics, Partners, Media, Users],
+  globals: [
+    HomePage,
+    AboutPage,
+    MembershipPage,
+    SupportPage,
+    ContactPage,
+    LegalNotice,
+    PrivacyPolicy,
+    SiteSettings,
+  ],
+  editor: richTextEditor,
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
     // Schema changes always go through committed migrations, in development too.

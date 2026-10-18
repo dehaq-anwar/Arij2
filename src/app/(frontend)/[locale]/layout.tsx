@@ -11,6 +11,8 @@ import { SmoothScroll } from '@/components/motion/SmoothScroll'
 import { fontVariables } from '@/fonts'
 import { getDirection } from '@/i18n/locale'
 import { routing } from '@/i18n/routing'
+import { getGlobal } from '@/lib/cms/queries'
+import { indexingAllowed, siteUrl } from '@/lib/site'
 import '@/styles/globals.css'
 
 type Props = {
@@ -25,25 +27,24 @@ type Props = {
  */
 const motionBootstrap = `(function(e){e.classList.add('js');setTimeout(function(){if(!e.hasAttribute('data-motion-ready'))e.classList.remove('js')},4000)})(document.documentElement)`
 
+// Pages read from the CMS, so nothing is prerendered at build time (builds need no database).
+// Each page is rendered on its first visit, then served from cache until the CMS changes.
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }))
+  return []
 }
 
 export async function generateMetadata({ params }: Omit<Props, 'children'>): Promise<Metadata> {
   const { locale } = await params
   if (!hasLocale(routing.locales, locale)) return {}
   const t = await getTranslations({ locale, namespace: 'Metadata' })
-  const serverURL = process.env.NEXT_PUBLIC_SERVER_URL
+  const settings = await getGlobal('site-settings', locale)
 
   return {
-    metadataBase: serverURL ? new URL(serverURL) : undefined,
+    metadataBase: new URL(siteUrl()),
     title: { default: t('siteName'), template: `%s – ${t('siteName')}` },
-    description: t('description'),
+    description: settings.description || t('description'),
     // Placeholder content must not be indexed: indexing is opt-in at launch.
-    robots:
-      process.env.NEXT_PUBLIC_ALLOW_INDEXING === 'true'
-        ? undefined
-        : { index: false, follow: false },
+    robots: indexingAllowed() ? undefined : { index: false, follow: false },
   }
 }
 

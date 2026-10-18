@@ -4,7 +4,16 @@
     "description": "[PLACEHOLDER: short site description for search engines]"
   },
   "Common": {
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "allProjects": "All projects",
+    "allNews": "All posts",
+    "backToProjects": "Back to projects",
+    "backToNews": "Back to news",
+    "readMore": "Read more",
+    "publishedOn": "Published on {date}",
+    "asOf": "As of {date}",
+    "lastUpdated": "Last updated: {date}",
+    "notTranslated": "This content is not yet available in English. The German version is shown."
   },
   "Navigation": {
     "home": "Home",
@@ -35,32 +44,67 @@
     "registerLabel": "Register of associations",
     "register": "VR 201778, Amtsgericht Fürth (local court)",
     "navHeading": "Navigation",
-    "contactHeading": "Contact",
-    "address": "[PLACEHOLDER: postal address]",
-    "email": "[PLACEHOLDER: email address]"
+    "contactHeading": "Contact"
   },
   "Placeholder": {
-    "pageContent": "[PLACEHOLDER: this page's content will be created in the CMS in Phase 4.]",
     "legalNotice": "[PLACEHOLDER: legal notice (Impressum, § 5 DDG) – text to be supplied by the association.]",
     "privacy": "[PLACEHOLDER: privacy policy – text to be supplied by the association.]"
   },
   "Home": {
     "missionHeading": "Our mission",
-    "mission": "[PLACEHOLDER: mission in one sentence]",
     "focusHeading": "Focus areas",
-    "focusSummary": "[PLACEHOLDER: short description]",
-    "focusYouthEmpowerment": "Youth empowerment",
-    "focusPeacebuilding": "Peacebuilding",
-    "focusIntegration": "Integration",
-    "focusEntrepreneurship": "Youth entrepreneurship",
-    "newsHeading": "News",
-    "newsEmpty": "No posts published yet.",
-    "ctaHeading": "Get involved",
-    "ctaText": "[PLACEHOLDER: short call to become a member or support the association]"
+    "newsHeading": "News"
   },
   "NotFound": {
     "title": "Page not found",
     "text": "The page you requested does not exist or has moved.",
     "backHome": "Back to the home page"
+  },
+  "Projects": {
+    "empty": "No projects published yet.",
+    "stage": "Status",
+    "stage_planned": "Planned",
+    "stage_ongoing": "Ongoing",
+    "stage_completed": "Completed",
+    "location": "Location",
+    "period": "Period",
+    "focusAreas": "Focus areas",
+    "partners": "Partners",
+    "gallery": "Images"
+  },
+  "NewsPage": {
+    "empty": "No posts published yet.",
+    "relatedProjects": "Related projects"
+  },
+  "About": {
+    "storyHeading": "Our story",
+    "valuesHeading": "Our values",
+    "boardHeading": "Board",
+    "boardEmpty": "[PLACEHOLDER: board – add entries with consent in the CMS]"
+  },
+  "Membership": {
+    "whoCanJoinHeading": "Who can join",
+    "feesHeading": "Fees",
+    "processHeading": "How it works",
+    "applyHeading": "Apply",
+    "contactCta": "Questions? Write to us"
+  },
+  "Support": {
+    "bankDetails": "Bank details",
+    "accountHolder": "Account holder",
+    "bank": "Bank",
+    "reference": "Payment reference",
+    "bankPlaceholder": "[PLACEHOLDER: bank details]",
+    "partnersHeading": "Our partners",
+    "contactCta": "Get in touch"
+  },
+  "Contact": {
+    "detailsHeading": "How to reach us",
+    "email": "E-mail",
+    "phone": "Phone",
+    "address": "Address",
+    "hours": "Availability",
+    "formHeading": "Send a message",
+    "formPlaceholder": "[PLACEHOLDER: contact form – follows in Phase 5]"
   }
 }

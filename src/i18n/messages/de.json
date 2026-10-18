@@ -4,7 +4,16 @@
     "description": "[PLACEHOLDER: Kurzbeschreibung der Website für Suchmaschinen]"
   },
   "Common": {
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "allProjects": "Alle Projekte",
+    "allNews": "Alle Beiträge",
+    "backToProjects": "Zurück zu den Projekten",
+    "backToNews": "Zurück zu Aktuelles",
+    "readMore": "Weiterlesen",
+    "publishedOn": "Veröffentlicht am {date}",
+    "asOf": "Stand: {date}",
+    "lastUpdated": "Stand: {date}",
+    "notTranslated": "Dieser Inhalt ist noch nicht auf Deutsch verfügbar. Angezeigt wird die deutsche Fassung."
   },
   "Navigation": {
     "home": "Startseite",
@@ -35,32 +44,67 @@
     "registerLabel": "Vereinsregister",
     "register": "VR 201778, Amtsgericht Fürth",
     "navHeading": "Navigation",
-    "contactHeading": "Kontakt",
-    "address": "[PLACEHOLDER: Postanschrift]",
-    "email": "[PLACEHOLDER: E-Mail-Adresse]"
+    "contactHeading": "Kontakt"
   },
   "Placeholder": {
-    "pageContent": "[PLACEHOLDER: Der Inhalt dieser Seite wird in Phase 4 im CMS angelegt.]",
     "legalNotice": "[PLACEHOLDER: Impressum nach § 5 DDG – der Text wird vom Verein geliefert.]",
     "privacy": "[PLACEHOLDER: Datenschutzerklärung – der Text wird vom Verein geliefert.]"
   },
   "Home": {
     "missionHeading": "Unsere Mission",
-    "mission": "[PLACEHOLDER: Mission in einem Satz]",
     "focusHeading": "Schwerpunkte",
-    "focusSummary": "[PLACEHOLDER: Kurzbeschreibung]",
-    "focusYouthEmpowerment": "Empowerment junger Menschen",
-    "focusPeacebuilding": "Friedensförderung",
-    "focusIntegration": "Integration",
-    "focusEntrepreneurship": "Jugendunternehmertum",
-    "newsHeading": "Aktuelles",
-    "newsEmpty": "Noch keine Beiträge veröffentlicht.",
-    "ctaHeading": "Mitmachen",
-    "ctaText": "[PLACEHOLDER: kurzer Aufruf, Mitglied zu werden oder den Verein zu unterstützen]"
+    "newsHeading": "Aktuelles"
   },
   "NotFound": {
     "title": "Seite nicht gefunden",
     "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
     "backHome": "Zur Startseite"
+  },
+  "Projects": {
+    "empty": "Noch keine Projekte veröffentlicht.",
+    "stage": "Stand",
+    "stage_planned": "Geplant",
+    "stage_ongoing": "Laufend",
+    "stage_completed": "Abgeschlossen",
+    "location": "Ort",
+    "period": "Zeitraum",
+    "focusAreas": "Schwerpunkte",
+    "partners": "Partner",
+    "gallery": "Bilder"
+  },
+  "NewsPage": {
+    "empty": "Noch keine Beiträge veröffentlicht.",
+    "relatedProjects": "Zugehörige Projekte"
+  },
+  "About": {
+    "storyHeading": "Unsere Geschichte",
+    "valuesHeading": "Unsere Werte",
+    "boardHeading": "Vorstand",
+    "boardEmpty": "[PLACEHOLDER: Vorstand – Einträge mit Einwilligung im CMS anlegen]"
+  },
+  "Membership": {
+    "whoCanJoinHeading": "Wer Mitglied werden kann",
+    "feesHeading": "Beiträge",
+    "processHeading": "Ablauf",
+    "applyHeading": "Antrag stellen",
+    "contactCta": "Fragen? Schreiben Sie uns"
+  },
+  "Support": {
+    "bankDetails": "Bankverbindung",
+    "accountHolder": "Kontoinhaber",
+    "bank": "Bank",
+    "reference": "Verwendungszweck",
+    "bankPlaceholder": "[PLACEHOLDER: Bankverbindung]",
+    "partnersHeading": "Unsere Partner",
+    "contactCta": "Kontakt aufnehmen"
+  },
+  "Contact": {
+    "detailsHeading": "So erreichen Sie uns",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "address": "Anschrift",
+    "hours": "Erreichbarkeit",
+    "formHeading": "Nachricht schreiben",
+    "formPlaceholder": "[PLACEHOLDER: Kontaktformular – folgt in Phase 5]"
   }
 }

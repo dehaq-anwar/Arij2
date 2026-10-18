@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
   // Don't write AGENTS.md / CLAUDE.md into the repository on `next dev`.
   agentRules: false,
   reactStrictMode: true,
+  experimental: {
+    // Pages rendered from the CMS are cached in memory only: the production container's file
+    // system is read-only. After a restart each page is rendered again on its first visit.
+    isrFlushToDisk: false,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     localPatterns: [{ pathname: '/api/media/file/**' }],
