@@ -1,0 +1,552 @@
+# Youth of Peace e.V. — Website Plan (Phase 1)
+
+Status: **awaiting approval**. No application code has been written yet.
+
+Contents
+
+1. What I read and what it changes
+2. Stack and pinned versions
+3. Architecture
+4. Routes
+5. File tree
+6. Data models (Payload)
+7. i18n and RTL
+8. Design tokens (measured from the logo)
+9. Motion architecture
+10. Forms and privacy
+11. Security
+12. Accessibility and performance
+13. Docker and deployment
+14. Verification per phase
+15. Decisions I made (override any of them)
+16. Open questions
+17. Phase deliverables
+
+---
+
+## 1. What I read and what it changes
+
+Sources: the logo PNG, `Satzung_Youth_of_Peace__e_V_2026.pdf` (11 pages), `VR_201778.pdf` (register notice).
+
+| Finding | Source | Effect on the plan |
+|---|---|---|
+| Ordinary member: any natural person **aged 16 or older** who is willing to promote the association's aims | Satzung §3(1) | Form requires an age confirmation |
+| Applications may be submitted **in writing or online**. The **Schriftführer** decides on admission; the **Gesamtvorstand** decides on rejections | §3(2) | An online form is a valid channel. Applications get a status workflow and a `board` role |
+| The association admits only people who commit to the principles in §2 (free democratic basic order, no membership in extremist, racist or xenophobic organisations) | §2 | Required declaration checkbox in the form |
+| Fees (entrance fee + annual fee) are set by the **Beitragsordnung**, payable annually in advance by 31 January | §4 | Fee text is a placeholder until the Beitragsordnung is supplied |
+| Written invitations go to the **last address the member gave in writing** | §7(3) | Postal address is required |
+| Dial-in data for virtual general meetings is sent **by e-mail** | §7(16) | E-mail address is required |
+| §7(8) mentions **Fördermitglieder** (supporting members), but §3 only defines ordinary members | §3, §7(8) | Open question Q4c |
+| The association states it pursues charitable purposes under §§ 51–68 AO | §2 | This is the Satzung's wording, **not** confirmation from the tax office. The donation section keeps `[PLACEHOLDER: tax status]` and makes no tax claims |
+| Cooperation with the parent organisation Youth of Peace (Yemen) | §2 | Fits the "Yemen to Germany" story. Copy remains a placeholder |
+| Seat moved to Erlangen (Amtsgericht Fürth, VR 201778), entered 09.06.2026. Earlier register: Amtsgericht Kiel | VR notice | Only "VR 201778, Amtsgericht Fürth" is used. The notice also names a c/o person and a private address. **I will not use or commit either.** Both PDFs stay out of the repo, which is public |
+| The logo is two flat colours: turquoise **#1B9C9B** and navy **#04324E**. The Satzung shows an older filled logo version | logo PNG, Satzung | Tokens in §8. Open question Q2 |
+
+## 2. Stack and pinned versions
+
+Rule: every version below was published **on or before 2026-10-04** (14 days before today, 2026-10-18). I checked publish dates against the npm registry.
+
+| Package | Version | Published | Note |
+|---|---|---|---|
+| Node.js (Docker + `.nvmrc`) | 24.21.0 LTS | 2026-09-07 | Active LTS |
+| next | 16.3.8 | 2026-09-30 | 16.4.2 is too new. Payload 3.90.2 supports `>=16.3.3 <17` |
+| react, react-dom | 19.3.0 | 2026-09-09 | Falls back to the 19.2.x line if the Payload admin needs it (checked in Phase 2) |
+| payload + @payloadcms/{next,ui,db-postgres,richtext-lexical,storage-s3,translations,email-nodemailer} | 3.90.2 | 2026-09-23 | 3.91.0 is too new. Payload 4 is beta, so it's excluded |
+| graphql | 16.14.2 | 2026-06-09 | Payload's peer range is `^16.8.1`, so 17.x is excluded |
+| next-intl | 4.14.9 | 2026-10-02 | |
+| gsap | 3.15.0 | 2026-04-13 | All plugins incl. SplitText ship in the free package |
+| @gsap/react | 2.1.2 | 2025-01-15 | `useGSAP` |
+| lenis | 1.3.26 | 2026-08-05 | 1.3.27 is too new |
+| tailwindcss, @tailwindcss/postcss | 4.3.3 | 2026-07-16 | Has logical-property utilities |
+| typescript | 5.9.3 | 2025-09-30 | Not 7.0.2: TS 7 is the new native compiler, and Payload's own template still pins 5.7.3 |
+| eslint | 9.39.5 | 2026-07-10 | Not 10.x. Payload's template uses ESLint 9 and the plugin ecosystem is proven on it |
+| eslint-config-next | 16.3.8 | 2026-09-30 | |
+| prettier | 3.9.9 | 2026-09-23 | |
+| zod | 4.6.5 | 2026-09-13 | Server-side validation |
+| sharp | 0.35.5 | 2026-09-27 | Image processing for Payload |
+| @fontsource-variable/ibm-plex-sans, @fontsource/ibm-plex-sans-arabic | 5.3.0 | 2026-07-19 | Used only to obtain the woff2 files. They are copied into `src/fonts` |
+| vitest | 5.0.3 | 2026-09-30 | |
+| @playwright/test | 1.63.0 | 2026-09-04 | Checked against the pre-installed Chromium in Phase 2 |
+| @axe-core/playwright | 4.13.0 | 2026-08-11 | |
+| @lhci/cli | 0.15.1 | 2025-06-25 | Lighthouse CI |
+| Docker: postgres | 18.6-alpine3.24 | image 2026-09-21 | |
+| Docker: S3 emulator (dev only) | SeaweedFS, release tag pinned in Phase 2 | — | `minio/minio` no longer exists on Docker Hub |
+| Docker: caddy (prod) | 2.x, exact tag pinned in Phase 2 | — | TLS and reverse proxy |
+
+How the 14-day rule is enforced:
+
+- `.npmrc` sets `save-exact=true` and `engine-strict=true`. Exact versions only: no `^` or `~`.
+- Installs run with `npm install --before=<today−14d>`. This applies the cutoff to **transitive** dependencies as well, not just the direct ones.
+- `package-lock.json` is committed. Docker and CI install with `npm ci`.
+- `scripts/check-release-age.mjs` checks every lockfile entry against registry publish dates. It runs in CI and before every phase sign-off.
+
+## 3. Architecture
+
+```
+Browser ──► Caddy (TLS, HSTS, logs) ──► Next.js 16 (one Node process)
+                                         ├─ (frontend)/[locale]/…  static HTML per locale, revalidated on CMS change
+                                         ├─ (payload)/admin        Payload admin UI
+                                         ├─ (payload)/api          Payload REST (GraphQL disabled)
+                                         └─ Server Actions         membership + contact forms
+                                              │
+                         ┌────────────────────┼────────────────────┐
+                    PostgreSQL           S3-compatible        SMTP (optional)
+              (content, submissions,    storage (media)      notifications without
+               rate-limit buckets)                           personal data
+```
+
+- **One app.** Payload 3 runs inside Next.js. Site and admin live in separate route groups, each with its own root layout.
+- **Rendering.** Every public page is generated statically for each locale (`generateStaticParams` + `setRequestLocale`). Payload `afterChange`/`afterDelete` hooks call `revalidateTag`, so edits go live in seconds without a rebuild.
+- **Data access.** Server components read through the Payload **Local API**: no HTTP hop, typed via `payload-types.ts`. All queries live in `src/lib/cms/queries.ts` and are tagged for revalidation.
+- **Media.** Stored through `@payloadcms/storage-s3`. Files are served through Payload's access-controlled route, so the bucket stays private and the CSP stays same-origin. `next/image` handles optimisation and caching.
+- **Forms.** Server Actions with progressive enhancement: they work without JavaScript. They write through the Local API after validation.
+
+## 4. Routes
+
+Localised paths come from next-intl `pathnames`. German is the default locale and has no prefix.
+
+| Page | de (default) | en | ar |
+|---|---|---|---|
+| Home | `/` | `/en` | `/ar` |
+| About | `/ueber-uns` | `/en/about` | `/ar/about` |
+| Projects | `/projekte` | `/en/projects` | `/ar/projects` |
+| Project detail | `/projekte/[slug]` | `/en/projects/[slug]` | `/ar/projects/[slug]` |
+| News | `/aktuelles` | `/en/news` | `/ar/news` |
+| News detail | `/aktuelles/[slug]` | `/en/news/[slug]` | `/ar/news/[slug]` |
+| Membership | `/mitglied-werden` | `/en/membership` | `/ar/membership` |
+| Support | `/unterstuetzen` | `/en/support` | `/ar/support` |
+| Contact | `/kontakt` | `/en/contact` | `/ar/contact` |
+| Impressum | `/impressum` | `/en/legal-notice` | `/ar/legal-notice` |
+| Privacy | `/datenschutz` | `/en/privacy` | `/ar/privacy` |
+| 404 | any unknown path, in the language of its prefix |||
+| Admin | `/admin` (not localised, `noindex`) |||
+| API | `/api/*` (Payload REST) |||
+| SEO | `/sitemap.xml` (with hreflang alternates), `/robots.txt` |||
+
+- **Arabic paths use Latin slugs.** Arabic URLs are percent-encoded when shared (`/ar/%D8%B9%D9%86…`), which makes them hard to read, type, or say aloud. The page content is fully Arabic.
+- **One shared slug per project/news item.** The slug is Latin, auto-generated from the German title, and editable. This makes the language switcher and hreflang a 1:1 mapping.
+- **Language switcher.** It links to the same page in the other locale. On detail pages it links to the same document (same slug).
+
+## 5. File tree
+
+```
+.
+├── .github/workflows/ci.yml        # lint · typecheck · test · build · release-age check
+├── docker/
+│   ├── Dockerfile                  # multi-stage, Next standalone output, non-root user
+│   ├── Caddyfile                   # prod: TLS, headers, access-log retention
+│   └── seaweedfs/                  # dev-only S3 emulator config
+├── docker-compose.yml              # dev: postgres + S3 emulator
+├── docker-compose.prod.yml         # prod: app + postgres + caddy
+├── .env.example                    # every variable, no real values
+├── .npmrc                          # save-exact, engine-strict
+├── .nvmrc                          # 24.21.0
+├── next.config.ts                  # withPayload + next-intl plugin + security headers + images
+├── tsconfig.json                   # strict, noUncheckedIndexedAccess
+├── eslint.config.mjs
+├── postcss.config.mjs
+├── vitest.config.ts
+├── playwright.config.ts
+├── lighthouserc.json               # Phase 6
+├── README.md                       # German + English (Phase 6)
+├── CONTRIBUTING.md                 # the current Arabic README content moves here, unchanged
+├── docs/
+│   ├── PLAN.md                     # this document
+│   ├── privacy-notes.md            # technical data-flow facts for whoever writes the privacy policy
+│   └── content-guide.md            # editor handbook (Phase 6)
+├── scripts/
+│   ├── check-release-age.mjs       # fails if any locked package is < 14 days old
+│   ├── check-contrast.mjs          # WCAG contrast of every token pair, both themes
+│   ├── check-logical-css.mjs       # fails on physical classes (ml-*, pr-*, left-*, text-right…)
+│   ├── check-placeholders.mjs      # lists remaining [PLACEHOLDER: …] before go-live
+│   └── seed.ts                     # first admin from env + globals filled with placeholders only
+├── public/
+│   ├── logo/                       # SVG logo files once supplied
+│   └── icon.svg, apple-icon.png, favicon.ico
+├── tests/
+│   ├── unit/                       # validation, rate limit, honeypot, direction helpers
+│   └── e2e/                        # routing, switcher, RTL mirroring, forms, axe per page × locale × theme
+└── src/
+    ├── payload.config.ts
+    ├── payload-types.ts            # generated
+    ├── proxy.ts                    # next-intl locale routing (Next 16's name for middleware)
+    ├── app/
+    │   ├── (frontend)/[locale]/
+    │   │   ├── layout.tsx          # <html lang dir>, fonts, SmoothScroll, Header, Footer
+    │   │   ├── page.tsx            # Home
+    │   │   ├── about/page.tsx
+    │   │   ├── projects/page.tsx
+    │   │   ├── projects/[slug]/page.tsx
+    │   │   ├── news/page.tsx
+    │   │   ├── news/[slug]/page.tsx
+    │   │   ├── membership/page.tsx
+    │   │   ├── support/page.tsx
+    │   │   ├── contact/page.tsx
+    │   │   ├── legal-notice/page.tsx
+    │   │   ├── privacy/page.tsx
+    │   │   ├── not-found.tsx       # localised 404
+    │   │   └── [...rest]/page.tsx  # sends unknown paths to the localised 404
+    │   ├── (payload)/
+    │   │   ├── layout.tsx
+    │   │   ├── custom.scss
+    │   │   ├── admin/[[...segments]]/{page,not-found}.tsx
+    │   │   ├── admin/importMap.js
+    │   │   └── api/[...slug]/route.ts
+    │   ├── sitemap.ts
+    │   └── robots.ts
+    ├── i18n/
+    │   ├── routing.ts              # locales, default, pathnames, localePrefix 'as-needed'
+    │   ├── navigation.ts           # typed Link, redirect, usePathname, getPathname
+    │   ├── request.ts
+    │   └── messages/{de,en,ar}.json  # UI microcopy only (labels, errors, aria text, 404)
+    ├── cms/
+    │   ├── collections/            # Users, Media, Projects, News, TeamMembers, FocusAreas,
+    │   │                           # Statistics, Partners, MembershipApplications,
+    │   │                           # ContactMessages, RateLimitBuckets
+    │   ├── globals/                # SiteSettings, HomePage, AboutPage, MembershipPage,
+    │   │                           # SupportPage, ContactPage, LegalNotice, PrivacyPolicy
+    │   ├── fields/                 # slug, seo, internalLink, richText (restricted feature set)
+    │   ├── access/                 # roles, publishedOrLoggedIn
+    │   ├── hooks/                  # revalidate, password policy
+    │   └── jobs/                   # retention (scheduled deletion of old submissions)
+    ├── lib/
+    │   ├── cms/                    # getPayload, queries (Local API + cache tags)
+    │   ├── motion/                 # gsap.ts (plugin registration), direction.ts, presets.ts
+    │   ├── forms/                  # schemas (zod), actions, rate-limit, honeypot, notify
+    │   ├── seo.ts                  # metadata, canonical, hreflang alternates
+    │   └── format.ts               # Intl number/date formatting per locale
+    ├── components/
+    │   ├── layout/                 # Header, MobileNav, Footer, LanguageSwitcher, SkipLink
+    │   ├── sections/               # Hero, Mission, FocusAreas, Stats, LatestNews, CallToAction,
+    │   │                           # Timeline, Values, Board
+    │   ├── cards/                  # ProjectCard, NewsCard
+    │   ├── forms/                  # MembershipForm, ContactForm, Field, ConsentCheckbox,
+    │   │                           # Honeypot, ErrorSummary
+    │   ├── ui/                     # Button, Container, Heading, RichText, Placeholder,
+    │   │                           # EmptyState, TranslationNotice
+    │   ├── motion/                 # SmoothScroll, Reveal, Stagger
+    │   └── reactbits/              # SplitText, Waves, CountUp, SpotlightCard, LICENSE.md
+    ├── styles/
+    │   ├── globals.css             # @import "tailwindcss"; @theme mapping
+    │   └── tokens.css              # semantic colour variables, light + dark
+    └── fonts/                      # IBM Plex Sans (variable) + IBM Plex Sans Arabic, OFL.txt
+```
+
+## 6. Data models (Payload)
+
+**Localisation config:** locales `de` (default), `en`, `ar` (`rtl: true`, so Arabic fields are edited right-to-left). The admin UI itself is available in German, English and Arabic.
+
+**Localisation rule:** every human-language text field is localised (marked **L** below). Identifiers are not localised: slug, e-mail, URL, IBAN, numbers, dates. Personal and organisation names are localised but optional per locale, so a name can be written in Arabic script on `/ar`.
+
+**Placeholders:** the seed script fills globals with `[PLACEHOLDER: …]` text in all three locales. Collections start **empty**: no sample projects, news, people or numbers. Empty sections render a neutral empty state or are hidden.
+
+### Collections
+
+**Users** (auth, admin only)
+- `name`, `email`, `password`, `role`: `admin` | `editor` | `board`
+- Access: only `admin` creates or deletes users and changes roles. No public sign-up. The first admin is created by `seed.ts` from env variables.
+- Auth: `maxLoginAttempts: 5`, `lockTime: 15 min`, session 2 h, cookie `Secure` + `HttpOnly` + `SameSite=Strict`. Password minimum is 12 characters, checked by a hook.
+
+**Media** (upload → S3)
+- `alt` **L**, required unless `decorative` is checked. Decorative images render `alt=""`, so editors are never pushed into writing junk alt text.
+- `caption` **L**, `credit` (photographer/rights holder), focal point
+- Sizes: 480 / 768 / 1280 / 1920 px, plus OG 1200×630
+- Allowed types: JPEG, PNG, WebP, AVIF. **No SVG uploads**, because SVG can carry scripts. Maximum 10 MB.
+- The original is re-encoded through sharp. This **strips EXIF/GPS metadata**, so event photos can't leak locations.
+
+**Projects** (drafts + versions)
+- `title` **L**, `slug` (unique, shared across locales), `excerpt` **L** (≤ 300 characters)
+- `status`: planned | ongoing | completed; `startDate`, `endDate?`, `location` **L**
+- `focusAreas` → FocusAreas (many), `coverImage` → Media
+- `body` **L**: Lexical rich text with a restricted feature set (headings, lists, quote, link, image). **No embeds** (YouTube, maps), because they are third-party requests.
+- `gallery` → Media[], `partners` → Partners[]
+- `seo` group: `metaTitle` **L**, `metaDescription` **L**, `ogImage`
+- `publishedAt`
+- Public read access: published documents only.
+
+**News** (drafts + versions)
+- `title` **L**, `slug`, `excerpt` **L**, `publishedAt` (required), `coverImage`, `body` **L**, `relatedProjects` → Projects[], `seo`
+
+**FocusAreas**
+- `title` **L**, `summary` **L**, `icon` (select from a fixed icon set), `order`
+- Seed: the four titles you listed (youth empowerment, peacebuilding, integration, youth entrepreneurship). I translate them into de/ar for you to check. Summaries start as placeholders. See Q6.
+
+**TeamMembers** (board on the About page)
+- `name` **L**, `position` **L** (e.g. "1. Vorsitzende/r"), `group`: board | team, `photo?`, `bio?` **L**, `order`
+- `publishConsent` (checkbox) + `consentDate`. A person is shown **only** when consent is recorded.
+
+**Statistics** (the only source for counters)
+- `label` **L**, `value` (number), `prefix?` / `suffix?` **L**, `asOf` (date, required), `source` (internal note on where the figure comes from, required), `showOnHome`, `order`
+- The stats section renders only if at least one entry exists. There are no default numbers.
+
+**Partners**
+- `name` **L**, `logo?`, `url?`, `description?` **L**, `order`, `permissionConfirmed` (required before a partner is shown)
+
+**MembershipApplications** (never publicly readable)
+- Fields derived from the Satzung (confirm in Q4):
+
+  | Field | Required | Why (Satzung) |
+  |---|---|---|
+  | `firstName`, `lastName` | yes | §3(1): membership is for natural persons |
+  | `ageConfirmed16` (or `dateOfBirth`, see Q4a) | yes | §3(1): minimum age 16 |
+  | `street`, `postalCode`, `city`, `country` | yes | §7(3): written invitations go to the member's address |
+  | `email` | yes | §7(16): dial-in data is sent by e-mail |
+  | `declarationPrinciples` (checkbox) | yes | §2 + §3(1): commitment to the principles, willingness to promote the aims |
+  | `feeAcknowledged` (checkbox) | yes | §4: fees per Beitragsordnung, due by 31 January |
+  | `privacyConsent` + `consentedAt` + `privacyPolicyVersion` | yes | GDPR record of consent |
+  | `membershipType` | only if Q4c = yes | §7(8) mentions supporting members |
+  | `guardianConsent` group | only if Q4b = yes | applicants aged 16–17 |
+
+- **Not collected:** phone, gender, nationality, religion, bank details (IBAN/SEPA), or free-text motivation.
+- Admin-only fields: `status` (received | accepted | rejected), `decidedBy`, `decisionDate`, `internalNotes`, `locale`, `submittedAt`.
+- Access: no public create or read. The Server Action writes via the Local API. `board` and `admin` can read and update; only `admin` can delete.
+
+**ContactMessages** (never publicly readable)
+- `name`, `email`, `topic` (general | membership | volunteering | partnership | press | other), `message` (≤ 5000 characters), `privacyConsent` + `consentedAt`, `locale`, `submittedAt`, `status` (new | answered)
+- Deleted automatically after `[PLACEHOLDER: retention days]` by a scheduled job.
+
+**RateLimitBuckets** (hidden from the admin UI)
+- `key` = HMAC-SHA256(IP + form name, daily-rotating secret), `windowStart`, `count`, `expiresAt`
+- Raw IPs are never stored and never linked to a submission. Expired rows are deleted.
+
+### Globals
+
+| Global | Fields (L = localised) |
+|---|---|
+| **SiteSettings** | `name` "Youth of Peace e.V."; `seat` "Erlangen"; `registerCourt` "Amtsgericht Fürth"; `registerNumber` "VR 201778"; `founded` 2013 / `foundedIn` **L** ("Jemen", "Yemen", "اليمن"); `tagline` **L**, `address`, `email`, `phone`, `chairman` → all `[PLACEHOLDER]`; `socialLinks[]` (plain links, no widgets); `defaultSeo` **L** |
+| **HomePage** | `hero` {`headline` **L**, `subline` **L**, `primaryCta`/`secondaryCta` (label **L** + internal target)}; `mission` **L** (one sentence, ≤ 200 characters); `focusAreasIntro` **L**; `statsHeading` **L**; `newsHeading` **L**; `cta` {`heading` **L**, `text` **L**} |
+| **AboutPage** | `intro` **L**; `story[]` {`year`, `title` **L**, `body` **L**} for 2013 Yemen → Germany; `values[]` {`title` **L**, `description` **L**}; `boardIntro` **L** |
+| **MembershipPage** | `intro` **L**, `whoCanJoin` **L**, `fees` **L** `[PLACEHOLDER: Beitragsordnung]`, `process` **L**, `formIntro` **L**, `successMessage` **L** |
+| **SupportPage** | `volunteer` {heading, text **L**}; `partner` {heading, text **L**}; `donate` {heading, text **L**, `bankDetails` {holder, IBAN, BIC, bank} `[PLACEHOLDER]`, `taxStatusNote` **L** = `[PLACEHOLDER: tax status]`}. No donation figures, no online payment widget |
+| **ContactPage** | `intro` **L**, show/hide toggles for address, e-mail and phone, `officeHours?` **L**, `formIntro` **L**, `successMessage` **L** |
+| **LegalNotice** (Impressum) | `content` **L** (rich text, seeded `[PLACEHOLDER: Impressum per § 5 DDG]`), `lastUpdated` |
+| **PrivacyPolicy** | `content` **L** (seeded `[PLACEHOLDER: Datenschutzerklärung]`), `version` (stored with each form consent), `lastUpdated` |
+
+I will not write legal text. `docs/privacy-notes.md` will list only **technical facts** about the implementation (data flows, storage, retention, cookies: none) as input for whoever drafts the policy.
+
+### Untranslated content
+
+Payload falls back to German when a locale is empty. When that happens, the page:
+- marks the fallback block `lang="de" dir="ltr"` so screen readers and RTL layout stay correct
+- shows a short notice in the visitor's language that this item is not yet translated
+- lists hreflang alternates only for locales that actually have a translation
+
+## 7. i18n and RTL
+
+- **next-intl routing:** `localePrefix: 'as-needed'`, `localeDetection: false`, `localeCookie: false`. Result: **zero cookies for visitors** and no surprise redirects. Language choice is explicit, via the switcher.
+- `<html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>`.
+- **Logical CSS only.** Tailwind v4 logical utilities (`ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`, `text-start`, `border-s`, `rounded-s`). `check-logical-css.mjs` fails lint on physical classes. Directional icons (arrows, chevrons) flip with `rtl:-scale-x-100`.
+- **Fonts, self-hosted** via `next/font/local`: IBM Plex Sans (variable, Latin) and IBM Plex Sans Arabic (400/500/700). Both are from the same type family, so the metrics match across scripts. Only the current locale's font is preloaded, with `font-display: swap`. Arabic gets a taller line height via a `:lang(ar)` token.
+- **Arabic text is split by words, never by characters.** Splitting characters breaks Arabic letter joining.
+- **SEO:** `alternates.languages` for de/en/ar plus `x-default` (German), on every page and in the sitemap.
+- **Switcher:** each language name is written in its own language and marked up accordingly (`Deutsch`, `English`, `<span lang="ar">العربية</span>`). It uses `hreflang` on the links. No flags.
+
+## 8. Design tokens (measured from the logo)
+
+Sampled from the attached logo PNG: brand turquoise **#1B9C9B**, brand navy **#04324E**. The light blues in the Satzung letterhead (#CFE1F1, #8BB7E0) look like a Word page-design template rather than brand colours, so they are excluded until you confirm (Q3).
+
+**Contrast problem:** the brand turquoise reaches only **3.35:1 on white**. That fails WCAG AA for body text, and white text on a turquoise button fails too. The tokens therefore separate a *brand* turquoise (decorative) from a *text-safe* turquoise. Measured contrast ratios:
+
+| Token | Light | Contrast | Dark | Contrast |
+|---|---|---|---|---|
+| `--bg` | #FFFFFF | — | #03243A | — |
+| `--surface` | #E8F4F6 | — | #06304B | — |
+| `--text` | #04324E (navy) | 13.36 on bg, 11.90 on surface | #E6F2F4 | 13.95 on bg, 11.99 on surface |
+| `--text-muted` | #3E5A6B | 7.29 | #A7C1CD | 8.47 |
+| `--accent` (links, buttons) | #0F6F6E | 5.97 on bg, 5.31 on surface | #4CC4C2 | 7.58 on bg, 6.52 on surface |
+| `--on-accent` (button text) | #FFFFFF | 5.97 | #03243A | 7.58 |
+| `--brand` (decorative, icons, ≥ 24px text) | #1B9C9B | 3.35 (UI/large only) | #1B9C9B | 4.76 |
+| `--focus` | #0F6F6E, 2px + offset | ≥ 3:1 | #4CC4C2 | ≥ 3:1 |
+
+- Danger and success colours are added in Phase 2. `check-contrast.mjs` asserts every pair: ≥ 4.5 for text, ≥ 3 for UI and large text.
+- **Theme follows the OS setting** (`prefers-color-scheme`). There is no toggle, so nothing is stored on the visitor's device. A toggle can be added later.
+
+## 9. Motion architecture
+
+**One loop.** Lenis runs with `autoRaf: false` and is driven by `gsap.ticker`. `lenis.on('scroll', ScrollTrigger.update)` and `gsap.ticker.lagSmoothing(0)` keep the two in sync. The canvas background also subscribes to `gsap.ticker`. No component starts its own `requestAnimationFrame`.
+
+**Reduced motion** (checked live through `matchMedia`, so a change takes effect without reload):
+- Lenis is not created; scrolling is native.
+- Every animation runs inside `gsap.matchMedia()`. In the reduced branch, elements jump straight to their final state.
+- Counters show the final value, and the canvas background is not rendered.
+- No parallax and no pinning, anywhere on the site, in either mode.
+
+**Cleanup.** Every animated component uses `useGSAP(fn, { scope })`, so its GSAP context is reverted on unmount, which covers route changes. On navigation, `SmoothScroll` resets the scroll position, respects `#hash` targets, and calls `ScrollTrigger.refresh()` once the new page is painted. The Lenis instance is destroyed on provider unmount.
+
+**RTL mirroring.** `src/lib/motion/direction.ts` exports `dirX(dir, n)`, which negates `n` in RTL. All presets (`fadeUp`, `slideInStart`, `stagger`) live in `presets.ts` and take `dir`. A lint check flags raw `x:`/`xPercent:` literals outside `presets.ts`.
+
+**No invisible content without JavaScript.** Server HTML is fully visible. A tiny inline script adds `class="js"` before first paint, and the hidden "pre-reveal" state applies only under `.js` and `prefers-reduced-motion: no-preference`.
+
+**LCP protection.** The hero headline is the likely LCP element, so it is **not hidden until hydration** (on mobile that would sink the Performance score). The intro animates the subline, the CTAs and the background. If Lighthouse shows the headline's split-text effect delaying LCP, the headline switches to a CSS first-paint animation and GSAP keeps the rest.
+
+**Animation inventory** (all short: ≤ 0.8 s, `power2.out`, played once):
+- Hero intro
+- Section fade/slide-up on entering the viewport
+- Card stagger (0.08 s)
+- Counters
+- Card hover spotlight (only on devices with a fine pointer)
+
+**React Bits components** (four, copied into `src/components/reactbits`, typed, using our tokens):
+
+| Component | Use | Adaptation |
+|---|---|---|
+| SplitText | Hero headline | Word split only (Arabic-safe). `aria-label` on the wrapper and `aria-hidden` on the pieces (GSAP SplitText `aria: 'auto'`). Directional offsets via `dirX` |
+| Waves | Hero background | Canvas 2D: no WebGL, no extra dependency. Thin turquoise lines echo the logo's line art. Driven by `gsap.ticker`, paused when off-screen or the tab is hidden, lower density on small screens, `aria-hidden` |
+| CountUp | Statistics | Re-implemented on GSAP (the original uses the `motion` library, and I won't add a second animation library). Server HTML already contains the final value; the animated digits are `aria-hidden` next to a screen-reader-only final value; `Intl.NumberFormat` per locale |
+| SpotlightCard | Project/news cards | CSS custom properties, no dependency. Only under `(hover: hover) and (pointer: fine)`. Focus styling is independent of the effect |
+
+**Licences:**
+- GSAP is free, including all plugins, under its standard licence. Fine for this site.
+- React Bits is **MIT + Commons Clause**. Using the components "as part of an application, website, or product" is allowed if the copyright notice is kept (in `reactbits/LICENSE.md`). It forbids "redistributing the components themselves". **This repository is public**, so the copied source would be downloadable on GitHub, which is a grey area. See Q1.
+
+## 10. Forms and privacy
+
+**Server Actions + zod.** Validation on the server is authoritative. The forms work without JavaScript.
+
+**Spam protection without reCAPTCHA:**
+- A **honeypot** field: off-screen, `tabindex="-1"`, `autocomplete="off"`, `aria-hidden`.
+- An HMAC-signed **timestamp token** rejects submissions faster than 3 s or older than 24 h.
+- Bots receive a fake success response, so they learn nothing.
+
+**Rate limiting** in Postgres (no Redis):
+- Per form: 5 submissions per 10 minutes, 20 per day, per hashed IP.
+- The client IP is read only from the trusted proxy's `X-Forwarded-For`.
+- The same limiter guards the Payload login route.
+
+**Consent:**
+- The consent checkbox is unchecked by default, required, and links to the privacy page in the current language.
+- The consent timestamp and the privacy-policy version are stored with each submission.
+
+**Accessible forms:**
+- Labels on every field; `aria-describedby` for hints and errors; `aria-invalid`.
+- On failure, an error summary receives focus.
+- Success is announced in a live region.
+
+**Data location and e-mail:**
+- Submissions are stored **only in our Postgres** (EU region).
+- The optional notification e-mail to the association contains **no personal data**: only "new application received" and an admin link.
+- Whether applicants get a confirmation e-mail is decided in Phase 5.
+
+**Retention:** a Payload scheduled job deletes contact messages and rejected applications after `[PLACEHOLDER]` days (Q7).
+
+**No cookies for visitors:**
+- next-intl's cookie is disabled, there is no analytics, and the theme is not stored.
+- The only cookie is Payload's auth cookie, set **after an editor logs into /admin** (strictly necessary, HttpOnly, Secure, SameSite=Strict).
+- `docs/privacy-notes.md` records this as the technical basis for "no banner needed". That reasoning is input for your legal review, not legal advice.
+
+**No runtime third-party requests:**
+- Fonts are self-hosted, and there are no CDNs, embeds, maps, social widgets or payment widgets.
+- Payload's `code`/`json` fields are **not used**: their editor (Monaco) loads from a CDN by default. I'll verify what Payload 3.90 actually does in Phase 5.
+
+## 11. Security
+
+**Headers** (`next.config.ts`, mirrored in Caddy):
+- **CSP:** `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests`
+- **HSTS:** `max-age=31536000; includeSubDomains`. No `preload` until you decide; it is hard to undo.
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()`
+- `Cross-Origin-Opener-Policy: same-origin`
+- The `/admin` CSP is verified separately in Phase 5.
+
+**Why no nonce-based CSP?** In Next.js, a per-request nonce forces **every page to render dynamically**. That gives up static HTML and caching, and hurts Lighthouse. The `'unsafe-inline'` residual risk is low here: no third-party scripts, and no user-supplied HTML (rich text renders as React elements, never `dangerouslySetInnerHTML`). If you prefer maximum CSP strictness over static pages, I'll switch to nonces.
+
+**Payload:**
+- GraphQL disabled; CORS and CSRF restricted to our own origin.
+- `PAYLOAD_SECRET` is ≥ 32 random bytes from the environment.
+- Login lockout, short sessions and the password rule (§6); no public registration.
+- **2FA:** Payload has no built-in TOTP. In Phase 5 I'll evaluate a maintained plugin against the version rules. If none qualifies, I'll document an optional Caddy IP allowlist or basic auth in front of `/admin`.
+
+**Operations:**
+- Container runs as non-root, `npm ci` with `--omit=dev` in the runtime image, Next standalone output.
+- Postgres is not exposed to the internet.
+- `.env*` is gitignored and `.env.example` holds placeholders only.
+- `npm audit --omit=dev` and the release-age check run in CI.
+
+## 12. Accessibility and performance
+
+**Accessibility (WCAG 2.1 AA):**
+- Landmarks, a skip link, one `h1` per page and correct heading order.
+- `lang` attributes on mixed-language snippets.
+- A visible focus ring from tokens.
+- Mobile menu: focus trap, Esc closes it, `aria-expanded`.
+- Touch targets ≥ 44px; reflow at 320px; 200% text zoom.
+
+**Performance:**
+- Static HTML, with client JavaScript only in small islands (motion, forms, menu).
+- No WebGL.
+- `next/image` with AVIF/WebP and correct `sizes`; only the hero image gets `priority`.
+- Subset fonts, preloaded per locale.
+
+**Audits (Phase 6):**
+- axe through Playwright on every page × 3 locales × 2 themes.
+- Lighthouse CI, mobile profile: Performance ≥ 90, Accessibility ≥ 95.
+- Manual keyboard and screen-reader pass (NVDA/VoiceOver checklist).
+
+## 13. Docker and deployment
+
+- **Dockerfile:** multi-stage (deps → build → runner) on `node:24.21.0-alpine`, exact tag. Standalone output, non-root user, healthcheck.
+- **docker-compose.yml (dev):** Postgres 18.6 + SeaweedFS (S3 API). The app runs with `npm run dev` on the host for fast refresh; a containerised variant is available too.
+- **docker-compose.prod.yml:** app + Postgres + Caddy (automatic TLS), named volumes, a `pg_dump` backup routine to `[PLACEHOLDER: backup target]`.
+- **Migrations:** Payload Postgres migrations are committed and run on container start. The production database never uses schema `push`.
+- **Hosting:** EU region, `[PLACEHOLDER: hosting + S3 provider]`. German or EU VPS and object storage providers all fit. Each needs a data processing agreement (AV-Vertrag).
+
+## 14. Verification per phase
+
+Every phase ends with real command output for:
+- `npm run lint`: ESLint + logical-CSS check + contrast check
+- `npm run typecheck`: `tsc --noEmit`
+- `npm run build`
+- `npm run test`: vitest
+- `npm run check:deps`: release-age check
+
+From Phase 3 on, also `npm run test:e2e` (Playwright + axe), with the app running against Postgres. Docker 29.8 and Postgres tooling are available in this environment. If the Docker daemon is unavailable here, I'll run Postgres natively for the checks and say so.
+
+## 15. Decisions I made (override any of them)
+
+1. Next 16.3.8 + Payload 3.90.2: the newest pair that is ≥ 14 days old and officially compatible.
+2. TypeScript 5.9.3 and ESLint 9.39.5 instead of TS 7 / ESLint 10.
+3. Localised paths: German slugs for de; English slugs for en and ar.
+4. One shared Latin slug per project/news item.
+5. Untranslated items show German content, correctly marked, with a notice. hreflang lists only translated locales.
+6. No language auto-detection and no locale cookie, so visitors get zero cookies.
+7. The theme follows the OS setting; no toggle.
+8. Static CSP with `'unsafe-inline'`, so pages stay static and fast (vs. nonces).
+9. IBM Plex Sans + IBM Plex Sans Arabic.
+10. GraphQL off; no Payload `code`/`json` fields.
+11. UI microcopy (labels, errors) lives in next-intl JSON files; all editorial content lives in the CMS.
+12. SeaweedFS as the dev S3 emulator; Postgres 18.
+13. Donations: bank-transfer details only. No payment widget, no figures, no tax claims.
+14. No third-party embeds. If video or maps are needed later, they get a click-to-load consent step.
+15. Notification e-mails carry no personal data.
+16. Uploaded images are re-encoded to strip EXIF/GPS.
+17. The current `README.md` (Arabic contributing guide) moves unchanged to `CONTRIBUTING.md` in Phase 6, when the German/English README is written.
+
+## 16. Open questions
+
+Each question is marked with the phase that needs the answer. Until then, placeholders are used.
+
+- **Q1 (Phase 2): React Bits and the public repo.** The licence forbids redistributing the components themselves, and this repo is public. Options:
+  - (a) make the repo private (recommended)
+  - (b) accept the grey area
+  - (c) skip React Bits and write equivalent effects from scratch on GSAP
+- **Q2 (Phase 3): Logo.** Is the attached line-art dove the current logo? The Satzung shows an older filled version. Please supply **SVG** (or AI/EPS/PDF). It is needed for crisp rendering at every size, a dark-mode variant, and an optional line-drawing intro of the dove.
+- **Q3 (Phase 2): Light blue.** Is it a brand colour? If so, give the hex value. Otherwise I'll derive light tints from the turquoise and navy (the current `--surface` #E8F4F6).
+- **Q4 (Phase 5): Membership form.** Please confirm the fields in §6, and answer:
+  - (a) Age: a "**I am at least 16**" checkbox (less data) or date of birth?
+  - (b) Do applicants aged 16–17 need guardian consent? This is a legal question for your board or advisor.
+  - (c) Should the form offer **Fördermitgliedschaft**? §7(8) mentions it, but §3 doesn't define it.
+  - (d) Fee amounts from the Beitragsordnung.
+- **Q5 (Phase 4): Copy.** May I draft the mission sentence, values and About text from the Satzung §2 wording, clearly marked as drafts for your approval? Or should everything stay `[PLACEHOLDER]`?
+- **Q6 (Phase 4): Focus areas.** You listed four. Satzung §2 also names volunteering and intergenerational exchange, media literacy and journalism training, and cooperation with the Yemen parent organisation. "Youth entrepreneurship" does not appear in §2. Keep the four, or adjust?
+- **Q7 (Phase 5): Retention and notifications.** Retention periods for contact messages and rejected applications, and which address receives notifications (e.g. the Schriftführer's).
+- **Q8 (Phase 4): Arabic digits.** Western (0–9) or Arabic-Indic (٠–٩)?
+
+## 17. Phase deliverables
+
+| Phase | Deliverable | Done when |
+|---|---|---|
+| 2 | Next + Payload + Postgres + S3 running in Docker; next-intl routing for de/en/ar with RTL; design tokens + contrast check; fonts self-hosted; CI skeleton; release-age check | build/lint/typecheck pass; `/`, `/en`, `/ar` and `/admin` respond; output shown |
+| 3 | Locale layout, header/footer, mobile nav, language switcher, skip link; Lenis + GSAP shared ticker, presets, reduced motion, route-change cleanup | e2e: switcher keeps the equivalent page; `dir=rtl` on /ar; animations mirror; no leaked ScrollTriggers after navigation |
+| 4 | All 11 page types + 404 in 3 languages; all collections/globals wired; seed with placeholders only; revalidation hooks; React Bits components | every route renders in every locale; empty states verified; no invented content (placeholder scan) |
+| 5 | Membership + contact forms, honeypot, rate limit, consent records, retention job, security headers, admin hardening, privacy-notes.md | unit + e2e tests for validation, rate limiting, honeypot; header scan output |
+| 6 | axe + Lighthouse mobile audits with fixes; README (DE + EN) incl. deployment, backups, editor guide | Lighthouse Performance ≥ 90, Accessibility ≥ 95 on key pages; reports attached |
