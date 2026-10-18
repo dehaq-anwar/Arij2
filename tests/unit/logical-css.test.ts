@@ -42,6 +42,7 @@ describe('findPhysicalCss (Tailwind classes)', () => {
 
   it('does not flag words that merely contain the letters', () => {
     expect(matches('const html-left = "<html-root>"; // overflow-left? no: html-')).toEqual([])
+    expect(matches('// Mirrors offsets for right-to-left layouts (left-to-right too)')).toEqual([])
   })
 
   it('honours the ignore marker', () => {

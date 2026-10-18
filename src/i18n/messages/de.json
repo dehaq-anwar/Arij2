@@ -6,17 +6,61 @@
   "Common": {
     "skipToContent": "Zum Inhalt springen"
   },
-  "SetupPreview": {
-    "notice": "Technische Vorschau (Phase 2). Die echten Seiten folgen in Phase 4.",
-    "localeLabel": "Sprache",
-    "directionLabel": "Textrichtung",
-    "otherLanguages": "Diese Seite in anderen Sprachen",
-    "tokensHeading": "Farb-Tokens",
-    "typeHeading": "Schrift",
-    "typeSample": "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern.",
-    "weightsLabel": "Schriftschnitte",
-    "buttonSample": "Beispiel-Schaltfläche",
-    "linkSample": "Beispiel-Link",
-    "numberSample": "Zahlenformat"
+  "Navigation": {
+    "home": "Startseite",
+    "about": "Über uns",
+    "projects": "Projekte",
+    "news": "Aktuelles",
+    "membership": "Mitglied werden",
+    "support": "Unterstützen",
+    "contact": "Kontakt",
+    "legalNotice": "Impressum",
+    "privacy": "Datenschutz",
+    "mainLabel": "Hauptnavigation",
+    "footerLabel": "Seitenübersicht",
+    "legalLabel": "Rechtliches"
+  },
+  "Header": {
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen",
+    "menu": "Menü"
+  },
+  "LanguageSwitcher": {
+    "label": "Sprache"
+  },
+  "Footer": {
+    "founded": "Gegründet 2013 im Jemen – heute auch in Deutschland aktiv.",
+    "seatLabel": "Sitz",
+    "seat": "Erlangen (Bayern)",
+    "registerLabel": "Vereinsregister",
+    "register": "VR 201778, Amtsgericht Fürth",
+    "navHeading": "Navigation",
+    "contactHeading": "Kontakt",
+    "address": "[PLACEHOLDER: Postanschrift]",
+    "email": "[PLACEHOLDER: E-Mail-Adresse]"
+  },
+  "Placeholder": {
+    "pageContent": "[PLACEHOLDER: Der Inhalt dieser Seite wird in Phase 4 im CMS angelegt.]",
+    "legalNotice": "[PLACEHOLDER: Impressum nach § 5 DDG – der Text wird vom Verein geliefert.]",
+    "privacy": "[PLACEHOLDER: Datenschutzerklärung – der Text wird vom Verein geliefert.]"
+  },
+  "Home": {
+    "missionHeading": "Unsere Mission",
+    "mission": "[PLACEHOLDER: Mission in einem Satz]",
+    "focusHeading": "Schwerpunkte",
+    "focusSummary": "[PLACEHOLDER: Kurzbeschreibung]",
+    "focusYouthEmpowerment": "Empowerment junger Menschen",
+    "focusPeacebuilding": "Friedensförderung",
+    "focusIntegration": "Integration",
+    "focusEntrepreneurship": "Jugendunternehmertum",
+    "newsHeading": "Aktuelles",
+    "newsEmpty": "Noch keine Beiträge veröffentlicht.",
+    "ctaHeading": "Mitmachen",
+    "ctaText": "[PLACEHOLDER: kurzer Aufruf, Mitglied zu werden oder den Verein zu unterstützen]"
+  },
+  "NotFound": {
+    "title": "Seite nicht gefunden",
+    "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
+    "backHome": "Zur Startseite"
   }
 }

@@ -11,7 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . && node scripts/check-logical-css.mjs && node scripts/check-contrast.mjs",
+    "lint": "eslint . && node scripts/check-logical-css.mjs && node scripts/check-motion-direction.mjs && node scripts/check-contrast.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
@@ -24,9 +24,12 @@
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create",
     "migrate:status": "payload migrate:status",
-    "check:audit": "node scripts/check-audit.mjs"
+    "check:audit": "node scripts/check-audit.mjs",
+    "test:e2e": "playwright test",
+    "check:placeholders": "node scripts/check-placeholders.mjs"
   },
   "dependencies": {
+    "@gsap/react": "2.1.2",
     "@payloadcms/db-postgres": "3.90.2",
     "@payloadcms/next": "3.90.2",
     "@payloadcms/richtext-lexical": "3.90.2",
@@ -34,6 +37,8 @@
     "@payloadcms/translations": "3.90.2",
     "@payloadcms/ui": "3.90.2",
     "graphql": "16.14.2",
+    "gsap": "3.15.0",
+    "lenis": "1.3.26",
     "next": "16.3.8",
     "next-intl": "4.14.9",
     "payload": "3.90.2",
@@ -42,6 +47,8 @@
     "sharp": "0.35.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.19.1",
     "@types/react": "19.3.0",

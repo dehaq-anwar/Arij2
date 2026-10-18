@@ -6,17 +6,61 @@
   "Common": {
     "skipToContent": "Skip to content"
   },
-  "SetupPreview": {
-    "notice": "Technical preview (Phase 2). The real pages follow in Phase 4.",
-    "localeLabel": "Language",
-    "directionLabel": "Text direction",
-    "otherLanguages": "This page in other languages",
-    "tokensHeading": "Colour tokens",
-    "typeHeading": "Typography",
-    "typeSample": "The quick brown fox jumps over the lazy dog.",
-    "weightsLabel": "Font weights",
-    "buttonSample": "Sample button",
-    "linkSample": "Sample link",
-    "numberSample": "Number format"
+  "Navigation": {
+    "home": "Home",
+    "about": "About us",
+    "projects": "Projects",
+    "news": "News",
+    "membership": "Become a member",
+    "support": "Support us",
+    "contact": "Contact",
+    "legalNotice": "Legal notice",
+    "privacy": "Privacy policy",
+    "mainLabel": "Main navigation",
+    "footerLabel": "Site navigation",
+    "legalLabel": "Legal"
+  },
+  "Header": {
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "menu": "Menu"
+  },
+  "LanguageSwitcher": {
+    "label": "Language"
+  },
+  "Footer": {
+    "founded": "Founded in Yemen in 2013, now also active in Germany.",
+    "seatLabel": "Registered office",
+    "seat": "Erlangen (Bavaria)",
+    "registerLabel": "Register of associations",
+    "register": "VR 201778, Amtsgericht Fürth (local court)",
+    "navHeading": "Navigation",
+    "contactHeading": "Contact",
+    "address": "[PLACEHOLDER: postal address]",
+    "email": "[PLACEHOLDER: email address]"
+  },
+  "Placeholder": {
+    "pageContent": "[PLACEHOLDER: this page's content will be created in the CMS in Phase 4.]",
+    "legalNotice": "[PLACEHOLDER: legal notice (Impressum, § 5 DDG) – text to be supplied by the association.]",
+    "privacy": "[PLACEHOLDER: privacy policy – text to be supplied by the association.]"
+  },
+  "Home": {
+    "missionHeading": "Our mission",
+    "mission": "[PLACEHOLDER: mission in one sentence]",
+    "focusHeading": "Focus areas",
+    "focusSummary": "[PLACEHOLDER: short description]",
+    "focusYouthEmpowerment": "Youth empowerment",
+    "focusPeacebuilding": "Peacebuilding",
+    "focusIntegration": "Integration",
+    "focusEntrepreneurship": "Youth entrepreneurship",
+    "newsHeading": "News",
+    "newsEmpty": "No posts published yet.",
+    "ctaHeading": "Get involved",
+    "ctaText": "[PLACEHOLDER: short call to become a member or support the association]"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "text": "The page you requested does not exist or has moved.",
+    "backHome": "Back to the home page"
   }
 }

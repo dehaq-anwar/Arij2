@@ -1,9 +1,10 @@
 // Fails on physical left/right CSS in our source, so layouts mirror correctly in Arabic (RTL).
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { findPhysicalCss, IGNORE_MARKER } from './lib/logical-css.mjs'
+import { walkSources } from './lib/walk.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skip = [
@@ -12,18 +13,8 @@ const skip = [
   'src/migrations',
 ]
 
-function* walk(dir) {
-  for (const name of readdirSync(dir)) {
-    const full = path.join(dir, name)
-    const rel = path.relative(root, full)
-    if (skip.some((s) => rel === s || rel.startsWith(`${s}${path.sep}`))) continue
-    if (statSync(full).isDirectory()) yield* walk(full)
-    else if (/\.(tsx?|css)$/.test(name)) yield { full, rel }
-  }
-}
-
 let total = 0
-for (const { full, rel } of walk(path.join(root, 'src'))) {
+for (const { full, rel } of walkSources(root, path.join(root, 'src'), /\.(tsx?|css)$/, skip)) {
   const kind = rel.endsWith('.css') ? 'css' : 'tsx'
   for (const f of findPhysicalCss(readFileSync(full, 'utf8'), kind)) {
     console.error(`${rel}:${f.line}  "${f.match}"  →  ${f.text}`)

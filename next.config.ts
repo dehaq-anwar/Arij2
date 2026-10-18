@@ -12,6 +12,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  // Don't write AGENTS.md / CLAUDE.md into the repository on `next dev`.
+  agentRules: false,
   reactStrictMode: true,
   images: {
     formats: ['image/avif', 'image/webp'],

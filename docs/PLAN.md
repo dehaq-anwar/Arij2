@@ -23,6 +23,7 @@ Contents
 17. Phase deliverables
 18. Answers and decisions log
 19. Phase 2 implementation notes
+20. Phase 3 implementation notes
 
 ---
 
@@ -595,4 +596,18 @@ Deviations from the plan and findings made while building Phase 2:
 | Payload log levels | `loggingLevels` matches errors by class name, which the production bundle minifies, so it has no effect there. Anonymous `GET /api/users` (403) is logged as ERROR | Revisit in Phase 5 together with rate limiting and logging |
 | RTL | In Arabic text, "Youth of Peace e.V." rendered as ".Youth of Peace e.V" | `OrgName` component isolates the name with `<bdi>`; the Arabic page title uses Unicode isolates. Covered by a unit test |
 | 404 page | Unknown paths currently show Next's default 404 without `lang`/`dir` | Localised 404 in all three languages is Phase 4 as planned |
+
+## 20. Phase 3 implementation notes
+
+| Topic | What happened | Consequence |
+|---|---|---|
+| Logo | Until the SVG arrives, the dove mark is cropped from the supplied PNG; the name is real HTML text (sharp, readable by screen readers, legible in dark mode). Favicon and app icons are generated from the mark | Replace `src/assets/logo/yop-mark.png` and the icons once the SVG is supplied. The mark is never mirrored in RTL |
+| 404 pages | Next.js 16.3.8 answers `notFound()` with status **404** and an empty shell; the browser then renders the localized 404 page (header, footer, `lang`/`dir`). Reproduced in a minimal stock Next.js app, so this is framework behaviour, not this project's code. `global-not-found` and a pass-through root layout were tried and do not change it | 404 status and the visible page are correct with JavaScript. Without JavaScript the 404 page is blank. Re-check when Next.js is upgraded |
+| Standalone server binding | With `HOSTNAME=127.0.0.1`, next-intl's internal rewrites look external to Next and every German URL without prefix loops (307 to itself). With `0.0.0.0` (the Docker default) everything works, also behind a reverse proxy with a public `Host` header | Always bind the standalone server to `0.0.0.0`; restrict access with the network/firewall instead. Documented in `docs/development.md`; the e2e server binds `0.0.0.0` |
+| Language switcher | next-intl links to the default locale with a `/de` prefix (to refresh its locale cookie, which this site doesn't use) | Switcher hrefs come from `getPathname()`, the same source as the hreflang alternates, so German links are canonical (`/ueber-uns`). Covered by e2e |
+| Locale layout | `dynamicParams = false` in the root `[locale]` layout is inherited by child segments and blocked the catch-all 404 route | Removed; the layout validates the locale with `notFound()` |
+| Mobile header | Screenshots showed the membership button in the phone header (a `hidden` class lost against the button's own `inline-flex`) | Fixed with a wrapper; e2e now checks the phone header (no button, name on one line, no horizontal scroll) |
+| Next.js dev | `next dev` writes `AGENTS.md`/`CLAUDE.md` into the repository | Disabled with `agentRules: false` |
+| Motion | Lenis runs on GSAP's ticker (one loop); reveals start hidden only when JavaScript runs and motion is allowed, with a 4 s safety fallback; horizontal offsets go through `dirX()` and a lint check enforces it | e2e verifies reduced motion, no-JS visibility, RTL mirroring and that no ScrollTriggers/tweens are left behind after navigation |
+| Placeholders | `npm run check:placeholders` lists every `[PLACEHOLDER: …]` left; `--strict` fails (launch gate) | 28 at the end of Phase 3 |
 

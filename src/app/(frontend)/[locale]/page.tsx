@@ -1,116 +1,112 @@
-import { hasLocale } from 'next-intl'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 
+import { Reveal } from '@/components/motion/Reveal'
+import { Stagger } from '@/components/motion/Stagger'
+import { ButtonLink } from '@/components/ui/ButtonLink'
+import { Container } from '@/components/ui/Container'
 import { OrgName } from '@/components/ui/OrgName'
-import { getDirection, getIntlLocale, localeNames } from '@/i18n/locale'
-import { Link } from '@/i18n/navigation'
-import { routing } from '@/i18n/routing'
+import { Placeholder } from '@/components/ui/Placeholder'
+import { resolveLocale } from '@/lib/locale-page'
+import { localizedAlternates } from '@/lib/seo'
 
-// Temporary Phase 2 page: shows routing, direction, fonts and colour tokens for review.
-// It is replaced by the real home page in Phase 4.
+// Phase 3 home: the final section structure with placeholder content and the motion primitives.
+// Phase 4 fills it from the CMS (HomePage global, FocusAreas, News, Statistics).
 
-const swatches = [
-  { token: 'canvas', className: 'bg-canvas' },
-  { token: 'surface', className: 'bg-surface' },
-  { token: 'surface-sky', className: 'bg-surface-sky' },
-  { token: 'ink', className: 'bg-ink' },
-  { token: 'ink-muted', className: 'bg-ink-muted' },
-  { token: 'accent', className: 'bg-accent' },
-  { token: 'accent-hover', className: 'bg-accent-hover' },
-  { token: 'brand', className: 'bg-brand' },
-  { token: 'brand-navy', className: 'bg-brand-navy' },
-  { token: 'sky', className: 'bg-sky' },
-  { token: 'sky-light', className: 'bg-sky-light' },
-  { token: 'line-strong', className: 'bg-line-strong' },
-  { token: 'danger', className: 'bg-danger' },
-  { token: 'success', className: 'bg-success' },
+const focusAreas = [
+  'focusYouthEmpowerment',
+  'focusPeacebuilding',
+  'focusIntegration',
+  'focusEntrepreneurship',
 ] as const
 
 type Props = { params: Promise<{ locale: string }> }
 
-export default async function SetupPreviewPage({ params }: Props) {
-  const { locale } = await params
-  if (!hasLocale(routing.locales, locale)) notFound()
-  setRequestLocale(locale)
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const locale = await resolveLocale(params)
+  return { alternates: localizedAlternates('/', locale) }
+}
 
-  const t = await getTranslations('SetupPreview')
-  const sampleNumber = new Intl.NumberFormat(getIntlLocale(locale)).format(1234567.89)
-  const otherLocales = routing.locales.filter((l) => l !== locale)
+export default async function HomePage({ params }: Props) {
+  await resolveLocale(params)
+  const t = await getTranslations('Home')
+  const nav = await getTranslations('Navigation')
+  const footer = await getTranslations('Footer')
 
   return (
-    <main id="main" className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <p className="mb-8 rounded-md border border-line-strong bg-surface-sky px-4 py-3 text-ink">
-        {t('notice')}
-      </p>
-
-      <h1 className="text-4xl font-bold text-brand-navy dark:text-ink">
-        <OrgName />
-      </h1>
-
-      <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-ink-muted">
-        <dt>{t('localeLabel')}</dt>
-        <dd>
-          <code>{locale}</code>
-        </dd>
-        <dt>{t('directionLabel')}</dt>
-        <dd>
-          <code>{getDirection(locale)}</code>
-        </dd>
-        <dt>{t('numberSample')}</dt>
-        <dd>{sampleNumber}</dd>
-      </dl>
-
-      <nav aria-label={t('otherLanguages')} className="mt-6">
-        <h2 className="text-sm font-semibold text-ink-muted">{t('otherLanguages')}</h2>
-        <ul className="mt-2 flex gap-4">
-          {otherLocales.map((l) => (
-            <li key={l}>
-              <Link href="/" locale={l} hrefLang={l} lang={l} className="underline">
-                {localeNames[l]}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <section className="mt-12" aria-labelledby="tokens-heading">
-        <h2 id="tokens-heading" className="text-2xl font-bold">
-          {t('tokensHeading')}
-        </h2>
-        <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-          {swatches.map((s) => (
-            <li key={s.token} className="text-sm">
-              <span
-                aria-hidden="true"
-                className={`block h-16 rounded-md border border-line-strong ${s.className}`}
-              />
-              <code className="mt-1 block text-ink-muted" dir="ltr">
-                {s.token}
-              </code>
-            </li>
-          ))}
-        </ul>
+    <>
+      {/* Hero: above the fold, so no scroll reveal (the headline is the LCP element). */}
+      <section className="bg-surface">
+        <Container className="py-16 sm:py-24">
+          <h1 className="max-w-3xl text-4xl font-bold text-brand-navy sm:text-5xl dark:text-ink">
+            <OrgName />
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg text-ink-muted sm:text-xl">{footer('founded')}</p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <ButtonLink href="/membership">{nav('membership')}</ButtonLink>
+            <ButtonLink href="/support" variant="secondary">
+              {nav('support')}
+            </ButtonLink>
+          </div>
+        </Container>
       </section>
 
-      <section className="mt-12" aria-labelledby="type-heading">
-        <h2 id="type-heading" className="text-2xl font-bold">
-          {t('typeHeading')}
-        </h2>
-        <p className="mt-4 text-lg">{t('typeSample')}</p>
-        <p className="mt-2 text-lg font-bold">{t('typeSample')}</p>
-        <p className="mt-6 flex flex-wrap items-center gap-6">
-          <button
-            type="button"
-            className="rounded-md bg-accent px-5 py-3 font-semibold text-on-accent hover:bg-accent-hover"
-          >
-            {t('buttonSample')}
-          </button>
-          <a href="#main" className="underline">
-            {t('linkSample')}
-          </a>
-        </p>
+      <Container className="py-16">
+        <Reveal as="section" className="max-w-3xl">
+          <h2 className="text-2xl font-bold sm:text-3xl">{t('missionHeading')}</h2>
+          <div className="mt-4">
+            <Placeholder>{t('mission')}</Placeholder>
+          </div>
+        </Reveal>
+      </Container>
+
+      <section aria-labelledby="focus-heading" className="border-y border-line">
+        <Container className="py-16">
+          <Reveal variant="slide-start">
+            <h2 id="focus-heading" className="text-2xl font-bold sm:text-3xl">
+              {t('focusHeading')}
+            </h2>
+          </Reveal>
+          <Stagger as="ul" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {focusAreas.map((key) => (
+              <li
+                key={key}
+                data-stagger-item
+                className="rounded-lg border border-line-strong bg-canvas p-6"
+              >
+                <h3 className="text-lg font-bold">{t(key)}</h3>
+                <div className="mt-3 text-sm">
+                  <Placeholder>{t('focusSummary')}</Placeholder>
+                </div>
+              </li>
+            ))}
+          </Stagger>
+        </Container>
       </section>
-    </main>
+
+      <Container className="py-16">
+        <Reveal as="section">
+          <h2 className="text-2xl font-bold sm:text-3xl">{t('newsHeading')}</h2>
+          <p className="mt-4 text-ink-muted">{t('newsEmpty')}</p>
+        </Reveal>
+      </Container>
+
+      <section className="bg-surface-sky">
+        <Container className="py-16">
+          <Reveal className="max-w-3xl">
+            <h2 className="text-2xl font-bold sm:text-3xl">{t('ctaHeading')}</h2>
+            <div className="mt-4">
+              <Placeholder>{t('ctaText')}</Placeholder>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-4">
+              <ButtonLink href="/membership">{nav('membership')}</ButtonLink>
+              <ButtonLink href="/support" variant="secondary">
+                {nav('support')}
+              </ButtonLink>
+            </div>
+          </Reveal>
+        </Container>
+      </section>
+    </>
   )
 }

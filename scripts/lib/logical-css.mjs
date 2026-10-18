@@ -1,8 +1,11 @@
 // Finds physical (left/right) CSS that would not mirror in right-to-left languages.
 
+// A Tailwind utility value: number, fraction, arbitrary [..] / (--var), or a keyword.
+const value = String.raw`(?:\d|\[|\(|px\b|auto\b|full\b|screen\b)`
+
 const tailwindPhysical = [
-  /-?(?:m|p|scroll-m|scroll-p)[lr]-/, // ml-4, pr-2, -ml-1, scroll-pl-4
-  /-?(?:left|right)-/, // left-0, -right-2
+  new RegExp(String.raw`-?(?:m|p|scroll-m|scroll-p)[lr]-${value}`), // ml-4, pr-2, -ml-1, scroll-pl-4
+  new RegExp(String.raw`-?(?:left|right)-${value}`), // left-0, -right-2, left-1/2
   /border-[lr](?![\w-])|border-[lr]-/, // border-l, border-r-2
   /rounded-(?:[lr]|tl|tr|bl|br)(?![\w-])|rounded-(?:[lr]|tl|tr|bl|br)-/, // rounded-l-md, rounded-tr
   /(?:text|float|clear)-(?:left|right)(?![\w-])/, // text-left, float-right

@@ -32,6 +32,8 @@
 
 @layer base {
   html {
+    /* Keeps anchor targets and focused elements clear of the sticky header. */
+    scroll-padding-block-start: 7rem;
     background-color: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
@@ -46,8 +48,9 @@
     line-height: 1.8;
   }
 
-  body {
-    min-block-size: 100dvh;
+  /* Page behind the open mobile menu must not scroll (also without Lenis). */
+  html.menu-open {
+    overflow: hidden;
   }
 
   a {
@@ -67,5 +70,26 @@
   ::selection {
     background-color: var(--color-sky-light);
     color: var(--color-brand-navy);
+  }
+}
+
+/*
+ * Scroll-reveal starting state (see components/motion/Reveal.tsx). It applies only while
+ * JavaScript runs (html.js is set before first paint) and motion is allowed. Without JavaScript,
+ * with reduced motion, or if scripts fail to start (html.js is removed after 4 s), content is
+ * simply visible. Opacity only: hidden items stay focusable and readable by screen readers.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-reveal],
+  .js [data-stagger-item] {
+    opacity: 0;
+  }
+}
+
+@media print {
+  [data-reveal],
+  [data-stagger-item] {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

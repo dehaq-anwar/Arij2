@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { hasLocale, NextIntlClientProvider } from 'next-intl'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 
+import { SiteFooter } from '@/components/layout/SiteFooter'
+import { SiteHeader } from '@/components/layout/SiteHeader'
+import { SkipLink } from '@/components/layout/SkipLink'
+import { SmoothScroll } from '@/components/motion/SmoothScroll'
 import { fontVariables } from '@/fonts'
 import { getDirection } from '@/i18n/locale'
 import { routing } from '@/i18n/routing'
@@ -14,7 +18,12 @@ type Props = {
   params: Promise<{ locale: string }>
 }
 
-export const dynamicParams = false
+/**
+ * Runs before first paint: marks that JavaScript is available, so scroll-reveal content may start
+ * hidden. If the motion code has not started within 4 s (slow or failed scripts), the mark is
+ * removed again and everything is shown.
+ */
+const motionBootstrap = `(function(e){e.classList.add('js');setTimeout(function(){if(!e.hasAttribute('data-motion-ready'))e.classList.remove('js')},4000)})(document.documentElement)`
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
@@ -44,9 +53,27 @@ export default async function LocaleLayout({ children, params }: Props) {
   setRequestLocale(locale)
 
   return (
-    <html lang={locale} dir={getDirection(locale)} className={fontVariables}>
-      <body>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+    // The bootstrap script adds a class before hydration, hence suppressHydrationWarning.
+    <html
+      lang={locale}
+      dir={getDirection(locale)}
+      className={fontVariables}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: motionBootstrap }} />
+      </head>
+      <body className="flex min-h-dvh flex-col">
+        <NextIntlClientProvider>
+          <SmoothScroll>
+            <SkipLink />
+            <SiteHeader />
+            <main id="main" tabIndex={-1} className="flex-1 outline-none">
+              {children}
+            </main>
+            <SiteFooter />
+          </SmoothScroll>
+        </NextIntlClientProvider>
       </body>
     </html>
   )
