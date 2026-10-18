@@ -1,0 +1,47 @@
+# Production: app + PostgreSQL. Media goes to an external EU-region S3 provider.
+# A Caddy reverse proxy (TLS, security headers, log retention) is added in Phase 5/6.
+# Secrets come from .env on the server (never committed).
+
+services:
+  app:
+    image: yop-website:${APP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Bound to localhost only; the reverse proxy is the public entry point.
+      - '127.0.0.1:3000:3000'
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - nextcache:/app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgres:18.6-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only the app container can reach it.
+
+volumes:
+  pgdata:
+  nextcache:

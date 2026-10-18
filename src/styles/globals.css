@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Only our design tokens: Tailwind's default palette is removed so off-brand colours can't creep in. */
+@theme {
+  --color-*: initial;
+}
+
+@theme inline {
+  --color-canvas: var(--yop-canvas);
+  --color-surface: var(--yop-surface);
+  --color-surface-sky: var(--yop-surface-sky);
+  --color-ink: var(--yop-ink);
+  --color-ink-muted: var(--yop-ink-muted);
+  --color-accent: var(--yop-accent);
+  --color-accent-hover: var(--yop-accent-hover);
+  --color-on-accent: var(--yop-on-accent);
+  --color-focus: var(--yop-focus);
+  --color-brand: var(--yop-brand);
+  --color-brand-navy: var(--yop-brand-navy);
+  --color-sky: var(--yop-sky);
+  --color-sky-light: var(--yop-sky-light);
+  --color-line: var(--yop-line);
+  --color-line-strong: var(--yop-line-strong);
+  --color-danger: var(--yop-danger);
+  --color-success: var(--yop-success);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic:
+    var(--font-plex-arabic), var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Arabic script needs more vertical room for its ascenders and dots. */
+  html:lang(ar) {
+    font-family: var(--font-arabic);
+    line-height: 1.8;
+  }
+
+  body {
+    min-block-size: 100dvh;
+  }
+
+  a {
+    color: var(--color-accent);
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-sky-light);
+    color: var(--color-brand-navy);
+  }
+}

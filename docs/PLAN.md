@@ -1,6 +1,6 @@
 # Youth of Peace e.V. — Website Plan (Phase 1)
 
-Status: **awaiting approval**. No application code has been written yet.
+Status: **approved on 2026-10-18**. The answers to the open questions are recorded in §18; where §18 differs from an earlier section, §18 wins.
 
 Contents
 
@@ -21,6 +21,8 @@ Contents
 15. Decisions I made (override any of them)
 16. Open questions
 17. Phase deliverables
+18. Answers and decisions log
+19. Phase 2 implementation notes
 
 ---
 
@@ -31,7 +33,7 @@ Sources: the logo PNG, `Satzung_Youth_of_Peace__e_V_2026.pdf` (11 pages), `VR_20
 | Finding | Source | Effect on the plan |
 |---|---|---|
 | Ordinary member: any natural person **aged 16 or older** who is willing to promote the association's aims | Satzung §3(1) | Form requires an age confirmation |
-| Applications may be submitted **in writing or online**. The **Schriftführer** decides on admission; the **Gesamtvorstand** decides on rejections | §3(2) | An online form is a valid channel. Applications get a status workflow and a `board` role |
+| Applications may be submitted **in writing or online**. The **Schriftführer** decides on admission; the **Gesamtvorstand** decides on rejections | §3(2) | An online form is a valid channel. Applications get a status workflow, and board members get a `board` user role |
 | The association admits only people who commit to the principles in §2 (free democratic basic order, no membership in extremist, racist or xenophobic organisations) | §2 | Required declaration checkbox in the form |
 | Fees (entrance fee + annual fee) are set by the **Beitragsordnung**, payable annually in advance by 31 January | §4 | Fee text is a placeholder until the Beitragsordnung is supplied |
 | Written invitations go to the **last address the member gave in writing** | §7(3) | Postal address is required |
@@ -317,7 +319,7 @@ Localised paths come from next-intl `pathnames`. German is the default locale an
 | **HomePage** | `hero` {`headline` **L**, `subline` **L**, `primaryCta`/`secondaryCta` (label **L** + internal target)}; `mission` **L** (one sentence, ≤ 200 characters); `focusAreasIntro` **L**; `statsHeading` **L**; `newsHeading` **L**; `cta` {`heading` **L**, `text` **L**} |
 | **AboutPage** | `intro` **L**; `story[]` {`year`, `title` **L**, `body` **L**} for 2013 Yemen → Germany; `values[]` {`title` **L**, `description` **L**}; `boardIntro` **L** |
 | **MembershipPage** | `intro` **L**, `whoCanJoin` **L**, `fees` **L** `[PLACEHOLDER: Beitragsordnung]`, `process` **L**, `formIntro` **L**, `successMessage` **L** |
-| **SupportPage** | `volunteer` {heading, text **L**}; `partner` {heading, text **L**}; `donate` {heading, text **L**, `bankDetails` {holder, IBAN, BIC, bank} `[PLACEHOLDER]`, `taxStatusNote` **L** = `[PLACEHOLDER: tax status]`}. No donation figures, no online payment widget |
+| **SupportPage** | `volunteer` {`heading` **L**, `text` **L**}; `partner` {`heading` **L**, `text` **L**}; `donate` {`heading` **L**, `text` **L**, `bankDetails` {holder, IBAN, BIC, bank} `[PLACEHOLDER]`, `taxStatusNote` **L** = `[PLACEHOLDER: tax status]`}. No donation figures, no online payment widget |
 | **ContactPage** | `intro` **L**, show/hide toggles for address, e-mail and phone, `officeHours?` **L**, `formIntro` **L**, `successMessage` **L** |
 | **LegalNotice** (Impressum) | `content` **L** (rich text, seeded `[PLACEHOLDER: Impressum per § 5 DDG]`), `lastUpdated` |
 | **PrivacyPolicy** | `content` **L** (seeded `[PLACEHOLDER: Datenschutzerklärung]`), `version` (stored with each form consent), `lastUpdated` |
@@ -343,22 +345,30 @@ Payload falls back to German when a locale is empty. When that happens, the page
 
 ## 8. Design tokens (measured from the logo)
 
-Sampled from the attached logo PNG: brand turquoise **#1B9C9B**, brand navy **#04324E**. The light blues in the Satzung letterhead (#CFE1F1, #8BB7E0) look like a Word page-design template rather than brand colours, so they are excluded until you confirm (Q3).
+Brand colours, measured: turquoise **#1B9C9B** and navy **#04324E** from the logo PNG; sky **#8BB7E0** and sky-light **#CFE1F1** from the Satzung letterhead (confirmed as brand colours, Q3).
 
-**Contrast problem:** the brand turquoise reaches only **3.35:1 on white**. That fails WCAG AA for body text, and white text on a turquoise button fails too. The tokens therefore separate a *brand* turquoise (decorative) from a *text-safe* turquoise. Measured contrast ratios:
+**Contrast problem:** the brand turquoise reaches only **3.35:1 on white**. That fails WCAG AA for body text, and white text on a turquoise button fails too. The tokens therefore separate a *brand* turquoise (decorative) from a *text-safe* accent. Final values (Phase 2), all checked by `scripts/check-contrast.mjs` (54 pairs, part of `npm run lint`):
 
 | Token | Light | Contrast | Dark | Contrast |
 |---|---|---|---|---|
-| `--bg` | #FFFFFF | — | #03243A | — |
-| `--surface` | #E8F4F6 | — | #06304B | — |
-| `--text` | #04324E (navy) | 13.36 on bg, 11.90 on surface | #E6F2F4 | 13.95 on bg, 11.99 on surface |
-| `--text-muted` | #3E5A6B | 7.29 | #A7C1CD | 8.47 |
-| `--accent` (links, buttons) | #0F6F6E | 5.97 on bg, 5.31 on surface | #4CC4C2 | 7.58 on bg, 6.52 on surface |
-| `--on-accent` (button text) | #FFFFFF | 5.97 | #03243A | 7.58 |
-| `--brand` (decorative, icons, ≥ 24px text) | #1B9C9B | 3.35 (UI/large only) | #1B9C9B | 4.76 |
-| `--focus` | #0F6F6E, 2px + offset | ≥ 3:1 | #4CC4C2 | ≥ 3:1 |
+| `canvas` | #FFFFFF | — | #03243A | — |
+| `surface` | #E8F4F6 | — | #06304B | — |
+| `surface-sky` | #CFE1F1 | — | #0B3A5C | — |
+| `ink` (text) | #04324E | 13.36 / 11.90 / 9.99 | #E6F2F4 | 13.95 / 11.99 / 10.36 |
+| `ink-muted` | #3E5A6B | 7.29 / 6.49 / 5.45 | #A7C1CD | 8.47 / 7.28 / 6.29 |
+| `accent` (links, buttons) | #0D6867 | 6.58 / 5.86 / 4.91 | #4CC4C2 | 7.58 / 6.52 / 5.63 |
+| `accent-hover` | #0A5453 | 8.73 / 7.77 / 6.52 | #7FD6D4 | 9.47 / 8.14 / 7.03 |
+| `on-accent` (button text) | #FFFFFF | 6.58 on accent | #03243A | 7.58 on accent |
+| `line-strong` (form borders) | #5E7D8C | 4.39 / 3.91 / 3.28 | #6A90A4 | 4.66 / 4.01 / 3.46 |
+| `focus` (2px ring + offset) | #0D6867 | ≥ 4.91 | #4CC4C2 | ≥ 5.63 |
+| `danger` | #B3261E | 6.54 / 5.82 / 4.88 | #F2B8B5 | 9.34 / 8.03 / 6.93 |
+| `success` | #1E6B45 | 6.47 / 5.76 / 4.84 | #7FD8A6 | 9.32 / 8.01 / 6.92 |
+| `brand` (decorative, icons, ≥ 24px text) | #1B9C9B | 3.35 on canvas only | #1B9C9B | 4.76 |
+| `sky`, `sky-light`, `line` | decorative only | — | decorative only | — |
 
-- Danger and success colours are added in Phase 2. `check-contrast.mjs` asserts every pair: ≥ 4.5 for text, ≥ 3 for UI and large text.
+Contrast triples are on canvas / surface / surface-sky. The accent was darkened from the first draft (#0F6F6E) because that value reached only 4.46:1 on the light blue.
+
+- Tailwind's default palette is removed, so markup can only use these tokens.
 - **Theme follows the OS setting** (`prefers-color-scheme`). There is no toggle, so nothing is stored on the visitor's device. A toggle can be added later.
 
 ## 9. Motion architecture
@@ -550,3 +560,39 @@ Each question is marked with the phase that needs the answer. Until then, placeh
 | 4 | All 11 page types + 404 in 3 languages; all collections/globals wired; seed with placeholders only; revalidation hooks; React Bits components | every route renders in every locale; empty states verified; no invented content (placeholder scan) |
 | 5 | Membership + contact forms, honeypot, rate limit, consent records, retention job, security headers, admin hardening, privacy-notes.md | unit + e2e tests for validation, rate limiting, honeypot; header scan output |
 | 6 | axe + Lighthouse mobile audits with fixes; README (DE + EN) incl. deployment, backups, editor guide | Lighthouse Performance ≥ 90, Accessibility ≥ 95 on key pages; reports attached |
+
+## 18. Answers and decisions log
+
+Answered 2026-10-18 ("yes to all"). Where "yes" could not choose between two options, the interpretation is stated and is easy to change.
+
+| # | Answer | Consequence |
+|---|---|---|
+| Q1 | Yes: (a) make the repository private | **Action for the owner:** GitHub → Settings → General → Danger Zone → Change visibility → Private. React Bits code is committed only after the repo is private (planned for Phase 4) |
+| Q2 | The line-art dove is the current logo; an SVG will be supplied | The PNG is used until the SVG arrives. The line-drawing intro waits for the SVG |
+| Q3 | Light blue is a brand colour | Brand light blues come from the Satzung letterhead: **#8BB7E0** (sky) and **#CFE1F1** (sky-light). They are checked for contrast in Phase 2 |
+| Q4a | Interpreted as the first option: an "I am at least 16" checkbox | No date of birth is collected |
+| Q4b | Guardian consent is required for applicants aged 16–17 | The form asks "Are you under 18?". If yes, it requires the guardian's name and e-mail. *How* consent is obtained (e-mail confirmation link vs. signed form) is designed in Phase 5; which way of consenting is legally sufficient is for the board to confirm |
+| Q4c | Offer Fördermitgliedschaft | `membershipType`: ordinary or supporting. Note for the board: §3 of the Satzung does not define supporting members yet |
+| Q4d | Not answered (needs amounts) | Fees remain `[PLACEHOLDER: Beitragsordnung]` |
+| Q5 | Drafting copy from Satzung §2 is allowed | Drafts are clearly marked `[ENTWURF]` / `[DRAFT]` / `[مسودة]` for approval |
+| Q6 | Keep the four focus areas | Youth empowerment, peacebuilding, integration, youth entrepreneurship |
+| Q7 | Not answered (needs numbers and an address) | Retention periods and notification address remain placeholders |
+| Q8 | Interpreted as the first option: Western digits (0–9) | Arabic number formatting uses `ar-u-nu-latn`; switching to Arabic-Indic is a one-line change |
+| — | An Arabic copy of the plan is wanted | `docs/PLAN.ar.md` |
+
+## 19. Phase 2 implementation notes
+
+Deviations from the plan and findings made while building Phase 2:
+
+| Topic | What happened | Consequence |
+|---|---|---|
+| ESLint | 9.39.5 is now flagged "no longer supported" by ESLint. ESLint 10 is not supported yet by the plugins inside `eslint-config-next` 16.3.8 (react, jsx-a11y, import) | Stay on 9.39.5 until Next's lint config supports 10. Development tool only, not shipped |
+| Security advisories | `npm audit` found 22 issues in production dependencies, rooted in 4 packages | **undici** 7.29.0 → 7.29.1 and **dompurify** 3.4.15 → 3.4.16 forced via `overrides` (both fixes ≥ 14 days old). **braces** (no fix exists) and **esbuild 0.18** (dev server never used) reviewed and accepted until 2026-11-30 in `scripts/audit-allowlist.json`; `npm run check:audit` fails on anything new or expired |
+| npm install scripts | npm 11.19 blocks package install scripts unless approved | None are needed (all native binaries ship prebuilt); left blocked |
+| Docker base | `libc6-compat` dropped: every native package ships a musl build | Smaller image, one network fetch less |
+| Docker builds behind a TLS-inspecting proxy | Optional BuildKit secret `extra_ca` for the `npm ci` step | Not used in normal builds; never stored in a layer |
+| GitHub Actions | Pinned by commit SHA: `actions/checkout` v7.0.1, `actions/setup-node` v7.0.0 (v7.1.0 is too new) | |
+| Payload log levels | `loggingLevels` matches errors by class name, which the production bundle minifies, so it has no effect there. Anonymous `GET /api/users` (403) is logged as ERROR | Revisit in Phase 5 together with rate limiting and logging |
+| RTL | In Arabic text, "Youth of Peace e.V." rendered as ".Youth of Peace e.V" | `OrgName` component isolates the name with `<bdi>`; the Arabic page title uses Unicode isolates. Covered by a unit test |
+| 404 page | Unknown paths currently show Next's default 404 without `lang`/`dir` | Localised 404 in all three languages is Phase 4 as planned |
+

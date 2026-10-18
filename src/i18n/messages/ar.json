@@ -1,0 +1,22 @@
+{
+  "Metadata": {
+    "siteName": "\u2066Youth of Peace e.V.\u2069",
+    "description": "[PLACEHOLDER: وصف قصير للموقع لمحركات البحث]"
+  },
+  "Common": {
+    "skipToContent": "انتقل إلى المحتوى"
+  },
+  "SetupPreview": {
+    "notice": "معاينة تقنية (المرحلة 2). الصفحات الفعلية تأتي في المرحلة 4.",
+    "localeLabel": "اللغة",
+    "directionLabel": "اتجاه النص",
+    "otherLanguages": "هذه الصفحة بلغات أخرى",
+    "tokensHeading": "رموز الألوان",
+    "typeHeading": "الخط",
+    "typeSample": "نص حكيم له سر قاطع وذو شأن عظيم مكتوب على ثوب أخضر ومغلف بجلد أزرق.",
+    "weightsLabel": "أوزان الخط",
+    "buttonSample": "زر تجريبي",
+    "linkSample": "رابط تجريبي",
+    "numberSample": "تنسيق الأرقام"
+  }
+}

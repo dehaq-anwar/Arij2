@@ -1,0 +1,17 @@
+{
+  "$comment": "Known advisories in production dependencies that were reviewed and accepted. Every entry needs a reason and a reviewBy date; after that date `npm run check:audit` fails until it is re-reviewed.",
+  "advisories": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces@3.0.3",
+      "reason": "No fixed release exists. Reached only via sass → chokidar (build-time file watching) and @payloadcms/plugin-cloud-storage → findup-sync → micromatch (module lookup with fixed patterns). No visitor or editor input is ever passed to brace expansion.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-67mh-4wv8-2f99",
+      "package": "esbuild@0.18.20",
+      "reason": "Concerns esbuild's development server, which this project never starts. Pulled in by drizzle-kit (used only by `payload migrate:create` on a developer machine); not present in the runtime image's code path.",
+      "reviewBy": "2026-11-30"
+    }
+  ]
+}

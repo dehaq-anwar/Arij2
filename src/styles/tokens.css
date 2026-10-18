@@ -1,0 +1,66 @@
+/*
+ * Design tokens — Youth of Peace e.V.
+ *
+ * Brand colours: turquoise #1B9C9B and navy #04324E (measured from the logo file),
+ * sky #8BB7E0 and sky-light #CFE1F1 (measured from the Satzung letterhead).
+ *
+ * The brand turquoise reaches only 3.35:1 on white, so it is decorative / large-text only.
+ * Text and buttons use the darker --yop-accent. Every text/UI pair below is checked
+ * against WCAG 2.1 AA by scripts/check-contrast.mjs (part of `npm run lint`).
+ */
+:root {
+  color-scheme: light;
+
+  /* Brand palette (same in both themes) */
+  --yop-brand: #1b9c9b;
+  --yop-brand-navy: #04324e;
+  --yop-sky: #8bb7e0;
+  --yop-sky-light: #cfe1f1;
+
+  /* Surfaces */
+  --yop-canvas: #ffffff;
+  --yop-surface: #e8f4f6;
+  --yop-surface-sky: #cfe1f1;
+
+  /* Text */
+  --yop-ink: #04324e;
+  --yop-ink-muted: #3e5a6b;
+
+  /* Interactive */
+  --yop-accent: #0d6867;
+  --yop-accent-hover: #0a5453;
+  --yop-on-accent: #ffffff;
+  --yop-focus: #0d6867;
+
+  /* Lines: --line is decorative, --line-strong marks form controls (≥ 3:1) */
+  --yop-line: #cfe1f1;
+  --yop-line-strong: #5e7d8c;
+
+  /* Status */
+  --yop-danger: #b3261e;
+  --yop-success: #1e6b45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --yop-canvas: #03243a;
+    --yop-surface: #06304b;
+    --yop-surface-sky: #0b3a5c;
+
+    --yop-ink: #e6f2f4;
+    --yop-ink-muted: #a7c1cd;
+
+    --yop-accent: #4cc4c2;
+    --yop-accent-hover: #7fd6d4;
+    --yop-on-accent: #03243a;
+    --yop-focus: #4cc4c2;
+
+    --yop-line: #0b3a5c;
+    --yop-line-strong: #6a90a4;
+
+    --yop-danger: #f2b8b5;
+    --yop-success: #7fd8a6;
+  }
+}

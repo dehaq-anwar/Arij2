@@ -1,0 +1,22 @@
+{
+  "Metadata": {
+    "siteName": "Youth of Peace e.V.",
+    "description": "[PLACEHOLDER: Kurzbeschreibung der Website für Suchmaschinen]"
+  },
+  "Common": {
+    "skipToContent": "Zum Inhalt springen"
+  },
+  "SetupPreview": {
+    "notice": "Technische Vorschau (Phase 2). Die echten Seiten folgen in Phase 4.",
+    "localeLabel": "Sprache",
+    "directionLabel": "Textrichtung",
+    "otherLanguages": "Diese Seite in anderen Sprachen",
+    "tokensHeading": "Farb-Tokens",
+    "typeHeading": "Schrift",
+    "typeSample": "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern.",
+    "weightsLabel": "Schriftschnitte",
+    "buttonSample": "Beispiel-Schaltfläche",
+    "linkSample": "Beispiel-Link",
+    "numberSample": "Zahlenformat"
+  }
+}

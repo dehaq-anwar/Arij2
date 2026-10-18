@@ -1,0 +1,22 @@
+{
+  "Metadata": {
+    "siteName": "Youth of Peace e.V.",
+    "description": "[PLACEHOLDER: short site description for search engines]"
+  },
+  "Common": {
+    "skipToContent": "Skip to content"
+  },
+  "SetupPreview": {
+    "notice": "Technical preview (Phase 2). The real pages follow in Phase 4.",
+    "localeLabel": "Language",
+    "directionLabel": "Text direction",
+    "otherLanguages": "This page in other languages",
+    "tokensHeading": "Colour tokens",
+    "typeHeading": "Typography",
+    "typeSample": "The quick brown fox jumps over the lazy dog.",
+    "weightsLabel": "Font weights",
+    "buttonSample": "Sample button",
+    "linkSample": "Sample link",
+    "numberSample": "Number format"
+  }
+}

@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# next.js / build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env files (secrets) — only the example is committed
+.env
+.env.*
+!.env.example
+
+# caches, test output
+.cache/
+coverage/
+playwright-report/
+test-results/
+lighthouse-reports/
+
+# OS / editor
+.DS_Store
+*.log
