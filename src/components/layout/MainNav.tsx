@@ -20,12 +20,16 @@ export function MainNav({ orientation = 'horizontal', className = '' }: Props) {
           const current =
             pathname === href ? 'page' : pathname.startsWith(`${href}/`) ? 'true' : undefined
           return (
-            <li key={href}>
+            <li key={href} data-menu-item={vertical ? '' : undefined}>
               <Link
                 href={href}
                 aria-current={current}
                 data-current={current ? '' : undefined}
-                className={`block rounded-md px-3 py-2.5 font-medium text-ink no-underline hover:bg-surface hover:text-ink data-current:text-accent data-current:underline data-current:decoration-2 data-current:underline-offset-8 ${vertical ? 'text-xl' : ''}`}
+                className={
+                  vertical
+                    ? 'block py-2 text-[2rem] leading-tight font-medium text-on-night no-underline hover:text-glow data-current:text-glow'
+                    : 'relative block rounded-full px-3.5 py-2 text-[0.95rem] text-current no-underline opacity-90 transition-opacity hover:text-current hover:opacity-100 data-current:opacity-100 after:absolute after:inset-x-3.5 after:bottom-1 after:h-0.5 after:origin-[var(--origin)] after:scale-x-0 after:rounded-full after:bg-current after:transition-transform after:duration-300 hover:after:scale-x-100 data-current:after:scale-x-100 [--origin:left] rtl:[--origin:right]'
+                }
               >
                 {t(key)}
               </Link>

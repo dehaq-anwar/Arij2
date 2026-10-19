@@ -35,6 +35,8 @@ export const Media: CollectionConfig = {
     delete: isEditor,
   },
   upload: {
+    // Used only when S3 is not configured (end-to-end tests); see payload.config.ts.
+    staticDir: process.env.MEDIA_DIR || 'media',
     // No SVG: it can carry scripts.
     mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif'],
     // Re-encodes the original through sharp: caps its size and drops EXIF/GPS metadata.

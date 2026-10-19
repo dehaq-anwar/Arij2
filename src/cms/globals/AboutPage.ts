@@ -6,6 +6,13 @@ export const AboutPage = pageGlobal({
   label: label('Über uns', 'About us', 'من نحن'),
   fields: [
     {
+      name: 'mission',
+      type: 'textarea',
+      localized: true,
+      maxLength: 240,
+      label: label('Mission in einem Satz', 'Mission in one sentence', 'الرسالة في جملة واحدة'),
+    },
+    {
       name: 'intro',
       type: 'richText',
       localized: true,

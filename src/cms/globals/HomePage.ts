@@ -1,6 +1,10 @@
 import { label } from '../lib/labels'
 import { pageGlobal } from './shared'
 
+/**
+ * The home page shows little text by design: the name, the tagline (site settings), a short
+ * journey from Yemen to Germany, then projects as images with their titles.
+ */
 export const HomePage = pageGlobal({
   slug: 'home-page',
   label: label('Startseite', 'Home page', 'الصفحة الرئيسية'),
@@ -16,27 +20,43 @@ export const HomePage = pageGlobal({
           required: true,
           localized: true,
           label: label('Überschrift', 'Headline', 'العنوان الرئيسي'),
-        },
-        {
-          name: 'subline',
-          type: 'textarea',
-          localized: true,
-          label: label('Unterzeile', 'Subline', 'السطر التالي'),
+          admin: {
+            description: label(
+              'Darunter steht der Leitsatz aus den Website-Einstellungen.',
+              'The tagline from the site settings appears below it.',
+              'يظهر تحته الشعار النصي من إعدادات الموقع.',
+            ),
+          },
         },
       ],
     },
     {
-      name: 'mission',
-      type: 'textarea',
-      localized: true,
-      maxLength: 240,
-      label: label('Mission in einem Satz', 'Mission in one sentence', 'الرسالة في جملة واحدة'),
-    },
-    {
-      name: 'focusIntro',
-      type: 'textarea',
-      localized: true,
-      label: label('Einleitung Schwerpunkte', 'Focus areas intro', 'مقدمة مجالات العمل'),
+      name: 'journey',
+      type: 'group',
+      label: label('Weg (Scroll-Szene)', 'Journey (scroll scene)', 'المسار (مشهد التمرير)'),
+      admin: {
+        description: label(
+          'Zwei kurze Zeilen: Beim Scrollen wird es vom ersten zum zweiten Satz „Tag“.',
+          'Two short lines: while scrolling, night turns to day from the first to the second.',
+          'سطران قصيران: مع التمرير يتحول الليل إلى نهار من السطر الأول إلى الثاني.',
+        ),
+      },
+      fields: [
+        {
+          name: 'from',
+          type: 'text',
+          localized: true,
+          maxLength: 60,
+          label: label('Erste Zeile', 'First line', 'السطر الأول'),
+        },
+        {
+          name: 'to',
+          type: 'text',
+          localized: true,
+          maxLength: 60,
+          label: label('Zweite Zeile', 'Second line', 'السطر الثاني'),
+        },
+      ],
     },
     {
       name: 'statsHeading',
@@ -62,7 +82,6 @@ export const HomePage = pageGlobal({
           localized: true,
           label: label('Überschrift', 'Heading', 'العنوان'),
         },
-        { name: 'text', type: 'textarea', localized: true, label: label('Text', 'Text', 'النص') },
       ],
     },
   ],

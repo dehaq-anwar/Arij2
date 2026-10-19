@@ -12,7 +12,7 @@ type Props = {
   children: ReactNode
   variant?: RevealVariant
   className?: string
-  as?: 'div' | 'ul' | 'ol'
+  as?: 'div' | 'ul' | 'ol' | 'dl'
 }
 
 /**

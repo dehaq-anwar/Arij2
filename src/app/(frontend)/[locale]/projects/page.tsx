@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { ProjectCard } from '@/components/cards/ProjectCard'
-import { Stagger } from '@/components/motion/Stagger'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -27,17 +26,31 @@ export default async function ProjectsPage({ params }: Props) {
   return (
     <>
       <PageHeader title={nav('projects')} />
-      <Container className="py-12">
-        {projects.length ? (
-          <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map(({ doc, translated }) => (
-              <ProjectCard key={doc.id} project={doc} translated={translated} />
-            ))}
-          </Stagger>
-        ) : (
-          <EmptyState>{t('empty')}</EmptyState>
-        )}
-      </Container>
+      <div className="bg-canvas py-16 sm:py-24">
+        <Container>
+          {projects.length ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:gap-6">
+              {projects.map(({ doc, translated }, i) => (
+                <ProjectCard
+                  key={doc.id}
+                  project={doc}
+                  translated={translated}
+                  size={i === 0 ? 'feature' : 'tile'}
+                  preload={i === 0}
+                  introIndex={i}
+                  className={
+                    i === 0
+                      ? 'aspect-[4/5] sm:col-span-2 sm:aspect-[21/9]'
+                      : 'aspect-[4/5] sm:aspect-[4/3]'
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState>{t('empty')}</EmptyState>
+          )}
+        </Container>
+      </div>
     </>
   )
 }

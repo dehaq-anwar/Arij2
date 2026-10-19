@@ -32,6 +32,20 @@ export const SiteSettings = pageGlobal({
       ),
     },
     {
+      name: 'tagline',
+      type: 'text',
+      localized: true,
+      maxLength: 80,
+      label: label('Leitsatz', 'Tagline', 'الشعار النصي'),
+      admin: {
+        description: label(
+          'Kurzer Satz unter dem Namen, auf der Startseite und im Fußbereich.',
+          'Short line under the name, on the home page and in the footer.',
+          'جملة قصيرة تحت الاسم، في الصفحة الرئيسية وفي التذييل.',
+        ),
+      },
+    },
+    {
       name: 'contact',
       type: 'group',
       label: label('Kontaktdaten', 'Contact details', 'بيانات التواصل'),

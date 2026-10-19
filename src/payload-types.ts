@@ -162,7 +162,7 @@ export interface Project {
    * Shown in the project list and in search engines.
    */
   excerpt: string;
-  stage: 'planned' | 'ongoing' | 'completed';
+  stage?: ('planned' | 'ongoing' | 'completed') | null;
   startDate?: string | null;
   endDate?: string | null;
   location?: string | null;
@@ -227,6 +227,7 @@ export interface Media {
   alt?: string | null;
   caption?: string | null;
   credit?: string | null;
+  prefix?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -627,6 +628,7 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
   credit?: T;
+  prefix?: T;
   _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -766,18 +768,24 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 export interface HomePage {
   id: number;
   hero: {
+    /**
+     * The tagline from the site settings appears below it.
+     */
     headline: string;
-    subline?: string | null;
   };
-  mission?: string | null;
-  focusIntro?: string | null;
+  /**
+   * Two short lines: while scrolling, night turns to day from the first to the second.
+   */
+  journey?: {
+    from?: string | null;
+    to?: string | null;
+  };
   /**
    * The section only appears when statistics exist.
    */
   statsHeading?: string | null;
   cta?: {
     heading?: string | null;
-    text?: string | null;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -788,6 +796,7 @@ export interface HomePage {
  */
 export interface AboutPage {
   id: number;
+  mission?: string | null;
   intro?: {
     root: {
       type: string;
@@ -1089,6 +1098,10 @@ export interface PrivacyPolicy {
 export interface SiteSetting {
   id: number;
   description?: string | null;
+  /**
+   * Short line under the name, on the home page and in the footer.
+   */
+  tagline?: string | null;
   contact?: {
     email?: string | null;
     phone?: string | null;
@@ -1117,16 +1130,18 @@ export interface HomePageSelect<T extends boolean = true> {
     | T
     | {
         headline?: T;
-        subline?: T;
       };
-  mission?: T;
-  focusIntro?: T;
+  journey?:
+    | T
+    | {
+        from?: T;
+        to?: T;
+      };
   statsHeading?: T;
   cta?:
     | T
     | {
         heading?: T;
-        text?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -1137,6 +1152,7 @@ export interface HomePageSelect<T extends boolean = true> {
  * via the `definition` "about-page_select".
  */
 export interface AboutPageSelect<T extends boolean = true> {
+  mission?: T;
   intro?: T;
   story?:
     | T
@@ -1249,6 +1265,7 @@ export interface PrivacyPolicySelect<T extends boolean = true> {
  */
 export interface SiteSettingsSelect<T extends boolean = true> {
   description?: T;
+  tagline?: T;
   contact?:
     | T
     | {

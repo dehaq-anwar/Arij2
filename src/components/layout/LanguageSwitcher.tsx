@@ -23,14 +23,14 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
 
   return (
     <nav aria-label={t('label')} className={className}>
-      <ul className="flex items-center gap-1">
+      <ul className="flex items-center gap-0.5">
         {routing.locales.map((locale) =>
           locale === current ? (
             <li key={locale}>
               <span
                 aria-current="true"
                 lang={locale}
-                className="block px-2 py-1.5 font-semibold text-ink"
+                className="block px-2 py-1 font-semibold text-current"
               >
                 {localeNames[locale]}
               </span>
@@ -46,7 +46,7 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
                 lang={locale}
                 hrefLang={locale}
                 prefetch={false}
-                className="block rounded px-2 py-1.5 text-ink-muted underline-offset-4 hover:text-accent hover:underline"
+                className="block rounded px-2 py-1 text-current no-underline opacity-80 underline-offset-4 hover:text-current hover:underline hover:opacity-100"
               >
                 {localeNames[locale]}
               </NextLink>

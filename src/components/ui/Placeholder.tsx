@@ -19,8 +19,8 @@ export function Placeholder({
 }) {
   const look =
     variant === 'draft'
-      ? 'rounded-md border border-dashed border-accent bg-canvas px-3 py-2 text-ink'
-      : 'rounded-md border border-dashed border-line-strong bg-surface-sky px-3 py-2 text-ink'
+      ? 'rounded-2xl border border-dashed border-accent bg-surface px-4 py-3 text-ink'
+      : 'rounded-2xl border border-dashed border-line-strong bg-surface-sky px-4 py-3 text-ink'
   const className = `${look} ${extra}`.trim()
   return inline ? (
     <span data-placeholder={variant} className={`inline-block ${className}`}>

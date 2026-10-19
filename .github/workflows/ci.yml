@@ -34,9 +34,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: '1'
       E2E_DATABASE_URL: postgres://yop:ci-only@localhost:5432/yop_e2e
-      # Media storage is not used by the tests (no uploads).
-      S3_BUCKET: e2e-unused
-      S3_REGION: eu-central-1
     steps:
       # Actions are pinned to commit SHAs (tag in the comment), like every other dependency.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

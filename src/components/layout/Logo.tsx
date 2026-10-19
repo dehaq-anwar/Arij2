@@ -1,21 +1,39 @@
 import Image from 'next/image'
 
-import mark from '@/assets/logo/yop-mark.png'
+import logoLight from '@/assets/logo/yop-logo-light.png'
+import logo from '@/assets/logo/yop-logo.png'
 import { OrgName } from '@/components/ui/OrgName'
 import { Link } from '@/i18n/navigation'
 
 /**
- * Dove mark (from the supplied PNG until the SVG arrives) plus the name as real text,
- * so it stays sharp, readable by screen readers and legible in dark mode.
+ * Logo mark (from the association's PSD) plus the name as real text, so it stays sharp and
+ * readable by screen readers. On night backgrounds the navy figure turns white ("light"); in
+ * the header both variants are rendered and CSS shows the one matching the header's tone.
  * The mark is never mirrored in RTL: logos keep their orientation.
  */
-export function Logo({ className = '' }: { className?: string }) {
+export function Logo({
+  tone = 'auto',
+  className = '',
+}: {
+  tone?: 'auto' | 'night' | 'day'
+  className?: string
+}) {
+  const mark = (src: typeof logo, extra: string) => (
+    <Image src={src} alt="" height={40} loading="eager" className={`h-9 w-auto sm:h-10 ${extra}`} />
+  )
   return (
     <Link
       href="/"
-      className={`inline-flex items-center gap-3 text-base font-bold whitespace-nowrap sm:text-lg text-brand-navy no-underline hover:text-brand-navy dark:text-ink dark:hover:text-ink ${className}`}
+      className={`inline-flex items-center gap-3 text-[0.95rem] font-semibold whitespace-nowrap text-current no-underline hover:text-current sm:text-base ${className}`}
     >
-      <Image src={mark} alt="" width={44} height={44} loading="eager" className="size-11" />
+      {tone === 'night' ? mark(logoLight, '') : null}
+      {tone === 'day' ? mark(logo, '') : null}
+      {tone === 'auto' ? (
+        <>
+          {mark(logoLight, 'logo-on-night')}
+          {mark(logo, 'logo-on-day')}
+        </>
+      ) : null}
       <OrgName />
     </Link>
   )

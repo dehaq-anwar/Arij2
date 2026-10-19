@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { NewsCard } from '@/components/cards/NewsCard'
-import { Stagger } from '@/components/motion/Stagger'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -27,17 +26,19 @@ export default async function NewsPage({ params }: Props) {
   return (
     <>
       <PageHeader title={nav('news')} />
-      <Container className="py-12">
-        {posts.length ? (
-          <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {posts.map(({ doc, translated }) => (
-              <NewsCard key={doc.id} post={doc} translated={translated} />
-            ))}
-          </Stagger>
-        ) : (
-          <EmptyState>{t('empty')}</EmptyState>
-        )}
-      </Container>
+      <div className="bg-canvas py-16 sm:py-24">
+        <Container>
+          {posts.length ? (
+            <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+              {posts.map(({ doc, translated }, i) => (
+                <NewsCard key={doc.id} post={doc} translated={translated} introIndex={i} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState>{t('empty')}</EmptyState>
+          )}
+        </Container>
+      </div>
     </>
   )
 }

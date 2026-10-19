@@ -60,7 +60,7 @@ test.describe('with motion allowed', () => {
     await waitForMotion(page)
     expect(await translateX(page, slide)).toBeGreaterThan(0)
 
-    await page.locator(slide).scrollIntoViewIfNeeded()
+    await page.locator(slide).first().scrollIntoViewIfNeeded()
     await expect.poll(() => translateX(page, slide)).toBe(0)
   })
 
@@ -93,6 +93,17 @@ test.describe('with motion allowed', () => {
   })
 })
 
+test.describe('header', () => {
+  test('is light over night sections and dark over day sections', async ({ page }) => {
+    await page.goto('/projekte')
+    const header = page.getByRole('banner')
+    await expect(header).toHaveAttribute('data-tone', 'night')
+    await page.getByRole('article').first().scrollIntoViewIfNeeded()
+    await page.mouse.wheel(0, 400)
+    await expect(header).toHaveAttribute('data-tone', 'day')
+  })
+})
+
 test.describe('with prefers-reduced-motion', () => {
   test.use({ reducedMotion: 'reduce' })
 
@@ -104,6 +115,17 @@ test.describe('with prefers-reduced-motion', () => {
     expect(await opacity(page, '[data-reveal]')).toBe(1)
     expect(await translateX(page, '[data-reveal="slide-start"]')).toBe(0)
     expect((await motion(page)).scrollTriggers).toBe(0)
+  })
+
+  test('the journey scene shows both lines without animation', async ({ page }) => {
+    await page.goto('/')
+    await waitForMotion(page)
+    for (const line of ['Gegründet 2013 im Jemen', 'heute auch in Deutschland aktiv']) {
+      const text = page.getByText(line, { exact: true })
+      await text.scrollIntoViewIfNeeded()
+      await expect(text).toBeVisible()
+      expect(await text.evaluate((el) => Number(getComputedStyle(el).opacity))).toBe(1)
+    }
   })
 })
 

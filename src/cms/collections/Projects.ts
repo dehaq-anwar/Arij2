@@ -63,8 +63,6 @@ export const Projects: CollectionConfig = {
           // the same Postgres enum name (enum_projects_status).
           name: 'stage',
           type: 'select',
-          required: true,
-          defaultValue: 'ongoing',
           label: label('Stand', 'Status', 'الحالة'),
           options: [
             { value: 'planned', label: label('Geplant', 'Planned', 'مخطط له') },

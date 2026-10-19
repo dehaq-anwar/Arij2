@@ -641,3 +641,37 @@ Deviations from the plan and findings made while building Phase 2:
 | Images | No media in the e2e tests (CI has no S3). Image output (`next/image` from `/api/media/file/…`) is checked with real images in Phase 6 | |
 | React Bits | Still waiting for the repository to become private | Slots marked in the hero, statistics and cards |
 | Placeholders | `npm run check:placeholders` now finds 89 in the source (seed texts and code fallbacks, each in three languages). The launch gate on the CMS content itself follows in Phase 6 | |
+
+## 22. Visual redesign: direction C "Horizont" (2026-10-19)
+
+The association asked for a complete visual redesign (same site, same data, same CMS). Three directions were shown as interactive mockups (A "Chronik" editorial, B "Raster" institutional, C "Horizont" immersive light); the association chose **C**. Restore point before the redesign: commit `6ff58e9`.
+
+### Decisions by the association
+
+| Topic | Decision | Implementation |
+|---|---|---|
+| Direction | C "Horizont": night sections with drifting light, day sections for reading, "night turns to day" while scrolling | Tokens, components and all pages rebuilt; no page or function removed |
+| Logo | The association supplied the logo as PSD (dove with two figures, navy + turquoise) | Mark taken from the PSD layer (`src/assets/logo/yop-logo.png`); a variant with the navy figure in white for night backgrounds; favicon and app icons regenerated; the PSD is kept as source. The previous line-art mark is in git history. **To confirm: is this the official logo?** |
+| Little text | "The image with the project title only; a sub-page per project with some information" | Project cards show image + title only; the home page shows name, tagline, a two-line journey, projects, focus areas (icon + name), a closing call; longer texts live on the sub-pages |
+| Tagline | "شباب يسعى إلى السلام" | New CMS field `site-settings.tagline` (home hero, About header, footer). German "Jugend, die nach Frieden strebt" and English "Youth striving for peace" are translations: **to confirm** |
+| Images | Five images now, replaced by the association later together with their texts | Seed creates five project slots (`projekt-1` … `projekt-5`) with **abstract** artwork generated in the brand colours (never photo-like: nothing may look like an invented event or person), placeholder titles and texts. Created only while there are no projects; replaced in the CMS |
+
+### Design system
+
+| Part | Choice |
+|---|---|
+| Colours | Brand colours unchanged; added night `#021B2B`, raised night `#06283C`, glow `#7FE0D6`/`#A6EDE6`, day canvas `#F2F7FA`. 74 contrast pairs (both themes, night and day) checked by `npm run lint` |
+| Type | Readex Pro (OFL, self-hosted, one variable family for Latin and Arabic, replaces IBM Plex). Fluid scale: display / title / heading / lead. Arabic is never letter-spaced; Latin headlines on Arabic pages keep `dir="ltr"` |
+| Layout | Wider container (84rem), rounded cards (1.75rem), pill buttons (primary, secondary, light, glass), fixed header that turns from light-on-night to frosted glass over day sections |
+| Motion | Headlines rise in letter by letter (Arabic word by word, so letters stay joined) with CSS from the first paint; drifting light (CSS transforms); scroll reveals and staggers (GSAP); journey scene pinned and scrubbed (GSAP ScrollTrigger); pointer light on cards; magnetic main button; animated mobile menu; page transition on client navigation. Everything has a static version for reduced motion and without JavaScript. No new libraries |
+
+### Technical changes
+
+| Topic | What happened | Consequence |
+|---|---|---|
+| Schema | Home page: `mission`, `focusIntro`, `cta.text`, `hero.subline` removed; `journey.from/to` added. About page: `mission` added (moved from home). Site settings: `tagline`. Projects: `stage` optional (unknown for placeholder slots). | Migration `20261019_095903_redesign_c` (generated, reviewed). Only seed content was affected |
+| Media without S3 | The S3 plugin is enabled only when `S3_BUCKET` is set (`alwaysInsertFields` keeps the schema identical); otherwise uploads go to `MEDIA_DIR` | End-to-end tests and CI now include real image uploads |
+| Seed uploads | Uploads in the seed silently went missing after the first one: the storage plugin keeps per-upload state in the request `context`, and the seed passed one shared context object | Media is created without a shared context; dev data recreated |
+| `npm run seed -- force` | `payload run` passes on positional arguments only; `--force` never arrived | The switch is now `force` (documented) |
+| Performance | Intros start at 1 % opacity (counts as painted, so they don't delay LCP); the first visible project image loads with priority; list pages use CSS intros instead of scroll reveals. `experimental.inlineCss` was tried and rejected (larger HTML, more blocking time) | Lighthouse mobile in this container, which shares its CPU (noisy): performance 84–95 across pages and runs, accessibility 99–100, best practices 100; SEO 69 only because of the intentional `noindex` before launch. The remaining lever (loading GSAP lazily) belongs to the Phase 6 audit |
+| Tests | 131 → 136 end-to-end tests (placeholder slots with loaded images, header tone, journey under reduced motion, Latin headline direction on Arabic pages); 66 → 69 unit tests | |

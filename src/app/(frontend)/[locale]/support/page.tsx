@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { ContentSection } from '@/components/sections/ContentSection'
+import { CardSteps } from '@/components/sections/ContentSection'
+import { NightBand } from '@/components/sections/NightBand'
 import { BankDetails, PartnerList } from '@/components/sections/SupportSections'
+import { FocusIcon } from '@/components/ui/FocusIcon'
 import { ButtonLink } from '@/components/ui/ButtonLink'
 import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -28,37 +30,58 @@ export default async function SupportPage({ params }: Props) {
     getPartners(locale),
   ])
   const { volunteer, partner, donate } = page
+  const contact = (
+    <ButtonLink href="/contact" variant="secondary" arrow>
+      {t('contactCta')}
+    </ButtonLink>
+  )
 
   return (
     <>
       <PageHeader title={nav('support')} />
-      <Container className="py-12">
-        <RichText data={page.intro} locale={locale} className="text-lg" />
-        <ContentSection
-          id="volunteer"
-          heading={volunteer?.heading}
-          text={volunteer?.text}
+      <div className="bg-canvas py-20 sm:py-28">
+        <Container>
+          <RichText data={page.intro} locale={locale} className="text-lead mb-14 text-ink" />
+          <CardSteps
+            locale={locale}
+            numbered={false}
+            cards={[
+              {
+                id: 'volunteer',
+                heading: volunteer?.heading,
+                text: volunteer?.text,
+                icon: <FocusIcon icon="community" className="size-7" />,
+                footer: contact,
+              },
+              {
+                id: 'partner',
+                heading: partner?.heading,
+                text: partner?.text,
+                icon: <FocusIcon icon="integration" className="size-7" />,
+                footer: contact,
+              },
+            ]}
+          />
+        </Container>
+      </div>
+      {/*
+        Donations: only what the association enters. No statement on tax deductibility or
+        donation receipts unless confirmed by the tax office (taxStatusNote, plan §8).
+      */}
+      <NightBand id="donate" heading={donate?.heading}>
+        <RichText
+          data={donate?.text}
           locale={locale}
+          className="mt-6 text-lg text-on-night-muted"
         />
-        <ContentSection
-          id="partner"
-          heading={partner?.heading}
-          text={partner?.text}
+        <BankDetails donate={donate} />
+        <RichText
+          data={donate?.taxStatusNote}
           locale={locale}
+          className="mt-8 text-sm text-on-night-muted"
         />
-        {/*
-          Donations: only what the association enters. No statement on tax deductibility or
-          donation receipts unless confirmed by the tax office (taxStatusNote, plan §8).
-        */}
-        <ContentSection id="donate" heading={donate?.heading} text={donate?.text} locale={locale}>
-          <BankDetails donate={donate} />
-          <RichText data={donate?.taxStatusNote} locale={locale} className="mt-6 text-sm" />
-        </ContentSection>
-        <PartnerList partners={partners} />
-        <ButtonLink href="/contact" variant="secondary" className="mt-14">
-          {t('contactCta')}
-        </ButtonLink>
-      </Container>
+      </NightBand>
+      <PartnerList partners={partners} />
     </>
   )
 }

@@ -4,7 +4,8 @@
 // external and causes redirect loops; production always binds 0.0.0.0.)
 //
 // Before starting, it rebuilds the test database from scratch: all migrations, the seed
-// content and the test data from scripts/e2e-fixtures.ts. The database is E2E_DATABASE_URL,
+// content (with its placeholder images, stored in .e2e-media/) and the test data from
+// scripts/e2e-fixtures.ts. The database is E2E_DATABASE_URL,
 // or DATABASE_URL with "_e2e" appended to its name; it must end in "_e2e", because it is wiped.
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs'
@@ -38,9 +39,15 @@ if (!database.endsWith('_e2e')) {
 }
 
 const port = env.E2E_PORT ?? '3100'
+// Uploaded images go to a local folder (rebuilt per run) instead of S3.
+const mediaDir = path.join(root, '.e2e-media')
+rmSync(mediaDir, { recursive: true, force: true })
 const serverEnv = {
   ...env,
+  // Empty, not missing: the Payload CLI loads .env, which must not switch S3 back on.
+  S3_BUCKET: '',
   DATABASE_URL: databaseUrl,
+  MEDIA_DIR: mediaDir,
   SERVER_URL: `http://127.0.0.1:${port}`,
   ALLOW_INDEXING: 'false',
 }

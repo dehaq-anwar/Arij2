@@ -1,6 +1,8 @@
 import type { GlobalSlug, Payload } from 'payload'
 
+import { placeholderArtwork } from './artwork'
 import * as content from './content'
+import { paragraphs } from './lexical'
 
 type PerLocale = Record<content.SeedLocale, Record<string, unknown>>
 type Options = { force?: boolean; log?: (message: string) => void }
@@ -91,6 +93,65 @@ async function seedFocusAreas(payload: Payload, { force, log }: Options) {
   log?.(`+ focus-areas: ${content.focusAreas.length} created`)
 }
 
+/**
+ * Five project slots with abstract placeholder images (never photos) and placeholder texts,
+ * which the association replaces in the CMS. Created only while there are no projects at all;
+ * never touches existing projects, also not with --force.
+ */
+async function seedPlaceholderProjects(payload: Payload, { log }: Options) {
+  const { totalDocs } = await payload.count({ collection: 'projects' })
+  if (totalDocs > 0) {
+    log?.(`= projects: ${totalDocs} present, no placeholders added`)
+    return
+  }
+  const now = Date.now()
+  for (const [i, project] of content.placeholderProjects.entries()) {
+    const image = await placeholderArtwork(i)
+    // No shared `context` here: the storage plugin keeps per-upload state in the request
+    // context, and a context object reused across uploads made it skip the later files.
+    const media = await payload.create({
+      collection: 'media',
+      data: { decorative: true },
+      file: {
+        data: image,
+        mimetype: 'image/jpeg',
+        name: `${project.slug}.jpg`,
+        size: image.length,
+      },
+    })
+    const doc = await payload.create({
+      collection: 'projects',
+      locale: 'de',
+      context,
+      data: {
+        title: project.title.de,
+        slug: project.slug,
+        excerpt: project.excerpt.de,
+        body: paragraphs(project.body.de),
+        coverImage: media.id,
+        // Newest first: project 1 leads the list.
+        publishedAt: new Date(now - i * 60_000).toISOString(),
+        _status: 'published',
+      },
+    })
+    for (const locale of ['en', 'ar'] as const) {
+      await payload.update({
+        collection: 'projects',
+        id: doc.id,
+        locale,
+        context,
+        data: {
+          title: project.title[locale],
+          excerpt: project.excerpt[locale],
+          body: paragraphs(project.body[locale]),
+          _status: 'published',
+        },
+      })
+    }
+  }
+  log?.(`+ projects: ${content.placeholderProjects.length} placeholder slots created`)
+}
+
 /** Fills an empty CMS with the initial content. Safe to run again: existing content is kept. */
 export async function seed(payload: Payload, options: Options = {}) {
   const siteSettings: PerLocale = {
@@ -109,4 +170,5 @@ export async function seed(payload: Payload, options: Options = {}) {
   await seedGlobal(payload, 'legal-notice', content.legalNotice, options)
   await seedGlobal(payload, 'privacy-policy', content.privacyPolicy, options)
   await seedFocusAreas(payload, options)
+  await seedPlaceholderProjects(payload, options)
 }

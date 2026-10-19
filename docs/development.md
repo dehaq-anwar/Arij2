@@ -1,4 +1,4 @@
-# Development (Phase 4 state)
+# Development (Phase 4 + visual redesign C)
 
 Short guide until the full German/English README arrives in Phase 6.
 
@@ -21,7 +21,7 @@ npm run seed                  # initial content: placeholders and marked drafts 
 npm run dev                   # http://localhost:3000 (de), /en, /ar · admin at /admin
 ```
 
-`npm run seed` never overwrites content that already exists; `npm run seed -- --force` resets the seeded pages and focus areas (only for development databases).
+`npm run seed` never overwrites content that already exists; `npm run seed -- force` resets the seeded pages and focus areas (only for development databases). If there are no projects yet, it also creates five project slots with abstract placeholder images and placeholder titles, to be replaced in the CMS.
 
 The first account is created on the admin's "create first user" screen and automatically becomes an administrator. All later accounts are created by administrators; there is no public registration.
 
@@ -48,6 +48,10 @@ docker compose exec postgres createdb -U yop yop_e2e
 ```
 
 The test data (projects, a post, a statistic, people and partners named "E2E …") exists only there. The tests sign in as a test editor whose password is generated for each run.
+
+## Media storage
+
+Uploads go to S3-compatible storage when `S3_BUCKET` is set (SeaweedFS from `docker-compose.yml` in development, an EU-region provider in production). Without it they are written to `MEDIA_DIR` on the local disk; the end-to-end tests use this (`.e2e-media/`, rebuilt per run). The database schema is the same either way.
 
 ## Content and caching
 

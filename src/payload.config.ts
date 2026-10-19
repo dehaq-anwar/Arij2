@@ -81,7 +81,12 @@ export default buildConfig({
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   plugins: [
+    // Media lives in S3-compatible storage (EU region in production, SeaweedFS in development).
+    // Without S3_BUCKET (end-to-end tests) uploads go to the local MEDIA_DIR instead.
     s3Storage({
+      enabled: Boolean(process.env.S3_BUCKET),
+      // Same database schema with and without S3.
+      alwaysInsertFields: true,
       collections: { media: true },
       bucket: process.env.S3_BUCKET ?? '',
       config: {

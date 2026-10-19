@@ -216,3 +216,27 @@ test.describe('search engines', () => {
     expect(locs).not.toContain(testData.unpublishedProject)
   })
 })
+
+test.describe('project slots (seed placeholders)', () => {
+  test('show an image and the title only, marked as placeholders', async ({ page }) => {
+    await page.goto('/projekte')
+    for (const n of [1, 2, 3, 4, 5]) {
+      const card = page.getByRole('article').filter({ hasText: `Projekttitel ${n}` })
+      await expect(card).toHaveCount(1)
+      // The brackets of "[PLACEHOLDER: …]" become a small label.
+      await expect(card).not.toContainText('[PLACEHOLDER')
+      await expect(card).toContainText('Platzhalter')
+      const image = card.locator('img')
+      await image.scrollIntoViewIfNeeded()
+      await expect
+        .poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+        .toBeGreaterThan(0)
+    }
+  })
+
+  test('have their own page in every language', async ({ page }) => {
+    await page.goto('/ar/projects/projekt-1')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('عنوان المشروع 1')
+    await expect(page.getByRole('note')).toHaveCount(0)
+  })
+})

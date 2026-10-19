@@ -21,21 +21,26 @@ export async function LegalPage({ title, content, lastUpdated, placeholder, loca
   const t = await getTranslations('Common')
   return (
     <>
-      <PageHeader title={title} />
-      <Container className="py-12">
-        {hasRichText(content) ? (
-          <RichText data={content} locale={locale} />
-        ) : (
-          <Placeholder>{placeholder}</Placeholder>
-        )}
-        {lastUpdated ? (
-          <p className="mt-10 text-sm text-ink-muted">
-            <time dateTime={lastUpdated}>
-              {t('lastUpdated', { date: formatDate(locale, lastUpdated) })}
-            </time>
-          </p>
-        ) : null}
-      </Container>
+      <PageHeader title={title} size="compact" />
+      {/* Reading page: no scroll effects, just the text. */}
+      <div className="bg-canvas py-14 sm:py-20">
+        <Container>
+          <div className="max-w-4xl rounded-card bg-surface p-7 sm:p-12">
+            {hasRichText(content) ? (
+              <RichText data={content} locale={locale} />
+            ) : (
+              <Placeholder>{placeholder}</Placeholder>
+            )}
+            {lastUpdated ? (
+              <p className="mt-10 border-t border-line pt-6 text-sm text-ink-muted">
+                <time dateTime={lastUpdated}>
+                  {t('lastUpdated', { date: formatDate(locale, lastUpdated) })}
+                </time>
+              </p>
+            ) : null}
+          </div>
+        </Container>
+      </div>
     </>
   )
 }

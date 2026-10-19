@@ -13,7 +13,9 @@
     "publishedOn": "Published on {date}",
     "asOf": "As of {date}",
     "lastUpdated": "Last updated: {date}",
-    "notTranslated": "This content is not yet available in English. The German version is shown."
+    "notTranslated": "This content is not yet available in English. The German version is shown.",
+    "placeholder": "Placeholder",
+    "draft": "Draft"
   },
   "Navigation": {
     "home": "Home",

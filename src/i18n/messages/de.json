@@ -13,7 +13,9 @@
     "publishedOn": "Veröffentlicht am {date}",
     "asOf": "Stand: {date}",
     "lastUpdated": "Stand: {date}",
-    "notTranslated": "Dieser Inhalt ist noch nicht auf Deutsch verfügbar. Angezeigt wird die deutsche Fassung."
+    "notTranslated": "Dieser Inhalt ist noch nicht auf Deutsch verfügbar. Angezeigt wird die deutsche Fassung.",
+    "placeholder": "Platzhalter",
+    "draft": "Entwurf"
   },
   "Navigation": {
     "home": "Startseite",

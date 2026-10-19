@@ -24,28 +24,74 @@
   --color-line-strong: var(--yop-line-strong);
   --color-danger: var(--yop-danger);
   --color-success: var(--yop-success);
+  --color-night: var(--yop-night);
+  --color-night-raised: var(--yop-night-raised);
+  --color-on-night: var(--yop-on-night);
+  --color-on-night-muted: var(--yop-on-night-muted);
+  --color-glow: var(--yop-glow);
+  --color-glow-strong: var(--yop-glow-strong);
+  --color-white: #ffffff;
+  --color-transparent: transparent;
 
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    var(--font-readex-latin), var(--font-readex-arabic), ui-sans-serif, system-ui, sans-serif;
   --font-arabic:
-    var(--font-plex-arabic), var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+    var(--font-readex-arabic), var(--font-readex-latin), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --radius-card: 1.75rem;
 }
 
 @layer base {
   html {
-    /* Keeps anchor targets and focused elements clear of the sticky header. */
-    scroll-padding-block-start: 7rem;
+    /* Keeps anchor targets and focused elements clear of the fixed header. */
+    scroll-padding-block-start: 8rem;
     background-color: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: 1.6;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
 
-  /* Arabic script needs more vertical room for its ascenders and dots. */
+  /* Arabic script needs more vertical room, and is never letter-spaced. */
   html:lang(ar) {
     font-family: var(--font-arabic);
-    line-height: 1.8;
+    line-height: 1.9;
+  }
+
+  /* Latin headlines on Arabic pages are marked dir="ltr" and keep their tight tracking. */
+  html:lang(ar) *:not([dir='ltr'], [dir='ltr'] *) {
+    letter-spacing: 0 !important;
+  }
+
+  /* "[PLACEHOLDER: …]" starts with Latin: show it left-to-right so its brackets stay in place. */
+  [data-placeholder='placeholder'] {
+    unicode-bidi: plaintext;
+  }
+
+  /* Height of the fixed header (language row + main row); first sections leave room for it. */
+  :root {
+    --header-h: 6rem;
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --header-h: 6.75rem;
+    }
+  }
+
+  /* The header shows the logo variant that matches its tone (see Logo.tsx). */
+  [data-tone='day'] .logo-on-night,
+  [data-tone='night'] .logo-on-day {
+    display: none;
+  }
+
+  /* Decorative light never causes sideways scrolling. */
+  body {
+    overflow-x: clip;
   }
 
   /* Page behind the open mobile menu must not scroll (also without Lenis). */
@@ -53,9 +99,21 @@
     overflow: hidden;
   }
 
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
   a {
     color: var(--color-accent);
-    text-underline-offset: 0.2em;
+    text-underline-offset: 0.22em;
   }
 
   a:hover {
@@ -64,12 +122,242 @@
 
   :focus-visible {
     outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
+    outline-offset: 3px;
+  }
+
+  [data-surface='night'] {
+    color: var(--color-on-night);
+  }
+
+  [data-surface='night'] :focus-visible {
+    outline-color: var(--color-glow);
+  }
+
+  [data-surface='night'] a:not([class]) {
+    color: var(--color-glow);
   }
 
   ::selection {
-    background-color: var(--color-sky-light);
-    color: var(--color-brand-navy);
+    background-color: var(--color-glow);
+    color: var(--color-night);
+  }
+}
+
+@layer components {
+  /* ── Type scale (fluid). Arabic lines get more height; letter-spacing is reset above. ── */
+  .text-display {
+    font-size: clamp(3.25rem, 10.5vw, 9.75rem);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+    font-weight: 600;
+  }
+
+  .text-title {
+    font-size: clamp(2.5rem, 7vw, 5.75rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 600;
+  }
+
+  .text-heading {
+    font-size: clamp(2rem, 4.4vw, 3.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+  }
+
+  .text-lead {
+    font-size: clamp(1.125rem, 1.7vw, 1.375rem);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  :lang(ar) .text-title,
+  :lang(ar) .text-heading {
+    line-height: 1.35;
+  }
+
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Night sections: deep blue with slowly drifting light (CSS only, GPU transforms). ── */
+  .aurora {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .aurora > span {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    mix-blend-mode: screen;
+    will-change: transform;
+    animation: aurora-drift var(--drift, 22s) ease-in-out infinite alternate;
+  }
+
+  .aurora > i {
+    position: absolute;
+    inset: 0;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  }
+
+  .aurora > svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  @keyframes aurora-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(var(--dx, 6%), var(--dy, -5%), 0) scale(1.12);
+    }
+  }
+
+  .glass {
+    background-color: color-mix(in srgb, var(--color-on-night) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-on-night) 20%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  /* ── Headline intro: characters (Latin) or words (Arabic, which must stay joined) rise
+     out of a soft blur. Pure CSS, so it starts with the first paint, also without JavaScript. ── */
+  .split-word {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .split-unit {
+    display: inline-block;
+  }
+
+  .intro-fade {
+    --delay: 0ms;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .split-unit {
+      animation: rise-in 1s var(--ease-out-expo) both;
+      animation-delay: calc(var(--i, 0) * 28ms);
+    }
+
+    .intro-fade {
+      animation: fade-up 0.9s var(--ease-out-expo) both;
+      animation-delay: var(--delay);
+    }
+  }
+
+  /* Starting at 1 % (not 0) opacity: the text counts as painted from the first frame, so the
+     intro does not delay the Largest Contentful Paint. */
+  @keyframes rise-in {
+    from {
+      opacity: 0.01;
+      transform: translateY(0.45em);
+      filter: blur(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: blur(0);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0.01;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ── Cards ── */
+  .card-media img {
+    transition: transform 1.4s var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .group:hover .card-media img,
+    .group:focus-within .card-media img {
+      transform: scale(1.06);
+    }
+  }
+
+  /* A soft light that follows the pointer (position set by <Spotlight>; hover devices only). */
+  [data-spotlight] {
+    --mx: 50%;
+    --my: 50%;
+  }
+
+  @media (hover: hover) {
+    [data-spotlight]::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+      background: radial-gradient(
+        22rem circle at var(--mx) var(--my),
+        color-mix(in srgb, var(--color-brand) 22%, transparent),
+        transparent 65%
+      );
+    }
+
+    [data-spotlight]:hover::before {
+      opacity: 1;
+    }
+  }
+
+  /* Scroll cue in the home hero. */
+  .scroll-cue {
+    position: relative;
+    display: block;
+    width: 1px;
+    height: 3.5rem;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--color-on-night) 22%, transparent);
+  }
+
+  .scroll-cue::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 0;
+    width: 1px;
+    height: 1.4rem;
+    background: var(--color-on-night);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-cue::after {
+      animation: cue 1.8s ease-in-out infinite;
+    }
+  }
+
+  @keyframes cue {
+    from {
+      transform: translateY(-1.4rem);
+    }
+    to {
+      transform: translateY(3.5rem);
+    }
   }
 }
 
@@ -92,6 +380,10 @@
     opacity: 1 !important;
     transform: none !important;
   }
+
+  .aurora {
+    display: none;
+  }
 }
 
 /*
@@ -100,7 +392,8 @@
  */
 @layer components {
   .prose-yop {
-    max-inline-size: 72ch;
+    max-inline-size: 68ch;
+    font-size: 1.0625rem;
   }
 
   .prose-yop > * + * {
@@ -109,21 +402,19 @@
 
   .prose-yop h2 {
     margin-block-start: 2em;
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1.3;
+    font-size: 1.625rem;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
   }
 
   .prose-yop h3 {
     margin-block-start: 1.75em;
-    font-size: 1.25rem;
-    font-weight: 700;
-    line-height: 1.35;
+    font-size: 1.3125rem;
+    line-height: 1.3;
   }
 
   .prose-yop h4 {
     margin-block-start: 1.5em;
-    font-weight: 700;
   }
 
   .prose-yop ul,
@@ -144,7 +435,7 @@
   }
 
   .prose-yop blockquote {
-    border-inline-start: 4px solid var(--color-brand);
+    border-inline-start: 3px solid var(--color-brand);
     padding-inline-start: 1em;
     color: var(--color-ink-muted);
   }
@@ -155,6 +446,74 @@
   }
 
   .prose-yop strong {
-    font-weight: 700;
+    font-weight: 600;
+  }
+}
+
+/*
+ * Journey scene (components/motion/Journey.tsx). Static by default: a band from night to day
+ * with both lines. With JavaScript and motion allowed it becomes one screen-high stage where
+ * the lines cross-fade and night turns into day while scrolling.
+ */
+@layer components {
+  .journey {
+    background: linear-gradient(
+      var(--color-night) 0%,
+      var(--color-night) 40%,
+      #0b4a5e 55%,
+      #5fa7c9 75%,
+      var(--color-canvas) 100%
+    );
+  }
+
+  .journey-stage {
+    gap: 30vh;
+    padding-block: 18vh;
+  }
+
+  .journey-from {
+    color: var(--color-on-night);
+  }
+
+  .journey-to {
+    color: var(--color-ink);
+  }
+
+  .journey-line {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .js .journey {
+      background: var(--color-night);
+    }
+
+    .js .journey-stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      gap: 0;
+      min-block-size: 100svh;
+      padding-block: 0;
+    }
+
+    .js .journey-from,
+    .js .journey-to {
+      grid-area: 1 / 1;
+    }
+
+    .js .journey-to {
+      opacity: 0;
+    }
+
+    .js .journey-line {
+      display: block;
+      position: absolute;
+      inset-inline-start: 1.25rem;
+      inset-block: 18%;
+      width: 2px;
+      transform-origin: top;
+      background: var(--color-glow);
+    }
   }
 }

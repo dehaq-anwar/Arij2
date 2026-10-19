@@ -2,22 +2,23 @@
 
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useLenis } from '@/components/motion/SmoothScroll'
+import { ButtonLink } from '@/components/ui/ButtonLink'
+import { membershipLink } from '@/lib/navigation'
+import { gsap } from '@/lib/motion/gsap'
+import { MOTION_OK } from '@/lib/motion/media'
+
+import { MainNav } from './MainNav'
 
 /**
  * Menu for small screens, built on the native modal <dialog>: the browser traps focus,
- * closes it on Esc and makes the page behind it inert. Smooth scrolling pauses while it is
+ * closes it on Esc and makes the page behind it inert. A full-screen night panel whose links
+ * arrive one after another (static with reduced motion). Smooth scrolling pauses while it is
  * open, it closes when a link is followed, and focus returns to the menu button.
  */
-export function MobileMenu({
-  children,
-  className = '',
-}: {
-  children: ReactNode
-  className?: string
-}) {
+export function MobileMenu({ className = '', ctaLabel }: { className?: string; ctaLabel: string }) {
   const t = useTranslations('Header')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -33,6 +34,13 @@ export function MobileMenu({
     setOpen(true)
     lenis?.current?.stop()
     document.documentElement.classList.add('menu-open')
+    if (window.matchMedia(MOTION_OK).matches) {
+      gsap.fromTo(
+        dialog.querySelectorAll('[data-menu-item]'),
+        { opacity: 0, y: 28 },
+        { opacity: 1, y: 0, duration: 0.7, stagger: 0.06, ease: 'expo.out', delay: 0.05 },
+      )
+    }
   }
 
   const hide = useCallback(() => dialogRef.current?.close(), [])
@@ -44,6 +52,7 @@ export function MobileMenu({
       setOpen(false)
       lenis?.current?.start()
       document.documentElement.classList.remove('menu-open')
+      gsap.killTweensOf(dialog.querySelectorAll('[data-menu-item]'))
       // After following a link the new page takes over; otherwise return focus to the button.
       if (!navigatingRef.current) buttonRef.current?.focus()
       navigatingRef.current = false
@@ -67,6 +76,20 @@ export function MobileMenu({
     hide()
   }, [pathname, hide])
 
+  const icon = (d: string) => (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d={d} />
+    </svg>
+  )
+
   return (
     <div className={className}>
       <button
@@ -76,19 +99,9 @@ export function MobileMenu({
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={show}
-        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-3 py-2 font-medium text-ink hover:bg-surface"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-current/30 px-4 py-2 text-[0.95rem] font-medium text-current"
       >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="size-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="M4 7h16M4 12h16M4 17h16" />
-        </svg>
+        {icon('M4 8h16M4 16h16')}
         {t('menu')}
       </button>
 
@@ -97,30 +110,50 @@ export function MobileMenu({
         id="mobile-menu"
         aria-label={t('menu')}
         data-lenis-prevent
-        className="m-0 h-dvh max-h-none w-full max-w-none bg-canvas p-0 text-ink open:flex open:flex-col"
+        data-surface="night"
+        className="m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-night p-0 text-on-night open:flex open:flex-col backdrop:bg-night"
       >
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="text-lg font-bold">{t('menu')}</span>
+        <div aria-hidden="true" className="aurora">
+          <span
+            style={{
+              width: '80vmax',
+              height: '80vmax',
+              insetBlockStart: '35%',
+              insetInlineStart: '-30%',
+              background: 'var(--color-brand)',
+              opacity: 0.4,
+            }}
+          />
+          <span
+            style={{
+              width: '60vmax',
+              height: '60vmax',
+              insetBlockStart: '-25%',
+              insetInlineStart: '45%',
+              background: '#1f6fa8',
+              opacity: 0.45,
+            }}
+          />
+          <i />
+        </div>
+        <div className="flex items-center justify-end px-4 pt-11 pb-3 sm:px-6">
           <button
             type="button"
             onClick={hide}
-            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-3 py-2 font-medium text-ink hover:bg-surface"
+            className="glass inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 font-medium text-on-night"
           >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="size-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
+            {icon('M6 6l12 12M18 6L6 18')}
             {t('closeMenu')}
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-6">{children}</div>
+        <div className="flex flex-1 flex-col justify-between overflow-y-auto px-6 pt-6 pb-10">
+          <MainNav orientation="vertical" />
+          <div data-menu-item="" className="mt-10">
+            <ButtonLink href={membershipLink.href} variant="light" arrow className="w-full">
+              {ctaLabel}
+            </ButtonLink>
+          </div>
+        </div>
       </dialog>
     </div>
   )

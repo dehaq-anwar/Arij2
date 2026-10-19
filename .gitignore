@@ -22,3 +22,7 @@ lighthouse-reports/
 # OS / editor
 .DS_Store
 *.log
+
+# local media uploads (only used without S3, e.g. end-to-end tests)
+/media/
+/.e2e-media/

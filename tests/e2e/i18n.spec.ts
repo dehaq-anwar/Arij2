@@ -91,3 +91,10 @@ test.describe('404 page', () => {
     })
   }
 })
+
+test('Latin headlines stay left-to-right on Arabic pages', async ({ page }) => {
+  await page.goto('/ar')
+  const heading = page.getByRole('heading', { level: 1, name: 'Youth of Peace e.V.' })
+  await expect(heading).toHaveAttribute('dir', 'ltr')
+  await expect(heading).toHaveText('Youth of Peace e.V.')
+})

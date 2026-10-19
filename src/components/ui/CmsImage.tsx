@@ -7,6 +7,8 @@ type Props = {
   sizes: string
   className?: string
   preload?: boolean
+  /** Fill the (positioned) parent, cropped around the focal point set in the CMS. */
+  fill?: boolean
 }
 
 /** Same-origin path for next/image (Payload may return absolute URLs). */
@@ -16,10 +18,21 @@ const toPath = (url: string) => {
 }
 
 /** CMS image with its alt text; decorative images get alt="" so screen readers skip them. */
-export function CmsImage({ media, sizes, className = '', preload = false }: Props) {
+export function CmsImage({ media, sizes, className = '', preload = false, fill = false }: Props) {
   if (!media || typeof media === 'number' || !media.url) return null
   const alt = media.decorative ? '' : (media.alt ?? '')
-  return (
+  const focus = `${media.focalX ?? 50}% ${media.focalY ?? 50}%`
+  return fill ? (
+    <Image
+      src={toPath(media.url)}
+      alt={alt}
+      fill
+      sizes={sizes}
+      preload={preload}
+      className={`object-cover ${className}`}
+      style={{ objectPosition: focus }}
+    />
+  ) : (
     <Image
       src={toPath(media.url)}
       alt={alt}

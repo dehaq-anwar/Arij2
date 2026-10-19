@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { isDraft, isPlaceholder } from '@/lib/markers'
+import { draftLabel, isDraft, isPlaceholder, placeholderLabel } from '@/lib/markers'
+import { splitForAnimation } from '@/lib/split'
 import { SLUG_PATTERN, slugify } from '@/lib/slugify'
 
 describe('slugify', () => {
@@ -43,5 +44,30 @@ describe('content markers', () => {
     expect(isDraft('[DRAFT] Text')).toBe(true)
     expect(isDraft('[مسودة] نص')).toBe(true)
     expect(isDraft('Text [DRAFT]')).toBe(false)
+  })
+})
+
+describe('marker labels', () => {
+  it('strip the markers where a small label replaces them', () => {
+    expect(placeholderLabel('[PLACEHOLDER: Projekttitel 1]')).toBe('Projekttitel 1')
+    expect(placeholderLabel('[PLACEHOLDER: عنوان المشروع 1]')).toBe('عنوان المشروع 1')
+    expect(draftLabel('[ENTWURF] Wir fördern junge Menschen')).toBe('Wir fördern junge Menschen')
+    expect(draftLabel('[مسودة] ندعم الشباب')).toBe('ندعم الشباب')
+  })
+})
+
+describe('splitForAnimation', () => {
+  it('splits Latin words into characters', () => {
+    const { words, arabic } = splitForAnimation('Youth of Peace e.V.')
+    expect(arabic).toBe(false)
+    expect(words.map((w) => w.units.join(''))).toEqual(['Youth', 'of', 'Peace', 'e.V.'])
+    expect(words[0]?.units).toEqual(['Y', 'o', 'u', 't', 'h'])
+  })
+
+  it('keeps Arabic words whole, so their letters stay joined', () => {
+    const { words, arabic } = splitForAnimation('مشروع اختبار E2E')
+    expect(arabic).toBe(true)
+    expect(words.map((w) => w.units)).toEqual([['مشروع'], ['اختبار'], ['E', '2', 'E']])
+    expect(words.map((w) => w.arabic)).toEqual([true, true, false])
   })
 })

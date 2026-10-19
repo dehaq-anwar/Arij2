@@ -8,6 +8,7 @@ import { SiteFooter } from '@/components/layout/SiteFooter'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { SkipLink } from '@/components/layout/SkipLink'
 import { SmoothScroll } from '@/components/motion/SmoothScroll'
+import { Spotlight } from '@/components/motion/Spotlight'
 import { fontVariables } from '@/fonts'
 import { getDirection } from '@/i18n/locale'
 import { routing } from '@/i18n/routing'
@@ -73,6 +74,7 @@ export default async function LocaleLayout({ children, params }: Props) {
               {children}
             </main>
             <SiteFooter />
+            <Spotlight />
           </SmoothScroll>
         </NextIntlClientProvider>
       </body>

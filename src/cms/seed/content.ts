@@ -12,22 +12,26 @@ type PerLocale<T> = Record<SeedLocale, T>
 
 export const contactEmail = 'info@yop-ye.org'
 
-const founded: PerLocale<string> = {
-  de: 'Gegründet 2013 im Jemen – heute auch in Deutschland aktiv.',
-  en: 'Founded in Yemen in 2013, now also active in Germany.',
-  ar: 'تأسست عام 2013 في اليمن، وتنشط اليوم في ألمانيا أيضًا.',
+/** Supplied by the association in Arabic (2026-10-19); German and English are translations. */
+const tagline: PerLocale<string> = {
+  de: 'Jugend, die nach Frieden strebt',
+  en: 'Youth striving for peace',
+  ar: 'شباب يسعى إلى السلام',
 }
 
 export const siteSettings: PerLocale<Record<string, unknown>> = {
   de: {
+    tagline: tagline.de,
     description: '[PLACEHOLDER: Kurzbeschreibung der Website für Suchmaschinen]',
     contact: { address: '[PLACEHOLDER: Postanschrift]' },
   },
   en: {
+    tagline: tagline.en,
     description: '[PLACEHOLDER: short site description for search engines]',
     contact: { address: '[PLACEHOLDER: postal address]' },
   },
   ar: {
+    tagline: tagline.ar,
     description: '[PLACEHOLDER: وصف قصير للموقع لمحركات البحث]',
     contact: { address: '[PLACEHOLDER: العنوان البريدي]' },
   },
@@ -35,38 +39,30 @@ export const siteSettings: PerLocale<Record<string, unknown>> = {
 
 export const homePage: PerLocale<Record<string, unknown>> = {
   de: {
-    hero: { headline: 'Youth of Peace e.V.', subline: founded.de },
-    mission:
-      '[ENTWURF] Wir fördern junge Menschen, eine Kultur des Friedens und der Toleranz sowie ehrenamtliches Engagement und gesellschaftliche Teilhabe – in Deutschland und gemeinsam mit unserer Mutterorganisation im Jemen.',
-    focusIntro: '[PLACEHOLDER: kurze Einleitung zu den Schwerpunkten]',
+    hero: { headline: 'Youth of Peace e.V.' },
+    journey: { from: 'Gegründet 2013 im Jemen', to: 'heute auch in Deutschland aktiv' },
     statsHeading: 'In Zahlen',
-    cta: {
-      heading: 'Mitmachen',
-      text: '[PLACEHOLDER: kurzer Aufruf, Mitglied zu werden oder den Verein zu unterstützen]',
-    },
+    cta: { heading: 'Mitmachen' },
   },
   en: {
-    hero: { headline: 'Youth of Peace e.V.', subline: founded.en },
-    mission:
-      '[DRAFT] We support young people, a culture of peace and tolerance, and volunteering and participation in society – in Germany and together with our parent organisation in Yemen.',
-    focusIntro: '[PLACEHOLDER: short introduction to the focus areas]',
+    hero: { headline: 'Youth of Peace e.V.' },
+    journey: { from: 'Founded in Yemen in 2013', to: 'now also active in Germany' },
     statsHeading: 'In numbers',
-    cta: {
-      heading: 'Get involved',
-      text: '[PLACEHOLDER: short call to become a member or support the association]',
-    },
+    cta: { heading: 'Get involved' },
   },
   ar: {
-    hero: { headline: 'Youth of Peace e.V.', subline: founded.ar },
-    mission:
-      '[مسودة] ندعم الشباب، ونعزّز ثقافة السلام والتسامح، والعمل التطوعي والمشاركة في المجتمع – في ألمانيا وبالتعاون مع منظمتنا الأم في اليمن.',
-    focusIntro: '[PLACEHOLDER: مقدمة قصيرة عن مجالات العمل]',
+    hero: { headline: 'Youth of Peace e.V.' },
+    journey: { from: 'تأسست عام 2013 في اليمن', to: 'وتنشط اليوم في ألمانيا أيضًا' },
     statsHeading: 'بالأرقام',
-    cta: {
-      heading: 'شارك معنا',
-      text: '[PLACEHOLDER: دعوة قصيرة للانضمام إلى العضوية أو دعم الجمعية]',
-    },
+    cta: { heading: 'شارك معنا' },
   },
+}
+
+/** Mission (draft from Satzung § 2), shown on the About page. */
+const mission: PerLocale<string> = {
+  de: '[ENTWURF] Wir fördern junge Menschen, eine Kultur des Friedens und der Toleranz sowie ehrenamtliches Engagement und gesellschaftliche Teilhabe – in Deutschland und gemeinsam mit unserer Mutterorganisation im Jemen.',
+  en: '[DRAFT] We support young people, a culture of peace and tolerance, and volunteering and participation in society – in Germany and together with our parent organisation in Yemen.',
+  ar: '[مسودة] ندعم الشباب، ونعزّز ثقافة السلام والتسامح، والعمل التطوعي والمشاركة في المجتمع – في ألمانيا وبالتعاون مع منظمتنا الأم في اليمن.',
 }
 
 /** Satzung § 2 — the association's principles. */
@@ -169,6 +165,7 @@ export const aboutPage: PerLocale<Record<string, unknown>> = {
     intro: paragraphs(
       '[ENTWURF] Youth of Peace wurde 2013 im Jemen gegründet. Heute ist der Verein auch in Deutschland aktiv, mit Sitz in Erlangen. Er arbeitet mit der Mutterorganisation Youth of Peace (Jemen) und mit internationalen Partnern zusammen.',
     ),
+    mission: mission.de,
     story: story.de,
     values: values.de,
     boardIntro: '[PLACEHOLDER: kurze Einleitung zum Vorstand]',
@@ -177,6 +174,7 @@ export const aboutPage: PerLocale<Record<string, unknown>> = {
     intro: paragraphs(
       '[DRAFT] Youth of Peace was founded in Yemen in 2013. Today the association is also active in Germany, with its registered office in Erlangen. It works together with the parent organisation Youth of Peace (Yemen) and with international partners.',
     ),
+    mission: mission.en,
     story: story.en,
     values: values.en,
     boardIntro: '[PLACEHOLDER: short introduction to the board]',
@@ -185,6 +183,7 @@ export const aboutPage: PerLocale<Record<string, unknown>> = {
     intro: paragraphs(
       '[مسودة] تأسست منظمة شباب السلام عام 2013 في اليمن. وتنشط الجمعية اليوم في ألمانيا أيضًا، ومقرها في إرلانغن. وتتعاون مع المنظمة الأم «شباب السلام» في اليمن ومع شركاء دوليين.',
     ),
+    mission: mission.ar,
     story: story.ar,
     values: values.ar,
     boardIntro: '[PLACEHOLDER: مقدمة قصيرة عن مجلس الإدارة]',
@@ -378,3 +377,23 @@ export const focusAreas: {
     },
   },
 ]
+
+/** Five project slots (plan §23): placeholder title, one-line summary and text per language. */
+export const placeholderProjects = [1, 2, 3, 4, 5].map((n) => ({
+  slug: `projekt-${n}`,
+  title: {
+    de: `[PLACEHOLDER: Projekttitel ${n}]`,
+    en: `[PLACEHOLDER: Project title ${n}]`,
+    ar: `[PLACEHOLDER: عنوان المشروع ${n}]`,
+  } satisfies PerLocale<string>,
+  excerpt: {
+    de: '[PLACEHOLDER: ein Satz zum Projekt]',
+    en: '[PLACEHOLDER: one sentence about the project]',
+    ar: '[PLACEHOLDER: جملة واحدة عن المشروع]',
+  } satisfies PerLocale<string>,
+  body: {
+    de: '[PLACEHOLDER: einige Informationen zum Projekt]',
+    en: '[PLACEHOLDER: some information about the project]',
+    ar: '[PLACEHOLDER: بعض المعلومات عن المشروع]',
+  } satisfies PerLocale<string>,
+}))

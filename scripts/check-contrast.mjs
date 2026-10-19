@@ -16,6 +16,12 @@ const rules = [
   ...['line-strong', 'focus'].flatMap((fg) => surfaces.map((bg) => ({ fg, bg, min: UI }))),
   // The brand turquoise is decorative except as large text or icons on the canvas.
   { fg: 'brand', bg: 'canvas', min: UI },
+  // Night sections (hero, journey, menu, footer): text, accents and focus rings.
+  ...['on-night', 'on-night-muted', 'glow', 'glow-strong'].flatMap((fg) =>
+    ['night', 'night-raised'].map((bg) => ({ fg, bg, min: TEXT })),
+  ),
+  { fg: 'night', bg: 'on-night', min: TEXT }, // dark text on the white buttons
+  { fg: 'night', bg: 'glow', min: TEXT }, // dark text on glow buttons
 ]
 
 const themes = parseThemes(

@@ -1,62 +1,98 @@
 import { getTranslations } from 'next-intl/server'
 
 import { NewsCard } from '@/components/cards/NewsCard'
+import { ProjectCard } from '@/components/cards/ProjectCard'
 import { Reveal } from '@/components/motion/Reveal'
 import { Stagger } from '@/components/motion/Stagger'
+import { Atmosphere } from '@/components/ui/Atmosphere'
 import { ButtonLink } from '@/components/ui/ButtonLink'
-import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { FocusIcon } from '@/components/ui/FocusIcon'
-import { Link } from '@/i18n/navigation'
 import type { Locale } from '@/i18n/routing'
-import { formatDate, formatNumber } from '@/lib/format'
 import type { Localized } from '@/lib/cms/queries'
-import type { FocusArea, News, Statistic } from '@/payload-types'
+import { formatDate, formatNumber } from '@/lib/format'
+import type { FocusArea, News, Project, Statistic } from '@/payload-types'
 
-export async function MissionSection({ mission }: { mission?: string | null }) {
-  if (!mission) return null
-  const t = await getTranslations('Home')
+/** Section title row: heading sliding in from the reading start, optional link at the end. */
+async function SectionHead({
+  title,
+  link,
+}: {
+  title: string
+  link?: { href: '/projects' | '/news'; label: string }
+}) {
   return (
-    <Container className="py-16">
-      <Reveal as="section" className="max-w-3xl">
-        <h2 className="text-2xl font-bold sm:text-3xl">{t('missionHeading')}</h2>
-        <CmsText text={mission} className="mt-4 text-xl leading-relaxed" />
+    <div className="flex flex-wrap items-end justify-between gap-6">
+      <Reveal variant="slide-start">
+        <h2 className="text-heading">{title}</h2>
       </Reveal>
-    </Container>
+      {link ? (
+        <ButtonLink href={link.href} variant="secondary" arrow>
+          {link.label}
+        </ButtonLink>
+      ) : null}
+    </div>
   )
 }
 
-export async function FocusAreasSection({
-  areas,
-  intro,
-}: {
-  areas: FocusArea[]
-  intro?: string | null
-}) {
+/**
+ * Projects as images with titles. Five fill a mosaic on large screens (one large tile, four
+ * small); on phones they become a row to swipe through.
+ */
+export async function ProjectShowcase({ projects }: { projects: Localized<Project>[] }) {
+  if (!projects.length) return null
+  const nav = await getTranslations('Navigation')
+  const t = await getTranslations('Common')
+  const mosaic = projects.length >= 5
+  return (
+    <section className="bg-canvas py-24 sm:py-32">
+      <Container>
+        <SectionHead
+          title={nav('projects')}
+          link={{ href: '/projects', label: t('allProjects') }}
+        />
+      </Container>
+      <Stagger
+        className={`mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 [scrollbar-width:thin] sm:px-8 lg:mx-auto lg:grid lg:max-w-[84rem] lg:snap-none lg:gap-5 lg:overflow-visible lg:px-12 lg:pb-0 ${mosaic ? 'lg:auto-rows-[19rem] lg:grid-cols-4' : 'lg:grid-cols-3'}`}
+      >
+        {projects.slice(0, 5).map(({ doc, translated }, i) => (
+          <ProjectCard
+            key={doc.id}
+            project={doc}
+            translated={translated}
+            size={mosaic && i === 0 ? 'feature' : 'tile'}
+            className={`aspect-[4/5] w-[78%] shrink-0 snap-start sm:w-[46%] lg:w-auto ${mosaic ? (i === 0 ? 'lg:col-span-2 lg:row-span-2 lg:aspect-auto' : 'lg:aspect-auto') : 'lg:aspect-[4/5]'}`}
+          />
+        ))}
+      </Stagger>
+    </section>
+  )
+}
+
+/** The four focus areas: icon and name only. */
+export async function FocusAreasSection({ areas }: { areas: FocusArea[] }) {
   if (!areas.length) return null
   const t = await getTranslations('Home')
   return (
-    <section aria-labelledby="focus-heading" className="border-y border-line">
-      <Container className="py-16">
+    <section aria-labelledby="focus-heading" className="bg-surface-sky/60 py-24 sm:py-32">
+      <Container>
         <Reveal variant="slide-start">
-          <h2 id="focus-heading" className="text-2xl font-bold sm:text-3xl">
+          <h2 id="focus-heading" className="text-heading">
             {t('focusHeading')}
           </h2>
-          <CmsText text={intro} className="mt-4 max-w-3xl text-ink-muted" />
         </Reveal>
-        <Stagger as="ul" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
           {areas.map((area) => (
             <li
               key={area.id}
               data-stagger-item
-              className="rounded-lg border border-line-strong bg-canvas p-6"
+              data-spotlight
+              className="relative isolate flex min-h-56 flex-col justify-between overflow-hidden rounded-card bg-surface p-7 shadow-[0_24px_50px_-36px_rgba(4,50,78,0.45)]"
             >
-              <FocusIcon icon={area.icon} className="size-10 text-brand" />
-              <h3 className="mt-4 text-lg font-bold">{area.title}</h3>
-              <div className="mt-3 text-sm">
-                <CmsText text={area.summary} className="text-ink-muted" />
-              </div>
+              <span className="relative grid size-14 place-items-center rounded-full bg-surface-sky text-accent ring-1 ring-accent/15">
+                <FocusIcon icon={area.icon} className="size-7" />
+              </span>
+              <h3 className="relative text-xl leading-snug font-semibold">{area.title}</h3>
             </li>
           ))}
         </Stagger>
@@ -78,79 +114,73 @@ export async function StatsSection({
   if (!stats.length) return null
   const t = await getTranslations('Common')
   return (
-    <Container className="py-16">
-      <Reveal as="section">
-        {heading ? <h2 className="text-2xl font-bold sm:text-3xl">{heading}</h2> : null}
-        {/* React Bits slot: CountUp for the numbers (the final value stays in the HTML). */}
-        <dl className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="bg-canvas py-24 sm:py-28">
+      <Container>
+        {heading ? (
+          <Reveal variant="slide-start">
+            <h2 className="text-heading">{heading}</h2>
+          </Reveal>
+        ) : null}
+        <Stagger as="dl" className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <div key={stat.id} className="rounded-lg bg-surface p-6">
+            <div key={stat.id} data-stagger-item className="rounded-card bg-surface p-7">
               <dt className="text-ink-muted">{stat.label}</dt>
-              <dd className="mt-2 text-4xl font-bold text-brand-navy dark:text-ink">
+              <dd className="mt-3 text-5xl font-semibold tracking-tight text-accent">
                 {stat.prefix}
                 {formatNumber(locale, stat.value)}
                 {stat.suffix}
               </dd>
-              <dd className="mt-2 text-sm text-ink-muted">
+              <dd className="mt-3 text-sm text-ink-muted">
                 {t('asOf', { date: formatDate(locale, stat.asOf) })}
               </dd>
             </div>
           ))}
-        </dl>
-      </Reveal>
-    </Container>
+        </Stagger>
+      </Container>
+    </section>
   )
 }
 
+/** Shown only when posts exist: the home page never shows an empty "no news" box. */
 export async function LatestNewsSection({ posts }: { posts: Localized<News>[] }) {
+  if (!posts.length) return null
   const t = await getTranslations('Home')
   const common = await getTranslations('Common')
-  const page = await getTranslations('NewsPage')
   return (
-    <Container className="py-16">
-      <Reveal as="section">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-2xl font-bold sm:text-3xl">{t('newsHeading')}</h2>
-          {posts.length ? (
-            <Link href="/news" className="font-semibold">
-              {common('allNews')}
-            </Link>
-          ) : null}
-        </div>
-        {posts.length ? (
-          <Stagger className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {posts.map(({ doc, translated }) => (
-              <NewsCard key={doc.id} post={doc} translated={translated} />
-            ))}
-          </Stagger>
-        ) : (
-          <div className="mt-6">
-            <EmptyState>{page('empty')}</EmptyState>
-          </div>
-        )}
-      </Reveal>
-    </Container>
+    <section className="bg-canvas py-24 sm:py-32">
+      <Container>
+        <SectionHead title={t('newsHeading')} link={{ href: '/news', label: common('allNews') }} />
+        <Stagger className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
+          {posts.map(({ doc, translated }) => (
+            <NewsCard key={doc.id} post={doc} translated={translated} />
+          ))}
+        </Stagger>
+      </Container>
+    </section>
   )
 }
 
-export async function CallToAction({
-  heading,
-  text,
-}: {
-  heading?: string | null
-  text?: string | null
-}) {
+/** Closing night band before the footer: one heading, two ways to take part. */
+export async function CallToAction({ heading }: { heading?: string | null }) {
   const nav = await getTranslations('Navigation')
   return (
-    <section className="bg-surface-sky">
-      <Container className="py-16">
-        <Reveal className="max-w-3xl">
-          {heading ? <h2 className="text-2xl font-bold sm:text-3xl">{heading}</h2> : null}
-          <CmsText text={text} className="mt-4 text-lg" />
-          <div className="mt-8 flex flex-wrap gap-4">
-            <ButtonLink href="/membership">{nav('membership')}</ButtonLink>
-            <ButtonLink href="/support" variant="secondary">
+    <section
+      data-surface="night"
+      className="relative isolate overflow-hidden bg-night text-on-night"
+    >
+      <Atmosphere variant="band" />
+      <Container className="py-28 text-center sm:py-36">
+        <Reveal>
+          {heading ? <h2 className="text-title">{heading}</h2> : null}
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <ButtonLink href="/membership" variant="light" arrow>
+              {nav('membership')}
+            </ButtonLink>
+            <ButtonLink href="/support" variant="glass">
               {nav('support')}
+            </ButtonLink>
+            <ButtonLink href="/contact" variant="glass">
+              {nav('contact')}
             </ButtonLink>
           </div>
         </Reveal>

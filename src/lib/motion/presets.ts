@@ -2,13 +2,13 @@ import type { Direction } from '@/i18n/locale'
 
 import { dirX } from './direction'
 
-/** Calm, short motion: it supports reading and never delays it. */
+/** Soft, unhurried motion (direction C): it supports reading and never delays it. */
 export const motion = {
-  duration: 0.6,
-  ease: 'power2.out',
-  stagger: 0.08,
-  distance: 24,
-  slideDistance: 32,
+  duration: 0.9,
+  ease: 'expo.out',
+  stagger: 0.09,
+  distance: 36,
+  slideDistance: 40,
   /** A reveal starts when the element's top passes 90% of the viewport height. */
   triggerStart: 'top 90%',
 } as const

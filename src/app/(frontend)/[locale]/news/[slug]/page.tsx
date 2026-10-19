@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
-import { CmsImage } from '@/components/ui/CmsImage'
+import { ProjectCard } from '@/components/cards/ProjectCard'
+import { Stagger } from '@/components/motion/Stagger'
+import { MediaHero } from '@/components/sections/MediaHero'
+import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { RichText } from '@/components/ui/RichText'
 import { TranslationNotice } from '@/components/ui/TranslationNotice'
-import { Link } from '@/i18n/navigation'
 import { populated } from '@/lib/cms/populated'
 import { getNewsPost } from '@/lib/cms/queries'
 import { formatDate } from '@/lib/format'
@@ -48,61 +49,60 @@ export default async function NewsPostPage({ params }: Props) {
   const t = await getTranslations('NewsPage')
   const common = await getTranslations('Common')
   // Untranslated items show the German text, marked as German for screen readers and hyphenation.
-  // Short texts are isolated with <bdi> (correct punctuation, aligned with the page); the body
-  // is a left-to-right block.
   const lang = translated ? undefined : 'de'
   const dir = translated ? undefined : 'ltr'
   const related = populated<Project>(doc.relatedProjects)
 
   return (
     <article>
-      <PageHeader title={doc.title} lang={lang}>
-        {doc.publishedAt ? (
-          <p className="text-base">
+      <MediaHero
+        image={doc.coverImage}
+        title={doc.title}
+        lang={lang}
+        back={{ href: '/news', label: common('backToNews') }}
+        eyebrow={
+          doc.publishedAt ? (
             <time dateTime={doc.publishedAt}>
               {common('publishedOn', { date: formatDate(locale, doc.publishedAt) })}
             </time>
-          </p>
-        ) : null}
-        <p className="mt-2" lang={lang}>
-          <bdi>{doc.excerpt}</bdi>
-        </p>
-      </PageHeader>
-      <Container className="py-12">
-        <p>
-          <Link href="/news">{common('backToNews')}</Link>
-        </p>
-        {!translated ? (
-          <div className="mt-6">
-            <TranslationNotice />
+          ) : undefined
+        }
+      >
+        <CmsText text={doc.excerpt} as="span" />
+      </MediaHero>
+      <div className="bg-canvas py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-3xl">
+            {!translated ? (
+              <div className="mb-10">
+                <TranslationNotice />
+              </div>
+            ) : null}
+            <div lang={lang} dir={dir}>
+              <RichText data={doc.body} locale={locale} className="text-lg" />
+            </div>
           </div>
-        ) : null}
-        <CmsImage
-          media={doc.coverImage}
-          sizes="(min-width: 1152px) 1152px, 100vw"
-          className="mt-10 w-full rounded-lg"
-          preload
-        />
-        <div className="mt-10" lang={lang} dir={dir}>
-          <RichText data={doc.body} locale={locale} />
-        </div>
+        </Container>
         {related.length ? (
-          <section className="mt-12" aria-labelledby="related-heading">
-            <h2 id="related-heading" className="text-2xl font-bold">
-              {t('relatedProjects')}
-            </h2>
-            <ul className="mt-4 space-y-2">
-              {related.map((project) => (
-                <li key={project.id}>
-                  <Link href={{ pathname: '/projects/[slug]', params: { slug: project.slug } }}>
-                    <bdi>{project.title}</bdi>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Container className="mt-20">
+            <section aria-labelledby="related-heading">
+              <h2 id="related-heading" className="text-heading">
+                {t('relatedProjects')}
+              </h2>
+              <Stagger className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {related.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    translated
+                    className="aspect-[4/5]"
+                  />
+                ))}
+              </Stagger>
+            </section>
+          </Container>
         ) : null}
-      </Container>
+      </div>
     </article>
   )
 }
