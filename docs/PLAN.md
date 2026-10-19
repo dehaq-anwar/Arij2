@@ -704,3 +704,11 @@ The association confirmed on 2026-10-19 that the logo taken from the PSD is the 
 | Logging | Refused requests (403, 404, validation) were logged as errors in production, because Payload's setting for this matches minified class names (Phase 2 note). A logger hook now logs every 4xx as INFO with status and message only. `LOG_LEVEL` sets the level. Form handlers never log submitted values; database errors are logged with their code only | |
 | Technical privacy facts | `docs/privacy-notes.md`: data, storage, access, retention, cookies (none for visitors), headers. Input for the privacy policy, not legal text | |
 | Tests | End-to-end 136 → 153; new: forms (stored data and consent record, error summary and focus, honeypot, timing, rate limit, no JavaScript, Arabic, guardian rule, privacy of the API), security (headers, CSP, no sign-up, sign-in limit, password length, CMS without external requests or CSP violations). Unit 69 → 83 (token, validation, rate-limit keys, retention dates, notification content) | |
+
+## 24. Administration & Control Center (proposal, 2026-10-19)
+
+Requested before Phase 6. Audit, comparison with cPanel/Plesk/CloudPanel, architecture, roles,
+phased plan (CC-0 … CC-5) and the decisions needed are in [CONTROL-CENTER.md](CONTROL-CENTER.md)
+(Arabic: [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)); the interactive design is
+[control-center/mockups.html](control-center/mockups.html). Nothing is implemented until the plan
+is approved.
