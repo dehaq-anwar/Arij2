@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test'
-
 import { dirOf, languageName, languageNav, locales, routes } from './fixtures'
+import { expect, test } from './test'
 
 test.describe('every page in every language', () => {
   for (const route of routes) {

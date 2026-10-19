@@ -7,7 +7,7 @@ import { OrgName } from '@/components/ui/OrgName'
 import { Link } from '@/i18n/navigation'
 import type { Locale } from '@/i18n/routing'
 import { getGlobal } from '@/lib/cms/queries'
-import { legalNav, mainNav, membershipLink } from '@/lib/navigation'
+import { legalNav, mainNav, membershipLink, prefetchFor } from '@/lib/navigation'
 import type { SiteSetting } from '@/payload-types'
 
 import { Logo } from './Logo'
@@ -70,6 +70,7 @@ export async function SiteFooter() {
                 <li key={href}>
                   <Link
                     href={href}
+                    prefetch={prefetchFor(href)}
                     className="inline-block py-1 text-on-night no-underline hover:text-glow"
                   >
                     {nav(key)}

@@ -1,6 +1,7 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import type { APIRequestContext, Page } from '@playwright/test'
 
-import { languageName, languageNav, testData } from './fixtures'
+import { account, languageName, languageNav, testData } from './fixtures'
+import { expect, test } from './test'
 
 const alternates = async (page: Page) =>
   Object.fromEntries(
@@ -155,7 +156,7 @@ test.describe('privacy and editorial rules', () => {
 
 test.describe('changes in the CMS are published immediately', () => {
   const signIn = async (request: APIRequestContext) => {
-    const login = await request.post('/api/users/login', { data: testData.editor })
+    const login = await request.post('/api/users/login', { data: account('editor') })
     expect(login.status()).toBe(200)
     const { token } = (await login.json()) as { token: string }
     return { Authorization: `JWT ${token}` }

@@ -1,14 +1,15 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import type { APIRequestContext, Page } from '@playwright/test'
 
-import { freshAddress, testData } from './fixtures'
+import { account, freshAddress } from './fixtures'
+import { expect, test } from './test'
 
 /** Every test submits from its own address, so the rate limiter counts each test separately. */
 const ownAddress = (page: Page) => page.setExtraHTTPHeaders({ 'X-Forwarded-For': freshAddress() })
 
 const asBoard = async (request: APIRequestContext) => {
   const login = await request.post('/api/users/login', {
-    data: testData.board,
+    data: account('board'),
     headers: { 'X-Forwarded-For': freshAddress() },
   })
   expect(login.status()).toBe(200)
@@ -303,7 +304,7 @@ test.describe('submissions are private', () => {
       ).toBe(403)
     }
     const login = await request.post('/api/users/login', {
-      data: testData.editor,
+      data: account('editor'),
       headers: { 'X-Forwarded-For': freshAddress() },
     })
     const { token } = (await login.json()) as { token: string }
@@ -317,7 +318,7 @@ test('the retention job deletes what is older than six months, and only that', a
   request,
 }) => {
   const login = await request.post('/api/users/login', {
-    data: testData.admin,
+    data: account('admin'),
     headers: { 'X-Forwarded-For': freshAddress() },
   })
   const { token } = (await login.json()) as { token: string }
@@ -345,4 +346,23 @@ test('the retention job deletes what is older than six months, and only that', a
     'E2E Retention abgelehnt neu',
     'E2E Retention aufgenommen alt',
   ])
+})
+
+test('pages with a form are not prefetched, and open when the link is followed', async ({
+  page,
+}) => {
+  // They are rendered per request, so a prefetch would render them on the server for every
+  // page view. A hanging prefetch of these pages once stalled every page load in CI.
+  const prefetched: string[] = []
+  page.on('request', (request) => {
+    if (/\/(kontakt|mitglied-werden)\?_rsc=/.test(request.url())) prefetched.push(request.url())
+  })
+  await page.goto('/impressum', { waitUntil: 'networkidle' })
+  expect(prefetched).toEqual([])
+  await page
+    .getByRole('navigation', { name: 'Hauptnavigation' })
+    .getByRole('link', { name: 'Kontakt' })
+    .click()
+  await expect(page).toHaveURL('/kontakt')
+  await expect(page.getByRole('button', { name: 'Nachricht senden' })).toBeVisible()
 })

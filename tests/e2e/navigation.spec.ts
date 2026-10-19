@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 
 test('the current section is marked in the main navigation', async ({ page }) => {
   await page.goto('/projekte')

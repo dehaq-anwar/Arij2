@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react'
 
 import { Link } from '@/i18n/navigation'
+import { prefetchFor } from '@/lib/navigation'
 
 type Variant = 'primary' | 'secondary' | 'light' | 'glass'
 type Props = ComponentProps<typeof Link> & { variant?: Variant; arrow?: boolean }
@@ -31,7 +32,11 @@ export function ButtonLink({
   ...props
 }: Props) {
   return (
-    <Link {...props} className={`${base} ${variants[variant]} ${className}`}>
+    <Link
+      prefetch={prefetchFor(props.href)}
+      {...props}
+      className={`${base} ${variants[variant]} ${className}`}
+    >
       {children}
       {arrow ? (
         <svg

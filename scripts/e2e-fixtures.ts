@@ -157,30 +157,19 @@ for (const [name, permissionConfirmed] of [
 }
 
 // Accounts: scripts create them with the server-command flag (there is no open sign-up).
-// The tests sign in as the editor (content), the board member (applications, messages) and,
-// to run the job queue, the administrator. All share the password generated for the run.
-const accounts = [
-  {
-    name: 'E2E Admin',
-    email: 'e2e-admin@example.test',
-    password: editorPassword,
-    role: 'admin',
-  },
-  {
-    name: 'E2E Redaktion',
-    email: 'e2e-editor@example.test',
-    password: editorPassword,
-    role: 'editor',
-  },
-  {
-    name: 'E2E Vorstand',
-    email: 'e2e-board@example.test',
-    password: editorPassword,
-    role: 'board',
-  },
-] as const
-for (const data of accounts) {
-  await payload.create({ collection: 'users', data, context: { [SERVER_COMMAND]: true } })
+// The tests sign in as editor (content), board member (applications, messages) and, to run the
+// job queue, administrator; all share the password generated for the run. Each test worker has
+// its own accounts: Payload stores sessions in the account, and two sign-ins to the same account
+// at the same moment can overwrite each other's session (tests/e2e/fixtures.ts → account()).
+const roles = { admin: 'E2E Admin', editor: 'E2E Redaktion', board: 'E2E Vorstand' } as const
+for (let worker = 0; worker < 8; worker++) {
+  for (const [role, name] of Object.entries(roles) as [keyof typeof roles, string][]) {
+    await payload.create({
+      collection: 'users',
+      data: { name, email: `e2e-${role}-${worker}@example.test`, password: editorPassword, role },
+      context: { [SERVER_COMMAND]: true },
+    })
+  }
 }
 
 // Retention: entries older than six months (deleted by the retention job) and newer ones (kept).

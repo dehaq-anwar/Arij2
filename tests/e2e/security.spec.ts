@@ -1,6 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-import { freshAddress, testData } from './fixtures'
+import { account, freshAddress } from './fixtures'
+import { expect, test } from './test'
 
 const expectedHeaders: Record<string, string | RegExp> = {
   'content-security-policy': /^default-src 'self'; .*frame-ancestors 'none'.*form-action 'self'$/,
@@ -70,7 +71,7 @@ test.describe('CMS accounts', () => {
 
   test('passwords need at least 12 characters', async ({ request }) => {
     const login = await request.post('/api/users/login', {
-      data: testData.board,
+      data: account('board'),
       headers: { 'X-Forwarded-For': freshAddress() },
     })
     const { token, user } = (await login.json()) as { token: string; user: { id: number } }
@@ -107,7 +108,7 @@ test('the CMS loads nothing from other hosts and violates no CSP rule', async ({
     if (/Content Security Policy/i.test(message.text())) violations.push(message.text())
   })
 
-  await signIn(page, testData.board)
+  await signIn(page, account('board'))
   for (const path of [
     '/admin',
     '/admin/collections/membership-applications',
@@ -122,7 +123,7 @@ test('the CMS loads nothing from other hosts and violates no CSP rule', async ({
   )
 
   await page.context().clearCookies()
-  await signIn(page, testData.editor)
+  await signIn(page, account('editor'))
   // The rich-text editor of a project and the upload view.
   await page.goto('/admin/collections/projects', { waitUntil: 'networkidle' })
   await page.getByRole('link', { name: 'E2E Testprojekt' }).first().click()

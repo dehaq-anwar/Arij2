@@ -1,3 +1,5 @@
+import { test } from '@playwright/test'
+
 export const locales = ['de', 'en', 'ar'] as const
 export type Locale = (typeof locales)[number]
 
@@ -36,9 +38,6 @@ export const testData = {
     en: '/en/news/e2e-testbeitrag',
     ar: '/ar/news/e2e-testbeitrag',
   },
-  editor: { email: 'e2e-editor@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
-  board: { email: 'e2e-board@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
-  admin: { email: 'e2e-admin@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
 } as const
 
 /** Detail pages checked by axe in addition to `routes`. */
@@ -57,3 +56,12 @@ export const detailPages = [
  */
 export const freshAddress = () =>
   `2001:db8::${Math.floor(Math.random() * 0xffff).toString(16)}:${(Date.now() % 0xffff).toString(16)}`
+
+/**
+ * The CMS account of this test worker for a role (see scripts/e2e-fixtures.ts): every worker
+ * signs in to its own accounts, so parallel sign-ins never overwrite each other's session.
+ */
+export const account = (role: 'admin' | 'editor' | 'board') => ({
+  email: `e2e-${role}-${test.info().parallelIndex}@example.test`,
+  password: process.env.E2E_EDITOR_PASSWORD ?? '',
+})

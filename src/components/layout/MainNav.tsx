@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 
 import { Link, usePathname } from '@/i18n/navigation'
-import { mainNav } from '@/lib/navigation'
+import { mainNav, prefetchFor } from '@/lib/navigation'
 
 type Props = { orientation?: 'horizontal' | 'vertical'; className?: string }
 
@@ -23,6 +23,7 @@ export function MainNav({ orientation = 'horizontal', className = '' }: Props) {
             <li key={href} data-menu-item={vertical ? '' : undefined}>
               <Link
                 href={href}
+                prefetch={prefetchFor(href)}
                 aria-current={current}
                 data-current={current ? '' : undefined}
                 className={

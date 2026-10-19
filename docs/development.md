@@ -50,11 +50,11 @@ The end-to-end tests run against their own database, which **is wiped and rebuil
 docker compose exec postgres createdb -U yop yop_e2e
 ```
 
-The test data (projects, a post, a statistic, people and partners named "E2E …") exists only there. The tests sign in as a test editor and a test board member whose password is generated for each run. Form tests send an `X-Forwarded-For` header from the documentation address range so that each test has its own rate-limit counter (the test server has no reverse proxy).
+The test data (projects, a post, a statistic, people and partners named "E2E …") exists only there. The tests sign in as test editors, board members and administrators (one set per test worker) whose password is generated for each run. When a test fails, the requests of its page that never finished are printed (`tests/e2e/test.ts`); in CI the server's own log is included in the job log. Form tests send an `X-Forwarded-For` header from the documentation address range so that each test has its own rate-limit counter (the test server has no reverse proxy).
 
 ## Forms, e-mail and retention
 
-- The membership and contact forms are Server Actions with server-side validation; they also work without JavaScript. Pages with a form are rendered per request (the form carries a freshly signed timestamp).
+- The membership and contact forms are Server Actions with server-side validation; they also work without JavaScript. Pages with a form are rendered per request (`dynamic = 'force-dynamic'`; the form carries a freshly signed timestamp) and links to them are not prefetched. Do not use `connection()` for this: it never resolves while Next.js renders a prefetch.
 - Submissions are stored in the collections **Mitgliedsanträge** and **Kontaktnachrichten** (visible to the roles board and admin only). Details: `docs/privacy-notes.md`.
 - E-mail: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` and `NOTIFY_EMAIL`. Without `SMTP_HOST` nothing is sent and nothing is logged in its place.
 - Retention: Payload's job queue checks every 10 minutes; the task `retention` is due every night at 03:00 (server time) and deletes contact messages after six months, rejected applications six months after the decision, and expired rate-limit counters. The queue starts with the first request after the server starts.

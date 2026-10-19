@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
 
 import { detailPages, locales, routes } from './fixtures'
+import { expect, test } from './test'
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 

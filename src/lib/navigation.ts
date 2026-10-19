@@ -15,3 +15,10 @@ export const legalNav = [
 ] as const
 
 export type NavItem = (typeof mainNav)[number] | typeof membershipLink | (typeof legalNav)[number]
+
+/**
+ * Pages rendered per request (the forms) are not prefetched: otherwise every page view would
+ * render them on the server in the background. They load when the link is followed.
+ */
+export const prefetchFor = (href: unknown) =>
+  href === '/contact' || href === '/membership' ? false : undefined

@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server'
-import { connection } from 'next/server'
 
 import { MarkedText } from '@/components/ui/MarkedText'
 import { getPathname, Link } from '@/i18n/navigation'
@@ -13,10 +12,10 @@ import { MembershipFormClient } from './MembershipFormClient'
 /**
  * Server parts of the forms: the wording of declarations and consent comes from the CMS (with
  * its draft/placeholder marker), and every visit gets a freshly signed timestamp, which is why
- * pages with a form are rendered per request instead of from the cache.
+ * pages with a form are rendered per request (`dynamic = 'force-dynamic'` on the page).
+ * Not `connection()`: while Next.js renders a prefetch, it never resolves and the request hangs.
  */
 async function shared(locale: Locale) {
-  await connection()
   const f = await getTranslations({ locale, namespace: 'Forms' })
   const text = (value: string | null | undefined) => (
     <MarkedText as="span" text={value?.trim() ? value : f('missingText')} />

@@ -1,6 +1,5 @@
-import { expect, test } from '@playwright/test'
-
 import { locales, routes } from './fixtures'
+import { expect, test } from './test'
 
 test('no cookies and no requests to other hosts on any page', async ({
   page,

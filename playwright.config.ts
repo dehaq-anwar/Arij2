@@ -36,5 +36,7 @@ export default defineConfig({
     // Always a fresh server: it rebuilds the test database with the current fixtures.
     reuseExistingServer: false,
     timeout: 180_000,
+    // In CI the server's own log (Payload, Next.js) goes into the job log for diagnosis.
+    stdout: process.env.CI ? 'pipe' : 'ignore',
   },
 })
