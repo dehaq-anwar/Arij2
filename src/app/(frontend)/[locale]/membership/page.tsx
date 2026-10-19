@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
+import { MembershipForm } from '@/components/forms/Forms'
 import { CardSteps } from '@/components/sections/ContentSection'
 import { NightBand } from '@/components/sections/NightBand'
-import { ButtonLink } from '@/components/ui/ButtonLink'
 import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -13,6 +13,9 @@ import { resolveLocale } from '@/lib/locale-page'
 import { localizedAlternates } from '@/lib/seo'
 
 type Props = { params: Promise<{ locale: string }> }
+
+// The form carries a freshly signed timestamp, so this page is rendered for every request.
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await resolveLocale(params)
@@ -42,14 +45,16 @@ export default async function MembershipPage({ params }: Props) {
           />
         </Container>
       </div>
-      {/* The application form (with consent and, for 16–17-year-olds, guardian consent) follows in Phase 5. */}
       <NightBand id="apply" heading={t('applyHeading')}>
         <div className="mt-8 max-w-3xl">
           <CmsText text={page.formNote} />
         </div>
-        <ButtonLink href="/contact" variant="light" arrow className="mt-10">
-          {t('contactCta')}
-        </ButtonLink>
+        <div
+          data-surface="day"
+          className="mt-12 max-w-4xl rounded-card bg-surface p-6 text-ink shadow-[0_40px_120px_-40px_rgba(127,224,214,0.45)] sm:p-10 lg:p-14"
+        >
+          <MembershipForm locale={locale} anchor="apply" />
+        </div>
       </NightBand>
     </>
   )

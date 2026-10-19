@@ -1,13 +1,80 @@
-import type { CollectionBeforeChangeHook, CollectionConfig } from 'payload'
+import {
+  APIError,
+  Forbidden,
+  ValidationError,
+  type CollectionBeforeChangeHook,
+  type CollectionBeforeOperationHook,
+  type CollectionBeforeValidateHook,
+  type CollectionConfig,
+} from 'payload'
 
+import { allowAttempt, clientAddress, LIMITS } from '../../lib/forms/rate-limit'
 import { isAdmin, isAdminField, isAdminOrSelf } from '../access/roles'
-import { groups, label } from '../lib/labels'
+import { groups, label, localizedMessage } from '../lib/labels'
 
-/** The very first account (created via the admin's first-user screen) becomes an admin. */
-const firstUserIsAdmin: CollectionBeforeChangeHook = async ({ data, operation, req }) => {
-  if (operation !== 'create') return data
-  const { totalDocs } = await req.payload.count({ collection: 'users', req })
-  return totalDocs === 0 ? { ...data, role: 'admin' } : data
+export const MIN_PASSWORD_LENGTH = 12
+
+/**
+ * Accounts are created by an administrator, or on the server with `npm run create-admin` (which
+ * passes this context flag). Payload's "create first user" screen and endpoint stay closed, so a
+ * fresh installation cannot be claimed by whoever finds it first.
+ */
+export const SERVER_COMMAND = 'serverCommand'
+
+const noSignUp: CollectionBeforeChangeHook = ({ data, operation, req }) => {
+  if (operation === 'create' && !req.user && !req.context?.[SERVER_COMMAND]) {
+    throw new Forbidden(req.t)
+  }
+  return data
+}
+
+const tooShort = (req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
+  new ValidationError(
+    {
+      collection: 'users',
+      errors: [
+        {
+          path: 'password',
+          message: localizedMessage(
+            label(
+              `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen.`,
+              `At least ${MIN_PASSWORD_LENGTH} characters.`,
+              `${MIN_PASSWORD_LENGTH} حرفًا على الأقل.`,
+            ),
+            req,
+          ),
+        },
+      ],
+    },
+    req.t,
+  )
+
+const passwordLength: CollectionBeforeValidateHook = ({ data, req }) => {
+  const password = (data as { password?: unknown } | undefined)?.password
+  if (typeof password === 'string' && password.length < MIN_PASSWORD_LENGTH) throw tooShort(req)
+  return data
+}
+
+/**
+ * Sign-in and password-reset requests are limited per (hashed) address, on top of Payload's
+ * lock after five wrong passwords per account. A new password must meet the length rule too.
+ */
+const guardAuthOperations: CollectionBeforeOperationHook = async ({ args, operation, req }) => {
+  if (operation === 'resetPassword') {
+    const password = (args as { data?: { password?: unknown } }).data?.password
+    if (typeof password === 'string' && password.length < MIN_PASSWORD_LENGTH) throw tooShort(req)
+  }
+  if (operation === 'login' || operation === 'forgotPassword') {
+    if (req.context?.[SERVER_COMMAND]) return args
+    const allowed = await allowAttempt(
+      req.payload,
+      operation,
+      clientAddress(req.headers),
+      LIMITS.login,
+    )
+    if (!allowed) throw new APIError('Too many attempts. Please try again later.', 429, null, true)
+  }
+  return args
 }
 
 export const Users: CollectionConfig = {
@@ -37,7 +104,9 @@ export const Users: CollectionConfig = {
     delete: isAdmin,
   },
   hooks: {
-    beforeChange: [firstUserIsAdmin],
+    beforeOperation: [guardAuthOperations],
+    beforeValidate: [passwordLength],
+    beforeChange: [noSignUp],
   },
   fields: [
     {

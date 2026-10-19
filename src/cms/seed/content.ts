@@ -206,7 +206,16 @@ export const membershipPage: PerLocale<Record<string, unknown>> = {
       '[ENTWURF] Aufnahmeanträge können schriftlich oder online gestellt werden. Über die Aufnahme entscheidet der Schriftführer, über eine Ablehnung der Gesamtvorstand.',
       '[ENTWURF] Die Mitgliedschaft kann schriftlich mit einer Frist von vier Wochen zum Ende eines Kalenderquartals gekündigt werden.',
     ),
-    formNote: '[PLACEHOLDER: Hinweis zum Online-Antrag – das Formular folgt in Phase 5]',
+    formNote: '[PLACEHOLDER: Hinweis zum Online-Antrag]',
+    form: {
+      principles:
+        '[ENTWURF] Ich bekenne mich zu den Grundsätzen des Vereins, insbesondere zur freiheitlich demokratischen Grundordnung, und bin bereit, seine Ziele zu fördern (§§ 2 und 3 der Satzung).',
+      fees: '[ENTWURF] Mir ist bekannt, dass ein Eintrittsgeld und ein Jahresbeitrag nach der Beitragsordnung anfallen (§ 4 der Satzung).',
+      guardian:
+        '[ENTWURF] Sind Sie unter 18 Jahre alt, braucht der Verein die Zustimmung einer erziehungsberechtigten Person. Der Verein nimmt dazu Kontakt mit ihr auf.',
+      consent:
+        '[ENTWURF] Ich willige ein, dass der Verein meine Angaben speichert und verarbeitet, um meinen Mitgliedsantrag zu bearbeiten.',
+    },
   },
   en: {
     intro: paragraphs('[PLACEHOLDER: invitation to become a member]'),
@@ -222,7 +231,16 @@ export const membershipPage: PerLocale<Record<string, unknown>> = {
       '[DRAFT] Applications can be made in writing or online. The secretary (Schriftführer) decides on admission; a rejection is decided by the full board.',
       '[DRAFT] Membership can be cancelled in writing with four weeks’ notice to the end of a calendar quarter.',
     ),
-    formNote: '[PLACEHOLDER: note on the online application – the form follows in Phase 5]',
+    formNote: '[PLACEHOLDER: note on the online application]',
+    form: {
+      principles:
+        '[DRAFT] I commit to the principles of the association, in particular to the free democratic basic order, and am willing to promote its aims (§§ 2 and 3 of the Satzung).',
+      fees: '[DRAFT] I understand that an entrance fee and an annual fee are due under the fee regulations (§ 4 of the Satzung).',
+      guardian:
+        '[DRAFT] If you are under 18, the association needs the consent of a parent or guardian. The association will contact them about this.',
+      consent:
+        '[DRAFT] I consent to the association storing and processing my details to handle my membership application.',
+    },
   },
   ar: {
     intro: paragraphs('[PLACEHOLDER: دعوة للانضمام إلى العضوية]'),
@@ -238,7 +256,15 @@ export const membershipPage: PerLocale<Record<string, unknown>> = {
       '[مسودة] يمكن تقديم طلب العضوية كتابيًا أو عبر الإنترنت. ويقرر أمين السر القبول، ويقرر مجلس الإدارة بكامل هيئته الرفض.',
       '[مسودة] يمكن إنهاء العضوية كتابيًا بمهلة أربعة أسابيع قبل نهاية ربع السنة.',
     ),
-    formNote: '[PLACEHOLDER: ملاحظة حول الطلب الإلكتروني – يُضاف النموذج في المرحلة 5]',
+    formNote: '[PLACEHOLDER: ملاحظة حول الطلب الإلكتروني]',
+    form: {
+      principles:
+        '[مسودة] ألتزم بمبادئ الجمعية، ولا سيما النظام الأساسي الديمقراطي الحر، وأنا مستعد لدعم أهدافها (المادتان 2 و3 من النظام الأساسي).',
+      fees: '[مسودة] أعلم أن رسم انتساب واشتراكًا سنويًا مستحقان وفق لائحة الاشتراكات (المادة 4 من النظام الأساسي).',
+      guardian:
+        '[مسودة] إذا كان عمرك أقل من 18 عامًا، تحتاج الجمعية إلى موافقة وليّ أمرك، وستتواصل الجمعية معه بهذا الشأن.',
+      consent: '[مسودة] أوافق على أن تحفظ الجمعية بياناتي وتعالجها للنظر في طلب عضويتي.',
+    },
   },
 }
 
@@ -290,9 +316,24 @@ export const supportPage: PerLocale<Record<string, unknown>> = {
 }
 
 export const contactPage: PerLocale<Record<string, unknown>> = {
-  de: { intro: paragraphs('[PLACEHOLDER: Einleitung zur Kontaktaufnahme]') },
-  en: { intro: paragraphs('[PLACEHOLDER: introduction to getting in touch]') },
-  ar: { intro: paragraphs('[PLACEHOLDER: مقدمة للتواصل معنا]') },
+  de: {
+    intro: paragraphs('[PLACEHOLDER: Einleitung zur Kontaktaufnahme]'),
+    form: {
+      consent:
+        '[ENTWURF] Ich willige ein, dass der Verein meine Angaben speichert und verarbeitet, um meine Nachricht zu beantworten.',
+    },
+  },
+  en: {
+    intro: paragraphs('[PLACEHOLDER: introduction to getting in touch]'),
+    form: {
+      consent:
+        '[DRAFT] I consent to the association storing and processing my details to answer my message.',
+    },
+  },
+  ar: {
+    intro: paragraphs('[PLACEHOLDER: مقدمة للتواصل معنا]'),
+    form: { consent: '[مسودة] أوافق على أن تحفظ الجمعية بياناتي وتعالجها للرد على رسالتي.' },
+  },
 }
 
 export const legalNotice: PerLocale<Record<string, unknown>> = {

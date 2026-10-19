@@ -6,17 +6,22 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import { ar } from '@payloadcms/translations/languages/ar'
 import { de } from '@payloadcms/translations/languages/de'
 import { en } from '@payloadcms/translations/languages/en'
-import { buildConfig } from 'payload'
+import { buildConfig, defaultLoggerOptions } from 'payload'
 import sharp from 'sharp'
 
+import { hasRole } from './cms/access/roles'
+import { ContactMessages } from './cms/collections/ContactMessages'
 import { FocusAreas } from './cms/collections/FocusAreas'
 import { Media } from './cms/collections/Media'
+import { MembershipApplications } from './cms/collections/MembershipApplications'
 import { News } from './cms/collections/News'
 import { Partners } from './cms/collections/Partners'
 import { Projects } from './cms/collections/Projects'
+import { RateLimitBuckets } from './cms/collections/RateLimitBuckets'
 import { Statistics } from './cms/collections/Statistics'
 import { TeamMembers } from './cms/collections/TeamMembers'
 import { Users } from './cms/collections/Users'
+import { emailAdapter } from './cms/email'
 import { richTextEditor } from './cms/fields/richText'
 import { AboutPage } from './cms/globals/AboutPage'
 import { ContactPage } from './cms/globals/ContactPage'
@@ -25,6 +30,7 @@ import { LegalNotice, PrivacyPolicy } from './cms/globals/LegalPages'
 import { MembershipPage } from './cms/globals/MembershipPage'
 import { SiteSettings } from './cms/globals/SiteSettings'
 import { SupportPage } from './cms/globals/SupportPage'
+import { retentionTask } from './cms/jobs/retention'
 import { migrations } from './migrations'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -38,8 +44,23 @@ export default buildConfig({
     user: Users.slug,
     importMap: { baseDir: path.resolve(dirname) },
     meta: { titleSuffix: ' – Youth of Peace e.V.' },
+    // Payload's default avatar is Gravatar, which sends a hash of each editor's e-mail address
+    // to a third party (and is blocked by the CSP). A neutral icon instead.
+    avatar: 'default',
   },
-  collections: [Projects, News, FocusAreas, TeamMembers, Statistics, Partners, Media, Users],
+  collections: [
+    Projects,
+    News,
+    FocusAreas,
+    TeamMembers,
+    Statistics,
+    Partners,
+    Media,
+    MembershipApplications,
+    ContactMessages,
+    Users,
+    RateLimitBuckets,
+  ],
   globals: [
     HomePage,
     AboutPage,
@@ -58,6 +79,30 @@ export default buildConfig({
     prodMigrations: migrations,
   }),
   graphQL: { disable: true },
+  email: emailAdapter(),
+  logger: {
+    destination: defaultLoggerOptions,
+    options: {
+      level: process.env.LOG_LEVEL || 'info',
+      hooks: {
+        // Payload logs refused requests (403, 404, validation) as errors; they are normal traffic.
+        // Its own setting for this matches error class names, which the production build minifies.
+        logMethod(args, method, level) {
+          const err = (args[0] as { err?: { status?: unknown; message?: string } } | undefined)?.err
+          if (level >= 50 && typeof err?.status === 'number' && err.status < 500) {
+            return this.info({ status: err.status }, err.message ?? 'Request refused')
+          }
+          return method.apply(this, args)
+        },
+      },
+    },
+  },
+  jobs: {
+    tasks: [retentionTask],
+    // Checks the queue every 10 minutes; the tasks' own schedules decide when they are due.
+    autoRun: [{ cron: '*/10 * * * *', queue: 'maintenance' }],
+    access: { run: ({ req }) => hasRole(req.user, 'admin') },
+  },
   localization: {
     locales: [
       { code: 'de', label: 'Deutsch' },

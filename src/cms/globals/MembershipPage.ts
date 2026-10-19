@@ -1,5 +1,5 @@
 import { label } from '../lib/labels'
-import { pageGlobal } from './shared'
+import { formText, pageGlobal } from './shared'
 
 export const MembershipPage = pageGlobal({
   slug: 'membership-page',
@@ -45,6 +45,37 @@ export const MembershipPage = pageGlobal({
         'Note about the application form',
         'ملاحظة حول نموذج الطلب',
       ),
+    },
+    {
+      name: 'form',
+      type: 'group',
+      label: label('Texte im Antragsformular', 'Texts in the application form', 'نصوص نموذج الطلب'),
+      admin: {
+        description: label(
+          'Wortlaut der Erklärungen, die Antragstellende ankreuzen. Er wird mit jedem Antrag gespeichert. Bitte rechtlich prüfen lassen.',
+          'Wording of the declarations applicants tick. It is stored with every application. Please have it legally reviewed.',
+          'نص الإقرارات التي يؤشر عليها مقدمو الطلبات، ويُحفظ مع كل طلب. يُرجى مراجعته قانونيًا.',
+        ),
+      },
+      fields: [
+        formText(
+          'principles',
+          label('Grundsätze und Ziele', 'Principles and aims', 'المبادئ والأهداف'),
+        ),
+        formText('fees', label('Beiträge', 'Fees', 'الاشتراكات')),
+        formText(
+          'guardian',
+          label(
+            'Hinweis für Antragstellende unter 18',
+            'Note for applicants under 18',
+            'ملاحظة لمن هم دون 18 عامًا',
+          ),
+        ),
+        formText(
+          'consent',
+          label('Einwilligung (Datenschutz)', 'Consent (privacy)', 'الموافقة (الخصوصية)'),
+        ),
+      ],
     },
   ],
 })

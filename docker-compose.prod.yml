@@ -1,5 +1,6 @@
 # Production: app + PostgreSQL. Media goes to an external EU-region S3 provider.
-# A Caddy reverse proxy (TLS, security headers, log retention) is added in Phase 5/6.
+# A Caddy reverse proxy (TLS, HTTP→HTTPS, access-log retention, optional /admin protection) follows in
+# Phase 6. The app must only be reachable through it: the rate limiter trusts X-Forwarded-For.
 # Secrets come from .env on the server (never committed).
 
 services:

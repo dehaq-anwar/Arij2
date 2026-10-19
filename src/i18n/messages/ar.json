@@ -88,8 +88,7 @@
     "whoCanJoinHeading": "من يمكنه الانضمام",
     "feesHeading": "الاشتراكات",
     "processHeading": "خطوات الانضمام",
-    "applyHeading": "تقديم الطلب",
-    "contactCta": "لديك أسئلة؟ راسلنا"
+    "applyHeading": "تقديم الطلب"
   },
   "Support": {
     "bankDetails": "بيانات الحساب البنكي",
@@ -106,7 +105,67 @@
     "phone": "الهاتف",
     "address": "العنوان",
     "hours": "أوقات التواصل",
-    "formHeading": "أرسل رسالة",
-    "formPlaceholder": "[PLACEHOLDER: نموذج التواصل – يُضاف في المرحلة 5]"
+    "formHeading": "أرسل رسالة"
+  },
+  "Forms": {
+    "required": "يُرجى ملء هذا الحقل.",
+    "email": "يُرجى إدخال بريد إلكتروني صالح، مثل name@example.org.",
+    "tooLong": "هذا النص طويل جدًا.",
+    "accept": "يُرجى التأكيد.",
+    "choice": "يُرجى اختيار أحد الخيارات.",
+    "allRequired": "جميع الحقول مطلوبة.",
+    "errorHeading": "يُرجى مراجعة البيانات",
+    "rateLimited": "محاولات كثيرة. يُرجى المحاولة مجددًا بعد بضع دقائق.",
+    "expired": "ظل النموذج مفتوحًا مدة طويلة. يُرجى إرساله مرة أخرى.",
+    "server": "تعذّر الإرسال. يُرجى المحاولة لاحقًا أو مراسلتنا بالبريد الإلكتروني.",
+    "sending": "جارٍ الإرسال…",
+    "privacyLink": "اقرأ سياسة الخصوصية",
+    "missingText": "[PLACEHOLDER: أضف هذا النص في نظام إدارة المحتوى]",
+    "honeypot": "اترك هذا الحقل فارغًا",
+    "successHeading": "شكرًا لك!",
+    "consentShort": "الموافقة",
+    "newTab": "(يُفتح في علامة تبويب جديدة)"
+  },
+  "MembershipForm": {
+    "personHeading": "بياناتك",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "email": "البريد الإلكتروني",
+    "addressHeading": "العنوان",
+    "addressHint": "لإرسال الدعوات المكتوبة إلى الجمعية العمومية.",
+    "street": "الشارع ورقم المنزل",
+    "postalCode": "الرمز البريدي",
+    "city": "المدينة",
+    "country": "البلد",
+    "typeHeading": "نوع العضوية",
+    "ordinary": "عضوية عادية",
+    "supporting": "عضوية داعمة",
+    "ageHeading": "العمر",
+    "atLeast16": "عمري 16 عامًا على الأقل.",
+    "under18": "عمري أقل من 18 عامًا.",
+    "guardianName": "اسم وليّ الأمر",
+    "guardianEmail": "البريد الإلكتروني لوليّ الأمر",
+    "declarationsHeading": "الإقرارات",
+    "submit": "إرسال الطلب",
+    "success": "وصلنا طلبك، وسنتواصل معك عبر البريد الإلكتروني.",
+    "principlesShort": "المبادئ والأهداف",
+    "feesShort": "الاشتراكات"
+  },
+  "ContactForm": {
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "topic": "الموضوع",
+    "message": "الرسالة",
+    "messageHint": "5000 حرف كحد أقصى.",
+    "topics": {
+      "general": "سؤال عام",
+      "membership": "العضوية",
+      "volunteering": "التطوع",
+      "partnership": "الشراكة",
+      "press": "الصحافة",
+      "other": "أخرى"
+    },
+    "submit": "إرسال الرسالة",
+    "success": "وصلتنا رسالتك، وسنرد عليك عبر البريد الإلكتروني."
   }
 }

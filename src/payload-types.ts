@@ -74,8 +74,12 @@ export interface Config {
     statistics: Statistic;
     partners: Partner;
     media: Media;
+    'membership-applications': MembershipApplication;
+    'contact-messages': ContactMessage;
     users: User;
+    'rate-limit-buckets': RateLimitBucket;
     'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -89,8 +93,12 @@ export interface Config {
     statistics: StatisticsSelect<false> | StatisticsSelect<true>;
     partners: PartnersSelect<false> | PartnersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'membership-applications': MembershipApplicationsSelect<false> | MembershipApplicationsSelect<true>;
+    'contact-messages': ContactMessagesSelect<false> | ContactMessagesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'rate-limit-buckets': RateLimitBucketsSelect<false> | RateLimitBucketsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -108,6 +116,7 @@ export interface Config {
     'legal-notice': LegalNotice;
     'privacy-policy': PrivacyPolicy;
     'site-settings': SiteSetting;
+    'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     'home-page': HomePageSelect<false> | HomePageSelect<true>;
@@ -118,6 +127,7 @@ export interface Config {
     'legal-notice': LegalNoticeSelect<false> | LegalNoticeSelect<true>;
     'privacy-policy': PrivacyPolicySelect<false> | PrivacyPolicySelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: 'de' | 'en' | 'ar';
   widgets: {
@@ -125,7 +135,13 @@ export interface Config {
   };
   user: User;
   jobs: {
-    tasks: unknown;
+    tasks: {
+      retention: TaskRetention;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
     workflows: unknown;
   };
 }
@@ -381,6 +397,58 @@ export interface Statistic {
   createdAt: string;
 }
 /**
+ * Reply to applicants by e-mail. Rejected applications are deleted automatically six months after the decision.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership-applications".
+ */
+export interface MembershipApplication {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  /**
+   * For written invitations to the general meeting (Satzung § 7).
+   */
+  address: {
+    street: string;
+    postalCode: string;
+    city: string;
+    country: string;
+  };
+  membershipType: 'ordinary' | 'supporting';
+  declarations: {
+    atLeast16: boolean;
+    principles: boolean;
+    fees: boolean;
+  };
+  under18?: boolean | null;
+  /**
+   * The association obtains consent from this person (e.g. in writing). The board decides which form is sufficient.
+   */
+  guardian?: {
+    name?: string | null;
+    email?: string | null;
+    consentReceivedAt?: string | null;
+  };
+  consent: {
+    given: boolean;
+    at: string;
+    privacyPolicyVersion?: string | null;
+    text?: string | null;
+  };
+  locale: 'de' | 'en' | 'ar';
+  status: 'received' | 'accepted' | 'rejected';
+  decisionDate?: string | null;
+  decidedBy?: (number | null) | User;
+  /**
+   * Write down only what is necessary.
+   */
+  internalNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
@@ -412,6 +480,39 @@ export interface User {
   collection: 'users';
 }
 /**
+ * Reply by e-mail. Messages are deleted automatically six months after they arrived.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contact-messages".
+ */
+export interface ContactMessage {
+  id: number;
+  name: string;
+  email: string;
+  topic: 'general' | 'membership' | 'volunteering' | 'partnership' | 'press' | 'other';
+  message: string;
+  consent: {
+    given: boolean;
+    at: string;
+    privacyPolicyVersion?: string | null;
+    text?: string | null;
+  };
+  locale: 'de' | 'en' | 'ar';
+  status: 'new' | 'answered';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limit-buckets".
+ */
+export interface RateLimitBucket {
+  id: number;
+  key: string;
+  count: number;
+  expiresAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -427,6 +528,107 @@ export interface PayloadKv {
     | number
     | boolean
     | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'retention';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?: ('inline' | 'retention') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -464,8 +666,20 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
+        relationTo: 'membership-applications';
+        value: number | MembershipApplication;
+      } | null)
+    | ({
+        relationTo: 'contact-messages';
+        value: number | ContactMessage;
+      } | null)
+    | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'rate-limit-buckets';
+        value: number | RateLimitBucket;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -698,6 +912,76 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "membership-applications_select".
+ */
+export interface MembershipApplicationsSelect<T extends boolean = true> {
+  firstName?: T;
+  lastName?: T;
+  email?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        postalCode?: T;
+        city?: T;
+        country?: T;
+      };
+  membershipType?: T;
+  declarations?:
+    | T
+    | {
+        atLeast16?: T;
+        principles?: T;
+        fees?: T;
+      };
+  under18?: T;
+  guardian?:
+    | T
+    | {
+        name?: T;
+        email?: T;
+        consentReceivedAt?: T;
+      };
+  consent?:
+    | T
+    | {
+        given?: T;
+        at?: T;
+        privacyPolicyVersion?: T;
+        text?: T;
+      };
+  locale?: T;
+  status?: T;
+  decisionDate?: T;
+  decidedBy?: T;
+  internalNotes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contact-messages_select".
+ */
+export interface ContactMessagesSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  topic?: T;
+  message?: T;
+  consent?:
+    | T
+    | {
+        given?: T;
+        at?: T;
+        privacyPolicyVersion?: T;
+        text?: T;
+      };
+  locale?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
@@ -723,11 +1007,52 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limit-buckets_select".
+ */
+export interface RateLimitBucketsSelect<T extends boolean = true> {
+  key?: T;
+  count?: T;
+  expiresAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T;
   data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
+  meta?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -901,6 +1226,15 @@ export interface MembershipPage {
     [k: string]: unknown;
   } | null;
   formNote?: string | null;
+  /**
+   * Wording of the declarations applicants tick. It is stored with every application. Please have it legally reviewed.
+   */
+  form?: {
+    principles?: string | null;
+    fees?: string | null;
+    guardian?: string | null;
+    consent?: string | null;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -1030,6 +1364,12 @@ export interface ContactPage {
   showEmail?: boolean | null;
   showPhone?: boolean | null;
   showAddress?: boolean | null;
+  /**
+   * The wording of the consent is stored with every message. Please have it legally reviewed.
+   */
+  form?: {
+    consent?: string | null;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -1123,6 +1463,24 @@ export interface SiteSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats".
+ */
+export interface PayloadJobsStat {
+  id: number;
+  stats?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "home-page_select".
  */
 export interface HomePageSelect<T extends boolean = true> {
@@ -1184,6 +1542,14 @@ export interface MembershipPageSelect<T extends boolean = true> {
   fees?: T;
   process?: T;
   formNote?: T;
+  form?:
+    | T
+    | {
+        principles?: T;
+        fees?: T;
+        guardian?: T;
+        consent?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -1232,6 +1598,11 @@ export interface ContactPageSelect<T extends boolean = true> {
   showEmail?: T;
   showPhone?: T;
   showAddress?: T;
+  form?:
+    | T
+    | {
+        consent?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -1286,6 +1657,16 @@ export interface SiteSettingsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats_select".
+ */
+export interface PayloadJobsStatsSelect<T extends boolean = true> {
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -1293,6 +1674,18 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRetention".
+ */
+export interface TaskRetention {
+  input?: unknown;
+  output: {
+    contactMessages?: number | null;
+    rejectedApplications?: number | null;
+    rateLimitBuckets?: number | null;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

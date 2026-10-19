@@ -1,17 +1,19 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { Atmosphere } from '@/components/ui/Atmosphere'
+import { ContactForm } from '@/components/forms/Forms'
 import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Placeholder } from '@/components/ui/Placeholder'
 import { RichText } from '@/components/ui/RichText'
 import { getGlobal } from '@/lib/cms/queries'
 import { resolveLocale } from '@/lib/locale-page'
 import { localizedAlternates } from '@/lib/seo'
 
 type Props = { params: Promise<{ locale: string }> }
+
+// The form carries a freshly signed timestamp, so this page is rendered for every request.
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await resolveLocale(params)
@@ -84,17 +86,17 @@ export default async function ContactPage({ params }: Props) {
               </dl>
             </section>
           </div>
-          {/* The contact form (consent, honeypot, rate limit, server-side validation) follows in Phase 5. */}
           <section
+            id="write"
             aria-labelledby="form-heading"
-            className="relative isolate self-start overflow-hidden rounded-card bg-night p-8 text-on-night sm:p-10"
+            data-surface="day"
+            className="self-start rounded-card bg-surface p-6 shadow-[0_30px_90px_-40px_rgba(4,50,78,0.35)] sm:p-10"
           >
-            <Atmosphere variant="band" />
             <h2 id="form-heading" className="text-2xl font-semibold">
               {t('formHeading')}
             </h2>
             <div className="mt-6">
-              <Placeholder>{t('formPlaceholder')}</Placeholder>
+              <ContactForm locale={locale} anchor="write" />
             </div>
           </section>
         </Container>

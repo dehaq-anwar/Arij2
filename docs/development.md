@@ -1,4 +1,4 @@
-# Development (Phase 4 + visual redesign C)
+# Development (Phases 4–5 + visual redesign C)
 
 Short guide until the full German/English README arrives in Phase 6.
 
@@ -18,12 +18,15 @@ docker compose up -d          # PostgreSQL 18.6 + SeaweedFS (local S3) + bucket 
 npm ci
 npm run migrate               # apply the committed database migrations
 npm run seed                  # initial content: placeholders and marked drafts only
+npm run create-admin -- you@example.org "Your Name"   # first CMS account (prints a password)
 npm run dev                   # http://localhost:3000 (de), /en, /ar · admin at /admin
 ```
 
 `npm run seed` never overwrites content that already exists; `npm run seed -- force` resets the seeded pages and focus areas (only for development databases). If there are no projects yet, it also creates five project slots with abstract placeholder images and placeholder titles, to be replaced in the CMS.
 
-The first account is created on the admin's "create first user" screen and automatically becomes an administrator. All later accounts are created by administrators; there is no public registration.
+There is no public registration, also not for the very first account: Payload's "create first user" screen is closed. The first administrator is created on the server with `npm run create-admin -- <email> "<name>"`; the password comes from `ADMIN_PASSWORD` or is generated and printed once (change it after signing in). All later accounts are created by administrators in the CMS. Passwords need at least 12 characters.
+
+Roles: **admin** (everything, including accounts), **editor** (website content), **board** (membership applications and contact messages; read-only for content).
 
 ## Checks
 
@@ -36,7 +39,7 @@ The first account is created on the admin's "create first user" screen and autom
 | `npm run check:deps` | Every package in `package-lock.json` is at least 14 days old |
 | `npm run check:audit` | No security advisory in production dependencies except the reviewed ones in `scripts/audit-allowlist.json` |
 | `npm run verify` | All of the above, in order |
-| `npm run test:e2e` | End-to-end tests against the production build (`npm run build` first): every page in de/en/ar, CMS content and translation fallback, hreflang/canonical, visibility rules (drafts, consent, permissions), cache refresh after CMS changes, sitemap/robots, RTL, language switcher, navigation, mobile menu, no cookies or external requests, motion and reduced motion, axe WCAG 2.1 AA in light and dark mode. Needs Chromium (`npx playwright install chromium`, or set `PW_CHROMIUM_EXECUTABLE`) and a test database, see below |
+| `npm run test:e2e` | End-to-end tests against the production build (`npm run build` first): every page in de/en/ar, CMS content and translation fallback, hreflang/canonical, visibility rules (drafts, consent, permissions), cache refresh after CMS changes, sitemap/robots, RTL, language switcher, navigation, mobile menu, no cookies or external requests, motion and reduced motion, axe WCAG 2.1 AA in light and dark mode; forms (validation, consent record, honeypot, timing, rate limit, without JavaScript, guardian consent), security headers, CMS sign-in limits and CSP. Needs Chromium (`npx playwright install chromium`, or set `PW_CHROMIUM_EXECUTABLE`) and a test database, see below |
 | `npm run check:placeholders` | Lists every `[PLACEHOLDER: …]` still to be filled; `-- --strict` fails if any is left (launch gate) |
 
 ## End-to-end test database
@@ -47,7 +50,15 @@ The end-to-end tests run against their own database, which **is wiped and rebuil
 docker compose exec postgres createdb -U yop yop_e2e
 ```
 
-The test data (projects, a post, a statistic, people and partners named "E2E …") exists only there. The tests sign in as a test editor whose password is generated for each run.
+The test data (projects, a post, a statistic, people and partners named "E2E …") exists only there. The tests sign in as a test editor and a test board member whose password is generated for each run. Form tests send an `X-Forwarded-For` header from the documentation address range so that each test has its own rate-limit counter (the test server has no reverse proxy).
+
+## Forms, e-mail and retention
+
+- The membership and contact forms are Server Actions with server-side validation; they also work without JavaScript. Pages with a form are rendered per request (the form carries a freshly signed timestamp).
+- Submissions are stored in the collections **Mitgliedsanträge** and **Kontaktnachrichten** (visible to the roles board and admin only). Details: `docs/privacy-notes.md`.
+- E-mail: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` and `NOTIFY_EMAIL`. Without `SMTP_HOST` nothing is sent and nothing is logged in its place.
+- Retention: Payload's job queue checks every 10 minutes; the task `retention` is due every night at 03:00 (server time) and deletes contact messages after six months, rejected applications six months after the decision, and expired rate-limit counters. The queue starts with the first request after the server starts.
+- The rate limiter reads the client address from the **last** `X-Forwarded-For` entry. In production the app must be reachable only through the reverse proxy, which sets this header (the compose file binds the app to 127.0.0.1).
 
 ## Media storage
 

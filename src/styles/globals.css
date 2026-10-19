@@ -137,6 +137,19 @@
     color: var(--color-glow);
   }
 
+  /* A light card inside a night section (the forms) switches back to day colours. */
+  [data-surface='day'] {
+    color: var(--color-ink);
+  }
+
+  [data-surface='day'] :focus-visible {
+    outline-color: var(--color-focus);
+  }
+
+  [data-surface='day'] a:not([class]) {
+    color: var(--color-accent);
+  }
+
   ::selection {
     background-color: var(--color-glow);
     color: var(--color-night);
@@ -223,6 +236,64 @@
     to {
       transform: translate3d(var(--dx, 6%), var(--dy, -5%), 0) scale(1.12);
     }
+  }
+
+  /* ── Form controls (day colours; error state from aria-invalid) ── */
+  .field-input {
+    inline-size: 100%;
+    min-block-size: 3.25rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 1rem;
+    background-color: var(--color-surface);
+    padding: 0.75rem 1rem;
+    color: var(--color-ink);
+    font: inherit;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .field-input:hover {
+    border-color: var(--color-ink-muted);
+  }
+
+  .field-input:focus-visible {
+    border-color: var(--color-accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  }
+
+  .field-input[aria-invalid='true'] {
+    border-color: var(--color-danger);
+    box-shadow: inset 0 0 0 1px var(--color-danger);
+  }
+
+  select.field-input {
+    appearance: none;
+    padding-inline-end: 3rem;
+  }
+
+  textarea.field-input {
+    min-block-size: 10rem;
+    resize: vertical;
+  }
+
+  .field-check {
+    flex: none;
+    inline-size: 1.375rem;
+    block-size: 1.375rem;
+    margin-block-start: 0.15rem;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  /* The guardian's details appear once "under 18" is ticked (CSS only: works without JavaScript). */
+  .guardian-fields {
+    display: none;
+  }
+
+  form:has(input[name='under18']:checked) .guardian-fields {
+    display: grid;
   }
 
   .glass {

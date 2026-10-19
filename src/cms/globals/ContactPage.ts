@@ -1,5 +1,5 @@
 import { label } from '../lib/labels'
-import { pageGlobal } from './shared'
+import { formText, pageGlobal } from './shared'
 
 export const ContactPage = pageGlobal({
   slug: 'contact-page',
@@ -38,6 +38,24 @@ export const ContactPage = pageGlobal({
           defaultValue: true,
           label: label('Anschrift zeigen', 'Show address', 'إظهار العنوان'),
         },
+      ],
+    },
+    {
+      name: 'form',
+      type: 'group',
+      label: label('Texte im Kontaktformular', 'Texts in the contact form', 'نصوص نموذج التواصل'),
+      admin: {
+        description: label(
+          'Der Wortlaut der Einwilligung wird mit jeder Nachricht gespeichert. Bitte rechtlich prüfen lassen.',
+          'The wording of the consent is stored with every message. Please have it legally reviewed.',
+          'يُحفظ نص الموافقة مع كل رسالة. يُرجى مراجعته قانونيًا.',
+        ),
+      },
+      fields: [
+        formText(
+          'consent',
+          label('Einwilligung (Datenschutz)', 'Consent (privacy)', 'الموافقة (الخصوصية)'),
+        ),
       ],
     },
   ],

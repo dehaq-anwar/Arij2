@@ -37,6 +37,8 @@ export const testData = {
     ar: '/ar/news/e2e-testbeitrag',
   },
   editor: { email: 'e2e-editor@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
+  board: { email: 'e2e-board@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
+  admin: { email: 'e2e-admin@example.test', password: process.env.E2E_EDITOR_PASSWORD ?? '' },
 } as const
 
 /** Detail pages checked by axe in addition to `routes`. */
@@ -47,3 +49,11 @@ export const detailPages = [
   testData.post.de,
   testData.post.en,
 ] as const
+
+/**
+ * A fresh client address (IPv6 documentation range) for the rate limiter. The test server has no
+ * reverse proxy, so an X-Forwarded-For header reaches the app unchanged; in production the proxy
+ * sets it.
+ */
+export const freshAddress = () =>
+  `2001:db8::${Math.floor(Math.random() * 0xffff).toString(16)}:${(Date.now() % 0xffff).toString(16)}`

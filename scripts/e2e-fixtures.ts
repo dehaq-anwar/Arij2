@@ -3,6 +3,7 @@
 // "E2E", and must never reach the real CMS.
 import { getPayload } from 'payload'
 
+import { SERVER_COMMAND } from '../src/cms/collections/Users'
 import { paragraphs } from '../src/cms/seed/lexical'
 import { seed } from '../src/cms/seed/seed'
 import config from '../src/payload.config'
@@ -155,25 +156,85 @@ for (const [name, permissionConfirmed] of [
   })
 }
 
-// The first account becomes an admin; the tests sign in as the editor created after it.
-await payload.create({
-  collection: 'users',
-  data: {
+// Accounts: scripts create them with the server-command flag (there is no open sign-up).
+// The tests sign in as the editor (content), the board member (applications, messages) and,
+// to run the job queue, the administrator. All share the password generated for the run.
+const accounts = [
+  {
     name: 'E2E Admin',
     email: 'e2e-admin@example.test',
-    password: crypto.randomUUID(),
+    password: editorPassword,
     role: 'admin',
   },
-})
-await payload.create({
-  collection: 'users',
-  data: {
+  {
     name: 'E2E Redaktion',
     email: 'e2e-editor@example.test',
     password: editorPassword,
     role: 'editor',
   },
-})
+  {
+    name: 'E2E Vorstand',
+    email: 'e2e-board@example.test',
+    password: editorPassword,
+    role: 'board',
+  },
+] as const
+for (const data of accounts) {
+  await payload.create({ collection: 'users', data, context: { [SERVER_COMMAND]: true } })
+}
+
+// Retention: entries older than six months (deleted by the retention job) and newer ones (kept).
+// The job is queued here so that the test can run it at once instead of waiting for 03:00.
+const monthsAgo = (months: number) => {
+  const date = new Date()
+  date.setUTCMonth(date.getUTCMonth() - months)
+  return date.toISOString()
+}
+const consent = { given: true, at: monthsAgo(7), privacyPolicyVersion: '', text: 'E2E' }
+for (const [name, createdAt] of [
+  ['E2E Retention alt', monthsAgo(7)],
+  ['E2E Retention neu', monthsAgo(5)],
+] as const) {
+  await payload.create({
+    collection: 'contact-messages',
+    data: {
+      name,
+      createdAt,
+      email: 'e2e@example.org',
+      topic: 'general',
+      message: 'E2E',
+      locale: 'de',
+      status: 'new',
+      consent,
+    },
+  })
+}
+for (const [lastName, status, decisionDate] of [
+  ['E2E Retention abgelehnt alt', 'rejected', monthsAgo(7)],
+  ['E2E Retention abgelehnt neu', 'rejected', monthsAgo(5)],
+  ['E2E Retention aufgenommen alt', 'accepted', monthsAgo(7)],
+] as const) {
+  const application = await payload.create({
+    collection: 'membership-applications',
+    data: {
+      firstName: 'E2E',
+      lastName,
+      email: 'e2e@example.org',
+      address: { street: 'E2E 1', postalCode: '00000', city: 'E2E', country: 'E2E' },
+      membershipType: 'ordinary',
+      declarations: { atLeast16: true, principles: true, fees: true },
+      locale: 'de',
+      status: 'received',
+      consent,
+    },
+  })
+  await payload.update({
+    collection: 'membership-applications',
+    id: application.id,
+    data: { status, decisionDate },
+  })
+}
+await payload.jobs.queue({ task: 'retention', queue: 'maintenance', input: {} })
 
 payload.logger.info('E2E fixtures created.')
 process.exit(0)

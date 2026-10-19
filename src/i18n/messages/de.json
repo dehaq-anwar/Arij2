@@ -88,8 +88,7 @@
     "whoCanJoinHeading": "Wer Mitglied werden kann",
     "feesHeading": "Beiträge",
     "processHeading": "Ablauf",
-    "applyHeading": "Antrag stellen",
-    "contactCta": "Fragen? Schreiben Sie uns"
+    "applyHeading": "Antrag stellen"
   },
   "Support": {
     "bankDetails": "Bankverbindung",
@@ -106,7 +105,67 @@
     "phone": "Telefon",
     "address": "Anschrift",
     "hours": "Erreichbarkeit",
-    "formHeading": "Nachricht schreiben",
-    "formPlaceholder": "[PLACEHOLDER: Kontaktformular – folgt in Phase 5]"
+    "formHeading": "Nachricht schreiben"
+  },
+  "Forms": {
+    "required": "Bitte ausfüllen.",
+    "email": "Bitte eine gültige E-Mail-Adresse eingeben, z. B. name@example.org.",
+    "tooLong": "Dieser Text ist zu lang.",
+    "accept": "Bitte bestätigen.",
+    "choice": "Bitte eine Option wählen.",
+    "allRequired": "Alle Felder sind Pflichtfelder.",
+    "errorHeading": "Bitte prüfen Sie Ihre Angaben",
+    "rateLimited": "Zu viele Versuche. Bitte versuchen Sie es in einigen Minuten erneut.",
+    "expired": "Das Formular war zu lange geöffnet. Bitte senden Sie es noch einmal ab.",
+    "server": "Das hat leider nicht geklappt. Bitte versuchen Sie es später erneut oder schreiben Sie uns eine E-Mail.",
+    "sending": "Wird gesendet …",
+    "privacyLink": "Datenschutzerklärung lesen",
+    "missingText": "[PLACEHOLDER: Text im CMS ergänzen]",
+    "honeypot": "Bitte leer lassen",
+    "successHeading": "Vielen Dank!",
+    "consentShort": "Einwilligung",
+    "newTab": "(öffnet in neuem Tab)"
+  },
+  "MembershipForm": {
+    "personHeading": "Angaben zur Person",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "email": "E-Mail",
+    "addressHeading": "Anschrift",
+    "addressHint": "Für schriftliche Einladungen zur Mitgliederversammlung.",
+    "street": "Straße und Hausnummer",
+    "postalCode": "PLZ",
+    "city": "Ort",
+    "country": "Land",
+    "typeHeading": "Art der Mitgliedschaft",
+    "ordinary": "Ordentliche Mitgliedschaft",
+    "supporting": "Fördermitgliedschaft",
+    "ageHeading": "Alter",
+    "atLeast16": "Ich bin mindestens 16 Jahre alt.",
+    "under18": "Ich bin unter 18 Jahre alt.",
+    "guardianName": "Name der erziehungsberechtigten Person",
+    "guardianEmail": "E-Mail der erziehungsberechtigten Person",
+    "declarationsHeading": "Erklärungen",
+    "submit": "Antrag absenden",
+    "success": "Ihr Antrag ist bei uns eingegangen. Wir melden uns per E-Mail bei Ihnen.",
+    "principlesShort": "Grundsätze und Ziele",
+    "feesShort": "Beiträge"
+  },
+  "ContactForm": {
+    "name": "Name",
+    "email": "E-Mail",
+    "topic": "Thema",
+    "message": "Nachricht",
+    "messageHint": "Höchstens 5000 Zeichen.",
+    "topics": {
+      "general": "Allgemeine Frage",
+      "membership": "Mitgliedschaft",
+      "volunteering": "Ehrenamt",
+      "partnership": "Partnerschaft",
+      "press": "Presse",
+      "other": "Sonstiges"
+    },
+    "submit": "Nachricht senden",
+    "success": "Ihre Nachricht ist bei uns eingegangen. Wir antworten per E-Mail."
   }
 }

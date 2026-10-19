@@ -25,3 +25,9 @@ export const publishedOrEditor: Access = ({ req: { user } }) =>
   hasRole(user, 'admin', 'editor') ? true : { _status: { equals: 'published' } }
 
 export const isEditorField: FieldAccess = ({ req: { user } }) => hasRole(user, 'admin', 'editor')
+
+/** Membership applications and contact messages: the board and administrators only. */
+export const isBoardOrAdmin: Access = ({ req: { user } }) => hasRole(user, 'admin', 'board')
+
+/** Never through the API: the website's forms write with the Local API on the server. */
+export const nobody: Access = () => false
