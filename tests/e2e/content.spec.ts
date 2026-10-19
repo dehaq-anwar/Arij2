@@ -155,6 +155,10 @@ test.describe('privacy and editorial rules', () => {
 })
 
 test.describe('changes in the CMS are published immediately', () => {
+  // One after the other, and only once the page and its prefetches have settled: a render that
+  // starts before a change and finishes after it would cache the old state (plan §23).
+  test.describe.configure({ mode: 'serial' })
+
   const signIn = async (request: APIRequestContext) => {
     const login = await request.post('/api/users/login', { data: account('editor') })
     expect(login.status()).toBe(200)
@@ -163,20 +167,26 @@ test.describe('changes in the CMS are published immediately', () => {
   }
 
   test('page texts', async ({ page, request }) => {
-    await page.goto('/kontakt') // cached from here on
-    const officeHours = `E2E Sprechzeit ${Date.now()}`
-    const update = await request.post('/api/globals/contact-page?locale=de', {
-      headers: await signIn(request),
-      data: { officeHours },
+    await page.goto('/', { waitUntil: 'networkidle' }) // cached from here on
+    const statsHeading = `E2E Kennzahlen ${Date.now()}`
+    const headers = await signIn(request)
+    const update = await request.post('/api/globals/home-page?locale=de', {
+      headers,
+      data: { statsHeading },
     })
     expect(update.status()).toBe(200)
-    await page.goto('/kontakt')
-    await expect(page.getByRole('main')).toContainText(officeHours)
+    await page.goto('/')
+    await expect(page.getByRole('main')).toContainText(statsHeading)
+    // Back to the seeded heading for the other tests.
+    await request.post('/api/globals/home-page?locale=de', {
+      headers,
+      data: { statsHeading: 'In Zahlen' },
+    })
   })
 
   test('new and deleted projects', async ({ page, request }) => {
     const headers = await signIn(request)
-    await page.goto('/projekte') // cached from here on
+    await page.goto('/projekte', { waitUntil: 'networkidle' }) // cached from here on
     const title = `E2E Neu ${Date.now()}`
     const created = await request.post('/api/projects?locale=de', {
       headers,
@@ -184,7 +194,7 @@ test.describe('changes in the CMS are published immediately', () => {
     })
     expect(created.status()).toBe(201)
     const { doc } = (await created.json()) as { doc: { id: number } }
-    await page.goto('/projekte')
+    await page.goto('/projekte', { waitUntil: 'networkidle' })
     await expect(page.getByRole('link', { name: title })).toBeVisible()
     expect((await request.delete(`/api/projects/${doc.id}`, { headers })).status()).toBe(200)
     await page.goto('/projekte')

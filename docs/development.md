@@ -66,7 +66,7 @@ Uploads go to S3-compatible storage when `S3_BUCKET` is set (SeaweedFS from `doc
 
 ## Content and caching
 
-Pages are rendered on their first visit and then served from an in-memory cache. Every change saved in the CMS marks all cached pages as stale, so they are rendered again on their next visit. Nothing is prerendered during `npm run build`, which therefore needs no database. After a restart, each page is rendered once on its first visit.
+Pages are rendered on their first visit and then served from an in-memory cache. Every change saved in the CMS marks all cached pages as stale, so they are rendered again on their next visit. The membership and contact pages are rendered for every request. Known limitation (Next.js 16.3.8): a page render that starts just before a CMS change and finishes just after it can keep the old state until the next change; saving again refreshes it. A time-based re-render (`revalidate`) is not used as a safety net, because in this Next.js version it makes background prefetches of pages being re-rendered hang. Nothing is prerendered during `npm run build`, which therefore needs no database. After a restart, each page is rendered once on its first visit.
 
 Missing texts are stored in the CMS as `[PLACEHOLDER: …]`; texts drafted from the Satzung start with `[ENTWURF]` / `[DRAFT]` / `[مسودة]` and need the association's approval. Both are shown with a dashed frame on the site. Projects and news that are not translated yet show the German text with a notice, and are left out of hreflang and the sitemap for that language.
 
