@@ -1,6 +1,5 @@
-import type { Page } from '@playwright/test'
-
-import { account, freshAddress } from './fixtures'
+import { authHeaders, signInBrowser } from './auth'
+import { adminUrl, freshAddress } from './fixtures'
 import { expect, test } from './test'
 
 const expectedHeaders: Record<string, string | RegExp> = {
@@ -19,9 +18,10 @@ test('security headers on pages, forms, the API, the CMS and files', async ({ re
     '/',
     '/ar/membership',
     '/kontakt',
-    '/api/projects',
-    '/admin',
     '/robots.txt',
+    adminUrl('/api/projects'),
+    adminUrl('/admin'),
+    adminUrl('/admin/login'),
   ]) {
     const response = await request.get(path, { maxRedirects: 0 })
     const headers = response.headers()
@@ -31,9 +31,9 @@ test('security headers on pages, forms, the API, the CMS and files', async ({ re
     }
     expect(headers['x-powered-by'], path).toBeUndefined()
   }
-  expect((await request.get('/admin', { maxRedirects: 0 })).headers()['x-robots-tag']).toBe(
-    'noindex, nofollow',
-  )
+  expect(
+    (await request.get(adminUrl('/admin/login'), { maxRedirects: 0 })).headers()['x-robots-tag'],
+  ).toBe('noindex, nofollow')
 })
 
 test('the content security policy allows our own origin only', async ({ request }) => {
@@ -51,15 +51,15 @@ test.describe('CMS accounts', () => {
       email: 'intruder@example.test',
       password: 'long-enough-password',
     }
-    expect((await request.post('/api/users', { data })).status()).toBe(403)
-    expect((await request.post('/api/users/first-register', { data })).status()).toBe(403)
+    expect((await request.post(adminUrl('/api/users'), { data })).status()).toBe(403)
+    expect((await request.post(adminUrl('/api/users/first-register'), { data })).status()).toBe(403)
   })
 
   test('sign-in attempts are limited per address', async ({ request }) => {
     const headers = { 'X-Forwarded-For': freshAddress() }
     const statuses: number[] = []
     for (let i = 0; i < 21; i++) {
-      const response = await request.post('/api/users/login', {
+      const response = await request.post(adminUrl('/api/users/login'), {
         headers,
         data: { email: `nobody-${i}@example.test`, password: 'wrong-password-123' },
       })
@@ -70,34 +70,23 @@ test.describe('CMS accounts', () => {
   })
 
   test('passwords need at least 12 characters', async ({ request }) => {
-    const login = await request.post('/api/users/login', {
-      data: account('board'),
-      headers: { 'X-Forwarded-For': freshAddress() },
-    })
-    const { token, user } = (await login.json()) as { token: string; user: { id: number } }
-    const response = await request.patch(`/api/users/${user.id}`, {
-      headers: { Authorization: `JWT ${token}` },
+    const headers = await authHeaders(request, 'boardAdmin')
+    const { user } = (await (await request.get(adminUrl('/api/users/me'), { headers })).json()) as {
+      user: { id: number }
+    }
+    const response = await request.patch(adminUrl(`/api/users/${user.id}`), {
+      headers,
       data: { password: 'elevenchars' },
     })
     expect(response.status()).toBe(400)
   })
 })
 
-/** Signs in through the CMS login form (the session cookie is set by the browser). */
-async function signIn(page: Page, account: { email: string; password: string }) {
-  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': freshAddress() })
-  await page.goto('/admin/login')
-  await page.locator('#field-email').fill(account.email)
-  await page.locator('#field-password').fill(account.password)
-  await page.locator('form button[type="submit"]').click()
-  await page.waitForURL((url) => !url.pathname.startsWith('/admin/login'))
-}
-
 test('the CMS loads nothing from other hosts and violates no CSP rule', async ({
   page,
-  baseURL,
+  request,
 }) => {
-  const ownHost = new URL(baseURL!).host
+  const ownHost = new URL(adminUrl('/')).host
   const external = new Set<string>()
   const violations: string[] = []
   page.on('request', (request) => {
@@ -108,13 +97,14 @@ test('the CMS loads nothing from other hosts and violates no CSP rule', async ({
     if (/Content Security Policy/i.test(message.text())) violations.push(message.text())
   })
 
-  await signIn(page, account('board'))
+  await signInBrowser(page.context(), request, 'boardAdmin')
   for (const path of [
     '/admin',
+    '/admin/security',
     '/admin/collections/membership-applications',
     '/admin/collections/contact-messages',
   ]) {
-    await page.goto(path, { waitUntil: 'networkidle' })
+    await page.goto(adminUrl(path), { waitUntil: 'networkidle' })
     await expect(page.locator('#nav-membership-applications')).toBeVisible()
   }
   // Job queue and rate-limit counters are not part of the editors' navigation.
@@ -123,9 +113,9 @@ test('the CMS loads nothing from other hosts and violates no CSP rule', async ({
   )
 
   await page.context().clearCookies()
-  await signIn(page, account('editor'))
+  await signInBrowser(page.context(), request, 'contentEditor')
   // The rich-text editor of a project and the upload view.
-  await page.goto('/admin/collections/projects', { waitUntil: 'networkidle' })
+  await page.goto(adminUrl('/admin/collections/projects'), { waitUntil: 'networkidle' })
   await page.getByRole('link', { name: 'E2E Testprojekt' }).first().click()
   await expect(page.locator('[data-lexical-editor="true"]').first()).toBeVisible()
   await page.waitForLoadState('networkidle')

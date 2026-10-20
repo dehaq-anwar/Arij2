@@ -1,6 +1,7 @@
 import type { CollectionConfig, TextFieldSingleValidation } from 'payload'
 
-import { isEditor } from '../access/roles'
+import { allow } from '../access/roles'
+import { hiddenWithoutContent } from './content-access'
 import { groups, label, localizedMessage } from '../lib/labels'
 
 /** Alt text is required unless the image is marked decorative. */
@@ -25,14 +26,15 @@ export const Media: CollectionConfig = {
   },
   admin: {
     group: groups.content,
+    hidden: hiddenWithoutContent,
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'updatedAt'],
   },
   access: {
     read: () => true,
-    create: isEditor,
-    update: isEditor,
-    delete: isEditor,
+    create: allow('content.write'),
+    update: allow('content.write'),
+    delete: allow('content.write'),
   },
   upload: {
     // Used only when S3 is not configured (end-to-end tests); see payload.config.ts.

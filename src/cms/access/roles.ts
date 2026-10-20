@@ -1,33 +1,34 @@
-import type { Access, FieldAccess } from 'payload'
+import type { Access, FieldAccess, PayloadRequest } from 'payload'
 
-export const ROLES = ['admin', 'editor', 'board'] as const
-export type Role = (typeof ROLES)[number]
+import { isVerifiedSession } from '../auth/session-state'
+import { can, type Permission, type PermissionSubject } from './permissions'
 
-type MaybeUser = { role?: Role | null } | null | undefined
+export { can, type Permission } from './permissions'
 
-export const hasRole = (user: MaybeUser, ...roles: Role[]): boolean =>
-  Boolean(user?.role && roles.includes(user.role))
-
-export const isAdmin: Access = ({ req: { user } }) => hasRole(user, 'admin')
-
-export const isEditor: Access = ({ req: { user } }) => hasRole(user, 'admin', 'editor')
-
-export const isAdminOrSelf: Access = ({ req: { user } }) => {
-  if (!user) return false
-  if (hasRole(user, 'admin')) return true
-  return { id: { equals: user.id } }
+/**
+ * True if the request comes from a person signed in with both factors whose role (minus their
+ * restrictions) includes the permission. Server code that runs without a person (forms, jobs,
+ * seed scripts) uses the Local API with its default overrideAccess and does not come here.
+ */
+export async function allowed(req: PayloadRequest, permission: Permission): Promise<boolean> {
+  if (!req.user || !can(req.user as PermissionSubject, permission)) return false
+  return isVerifiedSession(req)
 }
 
-export const isAdminField: FieldAccess = ({ req: { user } }) => hasRole(user, 'admin')
+/** Collection or global access for one permission. */
+export const allow =
+  (permission: Permission): Access =>
+  ({ req }) =>
+    allowed(req, permission)
 
-/** Visitors see published documents only; editors see drafts too. */
-export const publishedOrEditor: Access = ({ req: { user } }) =>
-  hasRole(user, 'admin', 'editor') ? true : { _status: { equals: 'published' } }
+export const allowField =
+  (permission: Permission): FieldAccess =>
+  ({ req }) =>
+    allowed(req, permission)
 
-export const isEditorField: FieldAccess = ({ req: { user } }) => hasRole(user, 'admin', 'editor')
+/** Visitors see published documents only; people with `content.read` see drafts too. */
+export const publishedOrContentReader: Access = async ({ req }) =>
+  (await allowed(req, 'content.read')) ? true : { _status: { equals: 'published' } }
 
-/** Membership applications and contact messages: the board and administrators only. */
-export const isBoardOrAdmin: Access = ({ req: { user } }) => hasRole(user, 'admin', 'board')
-
-/** Never through the API: the website's forms write with the Local API on the server. */
+/** Never through the API: the website's forms and server code write with the Local API. */
 export const nobody: Access = () => false

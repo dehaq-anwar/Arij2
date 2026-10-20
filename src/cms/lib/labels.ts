@@ -17,4 +17,5 @@ export const groups = {
   inbox: label('Eingänge', 'Inbox', 'الوارد'),
   settings: label('Einstellungen', 'Settings', 'الإعدادات'),
   admin: label('Verwaltung', 'Administration', 'الإدارة'),
+  security: label('Sicherheit', 'Security', 'الأمان'),
 }

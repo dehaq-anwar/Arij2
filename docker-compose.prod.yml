@@ -1,6 +1,7 @@
 # Production: app + PostgreSQL. Media goes to an external EU-region S3 provider.
-# A Caddy reverse proxy (TLS, HTTP→HTTPS, access-log retention, optional /admin protection) follows in
-# Phase 6. The app must only be reachable through it: the rate limiter trusts X-Forwarded-For.
+# A Caddy reverse proxy (TLS, HTTP→HTTPS, access-log retention, the Control Center host
+# ADMIN_URL with its own protection) follows in CC-3. The app must only be reachable through it:
+# the rate limiter trusts X-Forwarded-For, the admin host check trusts the Host header.
 # Secrets come from .env on the server (never committed).
 
 services:

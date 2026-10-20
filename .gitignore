@@ -26,3 +26,4 @@ lighthouse-reports/
 # local media uploads (only used without S3, e.g. end-to-end tests)
 /media/
 /.e2e-media/
+/.e2e-state.json

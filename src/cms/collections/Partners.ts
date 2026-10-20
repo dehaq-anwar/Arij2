@@ -1,6 +1,7 @@
 import type { CollectionConfig, TextFieldSingleValidation } from 'payload'
 
-import { hasRole, isEditor } from '../access/roles'
+import { allow, allowed } from '../access/roles'
+import { hiddenWithoutContent } from './content-access'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { groups, label, localizedMessage } from '../lib/labels'
 import { consentCheckbox } from './TeamMembers'
@@ -27,15 +28,16 @@ export const Partners: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'url', 'permissionConfirmed'],
     group: groups.content,
+    hidden: hiddenWithoutContent,
   },
   defaultSort: 'order',
   access: {
     // Partners are shown only with their permission (name and logo are their marks).
-    read: ({ req: { user } }) =>
-      hasRole(user, 'admin', 'editor') ? true : { permissionConfirmed: { equals: true } },
-    create: isEditor,
-    update: isEditor,
-    delete: isEditor,
+    read: async ({ req }) =>
+      (await allowed(req, 'content.read')) ? true : { permissionConfirmed: { equals: true } },
+    create: allow('content.write'),
+    update: allow('content.write'),
+    delete: allow('content.write'),
   },
   hooks: { afterChange: [revalidateAfterChange], afterDelete: [revalidateAfterDelete] },
   fields: [

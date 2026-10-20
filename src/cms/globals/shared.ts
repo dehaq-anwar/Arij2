@@ -1,14 +1,15 @@
 import type { GlobalConfig, TextareaField } from 'payload'
 
-import { isEditor } from '../access/roles'
+import { allow } from '../access/roles'
+import { hiddenWithoutContent } from '../collections/content-access'
 import { revalidateGlobal } from '../hooks/revalidate'
 import { groups, type AdminLabel } from '../lib/labels'
 
 /** Common settings for the page globals: public read, editors write, revalidate on change. */
 export const pageGlobal = (config: Omit<GlobalConfig, 'access' | 'hooks'>): GlobalConfig => ({
   ...config,
-  admin: { group: groups.pages, ...config.admin },
-  access: { read: () => true, update: isEditor },
+  admin: { group: groups.pages, hidden: hiddenWithoutContent, ...config.admin },
+  access: { read: () => true, update: allow('content.write') },
   hooks: { afterChange: [revalidateGlobal] },
 })
 

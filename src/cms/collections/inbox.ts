@@ -1,11 +1,14 @@
 import type { Field } from 'payload'
 
-import { hasRole } from '../access/roles'
+import { can, type PermissionSubject } from '../access/permissions'
 import { label } from '../lib/labels'
 
-/** Applications and messages are hidden from the admin navigation of editors. */
-export const hiddenUnlessBoard = ({ user }: { user: unknown }) =>
-  !hasRole(user as Parameters<typeof hasRole>[0], 'admin', 'board')
+/**
+ * Applications and messages are not shown in the navigation of people without inbox access
+ * (the access rules refuse them anyway; this only keeps the menu honest).
+ */
+export const hiddenWithoutInbox = ({ user }: { user: unknown }) =>
+  !can(user as PermissionSubject, 'inbox.read')
 
 /** What the person submitted is a record: shown, but not editable in the admin. */
 export const submitted = { readOnly: true } as const

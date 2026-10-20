@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from '@playwright/test'
 
-import { account, languageName, languageNav, testData } from './fixtures'
+import { authHeaders } from './auth'
+import { adminUrl, languageName, languageNav, testData } from './fixtures'
 import { expect, test } from './test'
 
 const alternates = async (page: Page) =>
@@ -116,8 +117,10 @@ test.describe('privacy and editorial rules', () => {
   })
 
   test('the API gives visitors the same view as the pages', async ({ request }) => {
+    // The API exists only on the Control Center's host; anonymous requests there see what
+    // visitors see on the website.
     const json = async (path: string) => {
-      const response = await request.get(path)
+      const response = await request.get(adminUrl(path))
       expect(response.status(), path).toBe(200)
       return JSON.stringify(await response.json())
     }
@@ -127,7 +130,7 @@ test.describe('privacy and editorial rules', () => {
     const stats = await json('/api/statistics?limit=100')
     expect(stats).toContain('E2E Kennzahl')
     expect(stats).not.toContain('E2E interne Quelle')
-    expect((await request.get('/api/users')).status()).toBeGreaterThanOrEqual(401)
+    expect((await request.get(adminUrl('/api/users'))).status()).toBeGreaterThanOrEqual(401)
   })
 
   test('the donation section makes no tax claims', async ({ page }) => {
@@ -159,18 +162,13 @@ test.describe('changes in the CMS are published immediately', () => {
   // starts before a change and finishes after it would cache the old state (plan §23).
   test.describe.configure({ mode: 'serial' })
 
-  const signIn = async (request: APIRequestContext) => {
-    const login = await request.post('/api/users/login', { data: account('editor') })
-    expect(login.status()).toBe(200)
-    const { token } = (await login.json()) as { token: string }
-    return { Authorization: `JWT ${token}` }
-  }
+  const signIn = (request: APIRequestContext) => authHeaders(request, 'contentEditor')
 
   test('page texts', async ({ page, request }) => {
     await page.goto('/', { waitUntil: 'networkidle' }) // cached from here on
     const statsHeading = `E2E Kennzahlen ${Date.now()}`
     const headers = await signIn(request)
-    const update = await request.post('/api/globals/home-page?locale=de', {
+    const update = await request.post(adminUrl('/api/globals/home-page?locale=de'), {
       headers,
       data: { statsHeading },
     })
@@ -178,7 +176,7 @@ test.describe('changes in the CMS are published immediately', () => {
     await page.goto('/')
     await expect(page.getByRole('main')).toContainText(statsHeading)
     // Back to the seeded heading for the other tests.
-    await request.post('/api/globals/home-page?locale=de', {
+    await request.post(adminUrl('/api/globals/home-page?locale=de'), {
       headers,
       data: { statsHeading: 'In Zahlen' },
     })
@@ -188,7 +186,7 @@ test.describe('changes in the CMS are published immediately', () => {
     const headers = await signIn(request)
     await page.goto('/projekte', { waitUntil: 'networkidle' }) // cached from here on
     const title = `E2E Neu ${Date.now()}`
-    const created = await request.post('/api/projects?locale=de', {
+    const created = await request.post(adminUrl('/api/projects?locale=de'), {
       headers,
       data: { title, excerpt: 'E2E', stage: 'planned', _status: 'published' },
     })
@@ -196,7 +194,9 @@ test.describe('changes in the CMS are published immediately', () => {
     const { doc } = (await created.json()) as { doc: { id: number } }
     await page.goto('/projekte', { waitUntil: 'networkidle' })
     await expect(page.getByRole('link', { name: title })).toBeVisible()
-    expect((await request.delete(`/api/projects/${doc.id}`, { headers })).status()).toBe(200)
+    expect((await request.delete(adminUrl(`/api/projects/${doc.id}`), { headers })).status()).toBe(
+      200,
+    )
     await page.goto('/projekte')
     await expect(page.getByRole('main')).not.toContainText(title)
   })

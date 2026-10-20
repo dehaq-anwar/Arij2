@@ -1,21 +1,14 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { APIRequestContext, Page } from '@playwright/test'
 
-import { account, freshAddress } from './fixtures'
+import { authHeaders } from './auth'
+import { adminUrl, freshAddress } from './fixtures'
 import { expect, test } from './test'
 
 /** Every test submits from its own address, so the rate limiter counts each test separately. */
 const ownAddress = (page: Page) => page.setExtraHTTPHeaders({ 'X-Forwarded-For': freshAddress() })
 
-const asBoard = async (request: APIRequestContext) => {
-  const login = await request.post('/api/users/login', {
-    data: account('board'),
-    headers: { 'X-Forwarded-For': freshAddress() },
-  })
-  expect(login.status()).toBe(200)
-  const { token } = (await login.json()) as { token: string }
-  return { Authorization: `JWT ${token}` }
-}
+const asBoard = (request: APIRequestContext) => authHeaders(request, 'boardAdmin')
 
 const findStored = async (
   request: APIRequestContext,
@@ -24,7 +17,7 @@ const findStored = async (
   value: string,
 ) => {
   const response = await request.get(
-    `/api/${collection}?where[${field}][equals]=${encodeURIComponent(value)}&depth=0`,
+    adminUrl(`/api/${collection}?where[${field}][equals]=${encodeURIComponent(value)}&depth=0`),
     { headers: await asBoard(request) },
   )
   expect(response.status()).toBe(200)
@@ -267,7 +260,7 @@ test.describe('membership form', () => {
     const headers = await asBoard(request)
     const [doc] = await findStored(request, 'membership-applications', 'lastName', lastName)
     const update = (data: object) =>
-      request.patch(`/api/membership-applications/${doc!.id}`, { headers, data })
+      request.patch(adminUrl(`/api/membership-applications/${doc!.id}`), { headers, data })
     expect((await update({ status: 'accepted' })).status()).toBe(400)
     const accepted = await update({
       status: 'accepted',
@@ -281,9 +274,11 @@ test.describe('membership form', () => {
     const { doc: saved } = (await accepted.json()) as { doc: Record<string, unknown> }
     expect(saved.decisionDate).toBeTruthy()
     expect(saved.decidedBy).toBeTruthy()
-    // Only administrators may delete applications.
+    // Only super administrators may delete applications.
     expect(
-      (await request.delete(`/api/membership-applications/${doc!.id}`, { headers })).status(),
+      (
+        await request.delete(adminUrl(`/api/membership-applications/${doc!.id}`), { headers })
+      ).status(),
     ).toBe(403)
   })
 })
@@ -297,45 +292,38 @@ test.describe('submissions are private', () => {
       'contact-messages',
       'rate-limit-buckets',
     ]) {
-      expect((await request.get(`/api/${collection}`)).status(), collection).toBe(403)
+      expect((await request.get(adminUrl(`/api/${collection}`))).status(), collection).toBe(403)
       expect(
-        (await request.post(`/api/${collection}`, { data: { name: 'x' } })).status(),
+        (await request.post(adminUrl(`/api/${collection}`), { data: { name: 'x' } })).status(),
         collection,
       ).toBe(403)
     }
-    const login = await request.post('/api/users/login', {
-      data: account('editor'),
-      headers: { 'X-Forwarded-For': freshAddress() },
-    })
-    const { token } = (await login.json()) as { token: string }
-    const headers = { Authorization: `JWT ${token}` }
-    expect((await request.get('/api/membership-applications', { headers })).status()).toBe(403)
-    expect((await request.get('/api/contact-messages', { headers })).status()).toBe(403)
+    for (const role of ['contentEditor', 'technicalAdmin', 'auditor'] as const) {
+      const headers = await authHeaders(request, role)
+      for (const collection of ['membership-applications', 'contact-messages']) {
+        expect(
+          (await request.get(adminUrl(`/api/${collection}`), { headers })).status(),
+          `${role} ${collection}`,
+        ).toBe(403)
+      }
+    }
   })
 })
 
 test('the retention job deletes what is older than six months, and only that', async ({
   request,
 }) => {
-  const login = await request.post('/api/users/login', {
-    data: account('admin'),
-    headers: { 'X-Forwarded-For': freshAddress() },
-  })
-  const { token } = (await login.json()) as { token: string }
+  const headers = await authHeaders(request, 'superAdmin')
   // Runs the jobs that are due in the queue (the fixtures queued one retention run).
-  const run = await request.get('/api/payload-jobs/run?queue=maintenance', {
-    headers: { Authorization: `JWT ${token}` },
-  })
+  const run = await request.get(adminUrl('/api/payload-jobs/run?queue=maintenance'), { headers })
   expect(run.status()).toBe(200)
 
   const names = async (collection: string, field: string) =>
     (
       (await (
         await request.get(
-          `/api/${collection}?where[${field}][like]=E2E Retention&limit=50&depth=0`,
-          {
-            headers: { Authorization: `JWT ${token}` },
-          },
+          adminUrl(`/api/${collection}?where[${field}][like]=E2E Retention&limit=50&depth=0`),
+          { headers },
         )
       ).json()) as { docs: Record<string, string>[] }
     ).docs

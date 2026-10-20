@@ -1,5 +1,7 @@
 import { test } from '@playwright/test'
 
+import { testEmail, type AccountName } from './secrets'
+
 export const locales = ['de', 'en', 'ar'] as const
 export type Locale = (typeof locales)[number]
 
@@ -57,11 +59,15 @@ export const detailPages = [
 export const freshAddress = () =>
   `2001:db8::${Math.floor(Math.random() * 0xffff).toString(16)}:${(Date.now() % 0xffff).toString(16)}`
 
+/** The Control Center's own host in the tests; the website runs on baseURL (127.0.0.1). */
+export const ADMIN_ORIGIN = `http://localhost:${process.env.E2E_PORT ?? '3100'}`
+export const adminUrl = (path: string) => `${ADMIN_ORIGIN}${path}`
+
 /**
- * The CMS account of this test worker for a role (see scripts/e2e-fixtures.ts): every worker
- * signs in to its own accounts, so parallel sign-ins never overwrite each other's session.
+ * The CMS account of this test worker (see scripts/e2e-fixtures.ts): every worker signs in to
+ * its own accounts, so parallel sign-ins never overwrite each other's session.
  */
-export const account = (role: 'admin' | 'editor' | 'board') => ({
-  email: `e2e-${role}-${test.info().parallelIndex}@example.test`,
+export const account = (name: AccountName) => ({
+  email: testEmail(name, test.info().parallelIndex),
   password: process.env.E2E_EDITOR_PASSWORD ?? '',
 })

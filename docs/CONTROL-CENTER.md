@@ -1,7 +1,8 @@
 # Youth of Peace — Administration & Control Center
 
-**Status:** proposal for approval. Nothing in this document is implemented yet, and no existing
-structure has been changed for it. Date: 2026-10-19.
+**Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions). CC-0 is
+implemented (section 14); CC-1 and later wait for the association's approval. Plan date:
+2026-10-19.
 **Arabic version:** [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)
 **Visual design (interactive):** [control-center/mockups.html](control-center/mockups.html). Open the
 file in a browser. It needs no network access: fonts and logo are embedded. Useful addresses:
@@ -482,6 +483,122 @@ them, it asks.
 | Volunteer maintenance | Features nobody maintains become risks | Small scope; every screen documented; restore drills automated |
 | Backups contain deleted personal data until they expire | Retention longer than in the live database | Retention scheme decided by the association and documented in the privacy notes |
 | Secondary sources in the comparison | Panel feature list may be incomplete | Comparison used only to rule panels out; no feature of ours depends on it |
+
+## 14. CC-0 implementation notes (2026-10-20)
+
+### Decisions by the association (2026-10-20)
+
+- Option A, with a separate, narrowly scoped operations agent (CC-3).
+- Two-factor sign-in for **every** admin account with an authenticator app (Google Authenticator,
+  Microsoft Authenticator or similar), secure recovery codes, no way around it through the API or
+  old sessions, and a thorough review of the `otpauth` usage.
+- At least two super administrators supported; **no real accounts are created** and nobody gets
+  permissions before the association names them. The association's own account becomes the main
+  super administrator, with a secure way to recover access.
+- The six roles, least privilege, strict separation of the technical administrator from membership
+  data and messages, tested in the interface, on the server and through the API. **No test
+  accounts with admin rights in production.**
+- Admin address `verwaltung.yop-ye.org`, with protection on the server side, not only a hidden
+  address; checked against sessions, preview and sign-in.
+- Restoring the production database from the web interface is **not allowed** until the
+  association explicitly approves it with its safeguards (decision 10 stays open).
+- Only CC-0 now; CC-1 and later after approval.
+
+### What CC-0 contains
+
+| Part | Implementation |
+|---|---|
+| Permission map | `src/cms/access/permissions.ts`: six roles, 15 permissions, narrowing restrictions per person, audit areas per role. Every collection, global, field rule, the navigation, the dashboard and the endpoints read it. Migration of existing accounts: `admin` → super administrator, `board` → board administrator, `editor` → content editor |
+| Account rules | `src/cms/collections/Users.ts`: board administrators manage only content editors and membership managers; nobody changes their own role, restrictions or deactivation or deletes their own account; passwords of other accounts are never set by someone else; the last active super administrator cannot be demoted, deactivated or deleted; deactivation ends all sessions at once |
+| Two-factor sign-in | After the password, Payload creates a session; a hook (`afterLogin`) immediately takes it out of the account's list of valid sessions and records it as *pending* (`auth-sessions`). Payload checks every token against that list, so the token is accepted nowhere — admin, REST API, server functions — until the code is given (`/api/users/mfa/verify`). The same hook runs after a password reset. Second line of defence: every permission check also requires our own record of a completed sign-in (`session-state.ts`), younger than 12 hours |
+| Closed bypasses | GraphQL is off; API keys are not enabled; auto-login is not configured; the first-user endpoint stays closed; the migration ended every session that existed before (tested on a database with old roles and sessions); pending sign-ins expire after 10 minutes and after 5 wrong codes |
+| Codes | TOTP, SHA-1, 6 digits, 30 s, ±1 step. The code is accepted only once (compare-and-set in the database, also against two parallel requests). 10 wrong codes in 15 minutes lock the second factor for 15 minutes; codes and sign-ins are also limited per (hashed) address |
+| Recovery codes | 10 per account, 50 random bits each (Crockford base32, `XXXXX-XXXXX`), stored only as keyed hashes; shown once at set-up; each works once; new ones replace all old ones (needs a fresh code). Using one sends an e-mail notice |
+| Secrets | Authenticator secrets encrypted with AES-256-GCM, bound to the account; key from `MFA_ENCRYPTION_KEY` (HKDF), otherwise derived from `PAYLOAD_SECRET` |
+| Step-up | Role, restrictions, deactivation, e-mail and password changes, new accounts, deletions, new recovery codes, and resetting another person's second factor need a code from the last 5 minutes; refused otherwise, with a message saying so. Logged with "confirmed with code" |
+| Sessions and devices | "My security" (`/admin/security`): active sessions (browser family, OS, start, last activity), sign out one or all others, known devices, own security events, recovery codes. A sign-in from a device not seen before is reported to the account by e-mail |
+| Recovering access | (1) a recovery code; (2) another super administrator resets the second factor in the account's sidebar (step-up, logged, e-mail to the person); (3) on the server, `npm run reset-mfa -- <email>` (needs server access; logged). First account: `npm run create-admin -- <email> "<name>"`, then sign in at once and set up the app |
+| Audit log | Collection `audit-log`, written by the server only; areas security, users, content, association, operations; readable per role. A database trigger refuses `UPDATE`, `DELETE` and `TRUNCATE` (tested in the fixtures and by hand). Limitation: someone with the database owner's password could drop the trigger; off-server backups with object lock (CC-3) cover that case |
+| Admin host | `src/proxy.ts` + `src/lib/admin-host.ts`: with `ADMIN_URL` set, `/admin` and `/api` exist only on that host; the website's host answers 404 (only media files are served there). Cookies are host-only, so the admin session never reaches the website. Optional `ADMIN_GATE_SECRET`: the reverse proxy proves with a header that a request came through its admin site block (where an IP allowlist or other server-side protection applies, CC-3) |
+| Interface | Own sign-in screen (password → code, or set-up with QR code and recovery codes), navigation grouped as in the design (always visible on desktop), dashboard with real data only (sessions, open applications, new messages, failed sign-ins, accounts without second factor, content counts, recent activity — each only for roles allowed to see it), "My security", security panel on accounts, readable audit log. Light and dark, German, English and Arabic (RTL), desktop and phone |
+
+### Review of `otpauth` 9.5.2
+
+Only `HOTP.generate` (the RFC 4226 calculation), the `Secret` type and the `otpauth://` address
+are used; checking codes is our own code.
+
+- The Node build computes HMAC with Node's `crypto` (no own crypto); the dynamic truncation
+  matches RFC 4226 §5.3. Verified against all RFC 6238 SHA-1 reference values (unit tests).
+- Finding 1: `Secret` takes an `ArrayBuffer`; a Node `Buffer`'s `.buffer` can be Node's shared
+  8 KB pool, which would silently produce a different key. We always copy the bytes into an
+  exact `ArrayBuffer` (unit test with a slice of a larger buffer).
+- Finding 2: its own `validate` compares with `timingSafeEqual` on strings and throws for
+  same-length input with non-ASCII characters (e.g. Arabic-Indic digits). We accept exactly six
+  ASCII digits before comparing (unit test with such input).
+- Finding 3: its `validate` stops at the first match. Ours compares all three steps in constant
+  time and refuses steps at or before the last used one (replay).
+- Dependency: `@noble/hashes` 2.4.0 (only used by the browser builds, not by the Node build we
+  load).
+
+### Admin host, sessions, sign-in and preview
+
+- Sessions: checked by tests — the cookie set at sign-in on the admin host is not sent to the
+  website's host; the website's host returns 404 for the admin, the API and sign-in.
+- Sign-in, password reset (e-mail link now points to the admin host), notifications: checked.
+- Payload's own address (`serverURL`) is now the admin host, because its admin calls the API
+  there. Media URLs therefore point to the admin host; the website already turns them into
+  same-origin paths, and the website's host serves `/api/media/file/…` read-only.
+- Preview: there is no preview yet. For CC-2 (live preview) the website's pages must allow being
+  framed by the admin host (`frame-ancestors` for the preview route only); live preview sends the
+  draft into the frame by `postMessage`, so no admin cookie is needed on the website's host.
+
+### Before going live with CC-0
+
+1. Set `ADMIN_URL=https://verwaltung.yop-ye.org` and `MFA_ENCRYPTION_KEY`; DNS record for the
+   admin host; reverse proxy for both hosts (CC-3; until then the app-level rules apply).
+2. Run the migration (it ends all existing sessions).
+3. `npm run create-admin -- <your e-mail> "<your name>"`, sign in at once, set up the app, keep
+   the recovery codes offline.
+4. When the association names the second super administrator, create that account the same way.
+
+### Verification (2026-10-20)
+
+- `npm run verify`: lint (ESLint, logical CSS, motion direction, contrast), types, 121 unit tests
+  (38 of them for CC-0: all RFC 6238 SHA-1 reference values, replay, input with other digits,
+  `Buffer` pool, encryption, recovery codes, role matrix, host rules, time zone), production
+  build, package age (all ≥ 14 days: `otpauth` 46 days, `uqr` 200, `jose` 609, `@noble/hashes`
+  53) and `npm audit` (two earlier, accepted advisories, unchanged).
+- End-to-end (Playwright, production build, `_e2e` database): **177 of 177 passed**, 24 of them
+  new for CC-0: a password-only token is accepted nowhere (REST, drafts, accounts, GraphQL,
+  token refresh); the admin sends it to the code step; a password reset still needs the code;
+  deactivated accounts cannot sign in; sign-in through the form with a wrong and a right code;
+  first set-up with QR code and recovery codes; a recovery code works once; a code works once;
+  5 wrong codes end the sign-in; signing out other sessions; the role matrix through the API;
+  drafts and accounts per role; content writing per role; the technical administrator and the
+  content editor see no association data; role change needs a fresh code and is logged with it;
+  board administrators' limits; nobody changes their own role; the audit log cannot be changed
+  or deleted; the website's host has no admin and no API; axe (WCAG 2.1 AA) on sign-in,
+  dashboard and "My security" in light/German and dark/Arabic without findings; the phone menu;
+  the dashboard's load time.
+- Load time of the dashboard (production build, this machine, warm): first byte 360–540 ms,
+  loaded 450–620 ms; the test's limit is 3 s / 6 s.
+- Screenshots and a video of the real panel were taken from the production build with a separate
+  database (seed content and example accounts on `example.test` only).
+- Fixed while checking the screenshots: greeting and times in the association's time zone
+  (Europe/Berlin) instead of the server's; the phone menu now covers the page instead of pushing
+  it sideways (Payload's own layout); duplicate `banner` landmark; device column label; empty
+  audit targets show a dash.
+
+### Open points after CC-0
+
+- Some of Payload's own screens (list and edit views) keep Payload's layout with the Control
+  Center's colours and font; deeper redesign comes with the screens of CC-1 and CC-2.
+- The "last super administrator" rule is covered by code review, not by an automated test (the
+  test database has several super administrators per worker).
+- The security e-mails (set-up, new device, recovery code used, second factor reset, password
+  changed) are written, but no automated test reads them: the tests run without SMTP, where the
+  app sends nothing and logs only that an e-mail was skipped. Check them once with the
+  association's mail provider before going live.
 
 ---
 

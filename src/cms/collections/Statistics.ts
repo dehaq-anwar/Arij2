@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { isEditor, isEditorField } from '../access/roles'
+import { allow, allowField } from '../access/roles'
+import { hiddenWithoutContent } from './content-access'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { groups, label } from '../lib/labels'
 
@@ -15,9 +16,15 @@ export const Statistics: CollectionConfig = {
     useAsTitle: 'label',
     defaultColumns: ['label', 'value', 'asOf', 'showOnHome'],
     group: groups.content,
+    hidden: hiddenWithoutContent,
   },
   defaultSort: 'order',
-  access: { read: () => true, create: isEditor, update: isEditor, delete: isEditor },
+  access: {
+    read: () => true,
+    create: allow('content.write'),
+    update: allow('content.write'),
+    delete: allow('content.write'),
+  },
   hooks: { afterChange: [revalidateAfterChange], afterDelete: [revalidateAfterDelete] },
   fields: [
     {
@@ -57,7 +64,7 @@ export const Statistics: CollectionConfig = {
       type: 'text',
       required: true,
       label: label('Quelle (intern)', 'Source (internal)', 'المصدر (داخلي)'),
-      access: { read: isEditorField },
+      access: { read: allowField('content.read') },
       admin: {
         description: label(
           'Woher stammt die Zahl? Wird nicht veröffentlicht.',

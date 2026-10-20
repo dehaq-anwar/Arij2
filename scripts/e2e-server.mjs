@@ -49,6 +49,9 @@ const serverEnv = {
   DATABASE_URL: databaseUrl,
   MEDIA_DIR: mediaDir,
   SERVER_URL: `http://127.0.0.1:${port}`,
+  // The Control Center on its own host, as in production: the tests open the website on
+  // 127.0.0.1 and the admin on localhost (same server, separate cookies and rules).
+  ADMIN_URL: `http://localhost:${port}`,
   ALLOW_INDEXING: 'false',
 }
 

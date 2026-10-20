@@ -77,6 +77,10 @@ export interface Config {
     'membership-applications': MembershipApplication;
     'contact-messages': ContactMessage;
     users: User;
+    'audit-log': AuditLog;
+    'auth-sessions': AuthSession;
+    'auth-mfa': AuthMfa;
+    'trusted-devices': TrustedDevice;
     'rate-limit-buckets': RateLimitBucket;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
@@ -96,6 +100,10 @@ export interface Config {
     'membership-applications': MembershipApplicationsSelect<false> | MembershipApplicationsSelect<true>;
     'contact-messages': ContactMessagesSelect<false> | ContactMessagesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'audit-log': AuditLogSelect<false> | AuditLogSelect<true>;
+    'auth-sessions': AuthSessionsSelect<false> | AuthSessionsSelect<true>;
+    'auth-mfa': AuthMfaSelect<false> | AuthMfaSelect<true>;
+    'trusted-devices': TrustedDevicesSelect<false> | TrustedDevicesSelect<true>;
     'rate-limit-buckets': RateLimitBucketsSelect<false> | RateLimitBucketsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
@@ -137,6 +145,7 @@ export interface Config {
   jobs: {
     tasks: {
       retention: TaskRetention;
+      'auth-cleanup': TaskAuthCleanup;
       inline: {
         input: unknown;
         output: unknown;
@@ -456,9 +465,36 @@ export interface User {
   id: number;
   name: string;
   /**
-   * Only administrators can assign roles.
+   * Sets the basic permissions. Nobody can change their own role.
    */
-  role: 'admin' | 'editor' | 'board';
+  role: 'superAdmin' | 'boardAdmin' | 'contentEditor' | 'membershipManager' | 'technicalAdmin' | 'auditor';
+  /**
+   * Permissions this person should not have despite their role. There are no permissions beyond the role.
+   */
+  restrictions?:
+    | (
+        | 'content.read'
+        | 'content.write'
+        | 'inbox.read'
+        | 'inbox.write'
+        | 'applications.delete'
+        | 'messages.delete'
+        | 'personalData.export'
+        | 'operations.read'
+        | 'operations.act'
+        | 'email.manage'
+        | 'jobs.run'
+        | 'users.read'
+        | 'users.manage'
+        | 'users.manageLimited'
+        | 'audit.read'
+      )[]
+    | null;
+  /**
+   * Can no longer sign in; all sessions end at once.
+   */
+  disabled?: boolean | null;
+  mfaEnabled?: boolean | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -499,6 +535,99 @@ export interface ContactMessage {
   };
   locale: 'de' | 'en' | 'ar';
   status: 'new' | 'answered';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Append-only: entries cannot be edited or deleted.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-log".
+ */
+export interface AuditLog {
+  id: number;
+  action: string;
+  area: 'security' | 'users' | 'content' | 'association' | 'operations';
+  result: 'ok' | 'denied' | 'failed';
+  actorId?: number | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  targetLabel?: string | null;
+  stepUp?: boolean | null;
+  detail?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-sessions".
+ */
+export interface AuthSession {
+  id: number;
+  sid: string;
+  user: number | User;
+  status: 'pending' | 'active' | 'ended';
+  expiresAt: string;
+  attempts?: number | null;
+  enrollmentSecret?: string | null;
+  verifiedAt?: string | null;
+  method?: ('totp' | 'recovery' | 'enrollment') | null;
+  stepUpAt?: string | null;
+  lastSeenAt?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  deviceClass?: string | null;
+  deviceHash?: string | null;
+  endedAt?: string | null;
+  endReason?: ('logout' | 'revoked' | 'expired' | 'failed' | 'cancelled' | 'disabled' | 'mfaReset') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-mfa".
+ */
+export interface AuthMfa {
+  id: number;
+  user: number | User;
+  secret: string;
+  enabledAt: string;
+  lastStep: number;
+  failures?: number | null;
+  failuresSince?: string | null;
+  lockedUntil?: string | null;
+  recoveryCodes?:
+    | {
+        hash: string;
+        usedAt?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trusted-devices".
+ */
+export interface TrustedDevice {
+  id: number;
+  user: number | User;
+  deviceHash: string;
+  browser?: string | null;
+  os?: string | null;
+  deviceClass?: string | null;
+  lastSeenAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -581,7 +710,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'retention';
+        taskSlug: 'inline' | 'retention' | 'auth-cleanup';
         taskID: string;
         input?:
           | {
@@ -614,7 +743,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'retention') | null;
+  taskSlug?: ('inline' | 'retention' | 'auth-cleanup') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -987,6 +1116,9 @@ export interface ContactMessagesSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
+  restrictions?: T;
+  disabled?: T;
+  mfaEnabled?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1004,6 +1136,85 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-log_select".
+ */
+export interface AuditLogSelect<T extends boolean = true> {
+  action?: T;
+  area?: T;
+  result?: T;
+  actorId?: T;
+  actorName?: T;
+  actorRole?: T;
+  targetType?: T;
+  targetId?: T;
+  targetLabel?: T;
+  stepUp?: T;
+  detail?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-sessions_select".
+ */
+export interface AuthSessionsSelect<T extends boolean = true> {
+  sid?: T;
+  user?: T;
+  status?: T;
+  expiresAt?: T;
+  attempts?: T;
+  enrollmentSecret?: T;
+  verifiedAt?: T;
+  method?: T;
+  stepUpAt?: T;
+  lastSeenAt?: T;
+  browser?: T;
+  os?: T;
+  deviceClass?: T;
+  deviceHash?: T;
+  endedAt?: T;
+  endReason?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "auth-mfa_select".
+ */
+export interface AuthMfaSelect<T extends boolean = true> {
+  user?: T;
+  secret?: T;
+  enabledAt?: T;
+  lastStep?: T;
+  failures?: T;
+  failuresSince?: T;
+  lockedUntil?: T;
+  recoveryCodes?:
+    | T
+    | {
+        hash?: T;
+        usedAt?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trusted-devices_select".
+ */
+export interface TrustedDevicesSelect<T extends boolean = true> {
+  user?: T;
+  deviceHash?: T;
+  browser?: T;
+  os?: T;
+  deviceClass?: T;
+  lastSeenAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1685,6 +1896,17 @@ export interface TaskRetention {
     contactMessages?: number | null;
     rejectedApplications?: number | null;
     rateLimitBuckets?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskAuth-cleanup".
+ */
+export interface TaskAuthCleanup {
+  input?: unknown;
+  output: {
+    expired?: number | null;
+    removed?: number | null;
   };
 }
 /**

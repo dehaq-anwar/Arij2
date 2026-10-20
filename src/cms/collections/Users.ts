@@ -2,15 +2,45 @@ import {
   APIError,
   Forbidden,
   ValidationError,
+  type Access,
+  type CollectionAfterChangeHook,
+  type CollectionAfterDeleteHook,
+  type CollectionAfterErrorHook,
+  type CollectionAfterLoginHook,
+  type CollectionAfterLogoutHook,
   type CollectionBeforeChangeHook,
+  type CollectionBeforeDeleteHook,
+  type CollectionBeforeLoginHook,
   type CollectionBeforeOperationHook,
   type CollectionBeforeValidateHook,
   type CollectionConfig,
+  type FieldAccess,
+  type PayloadRequest,
+  type Where,
 } from 'payload'
 
+import { adminUrl } from '@/lib/site'
+
 import { allowAttempt, clientAddress, LIMITS } from '../../lib/forms/rate-limit'
-import { isAdmin, isAdminField, isAdminOrSelf } from '../access/roles'
-import { groups, label, localizedMessage } from '../lib/labels'
+import { permissionLabels, roleLabels } from '../access/labels'
+import {
+  can,
+  isRole,
+  LIMITED_ROLES,
+  PERMISSIONS,
+  ROLES,
+  validRestrictions,
+  type PermissionSubject,
+  type Role,
+} from '../access/permissions'
+import { allowed } from '../access/roles'
+import { audit, describeChange, SKIP_AUDIT } from '../audit/log'
+import { authEndpoints } from '../auth/endpoints'
+import { getCredential } from '../auth/mfa'
+import { sendSecurityNotice } from '../auth/notify'
+import { currentSession, hasFreshStepUp, isVerifiedSession } from '../auth/session-state'
+import { endAllSessions, holdSession, sidOfToken } from '../auth/sessions'
+import { groups, label, localizedMessage, type AdminLabel } from '../lib/labels'
 
 export const MIN_PASSWORD_LENGTH = 12
 
@@ -21,6 +51,18 @@ export const MIN_PASSWORD_LENGTH = 12
  */
 export const SERVER_COMMAND = 'serverCommand'
 
+type Account = PermissionSubject & {
+  id: number
+  name?: string
+  email?: string
+  role?: Role
+  restrictions?: string[] | null
+  disabled?: boolean | null
+}
+
+const refuse = (req: PayloadRequest, message: AdminLabel, status = 403) =>
+  new APIError(localizedMessage(message, req), status, null, true)
+
 const noSignUp: CollectionBeforeChangeHook = ({ data, operation, req }) => {
   if (operation === 'create' && !req.user && !req.context?.[SERVER_COMMAND]) {
     throw new Forbidden(req.t)
@@ -28,7 +70,7 @@ const noSignUp: CollectionBeforeChangeHook = ({ data, operation, req }) => {
   return data
 }
 
-const tooShort = (req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
+const tooShort = (req: PayloadRequest) =>
   new ValidationError(
     {
       collection: 'users',
@@ -66,27 +108,349 @@ const guardAuthOperations: CollectionBeforeOperationHook = async ({ args, operat
   }
   if (operation === 'login' || operation === 'forgotPassword') {
     if (req.context?.[SERVER_COMMAND]) return args
-    const allowed = await allowAttempt(
+    const allowedAttempt = await allowAttempt(
       req.payload,
       operation,
       clientAddress(req.headers),
       LIMITS.login,
     )
-    if (!allowed) throw new APIError('Too many attempts. Please try again later.', 429, null, true)
+    if (!allowedAttempt)
+      throw new APIError('Too many attempts. Please try again later.', 429, null, true)
   }
   return args
+}
+
+/** Deactivated accounts cannot sign in (their sessions end when they are deactivated). */
+const blockDisabled: CollectionBeforeLoginHook = ({ req, user }) => {
+  if ((user as Account).disabled) {
+    throw refuse(
+      req,
+      label('Dieses Konto ist deaktiviert.', 'This account is deactivated.', 'هذا الحساب معطّل.'),
+    )
+  }
+  return user
+}
+
+/**
+ * The password alone never signs anyone in: the session Payload just created is held back until
+ * the second factor is given (src/cms/auth/sessions.ts). This hook also runs after a password
+ * reset, which in Payload signs the person in as well.
+ */
+const holdForSecondFactor: CollectionAfterLoginHook = async ({ req, token, user }) => {
+  const sid = sidOfToken(token)
+  if (!sid) throw new APIError('Sign-in without a session id', 500)
+  await holdSession(req, (user as Account).id, sid)
+  return user
+}
+
+const recordLogout: CollectionAfterLogoutHook = async ({ req }) => {
+  const session = await currentSession(req)
+  if (session) {
+    await req.payload.update({
+      collection: 'auth-sessions',
+      id: session.id,
+      data: { status: 'ended', endedAt: new Date().toISOString(), endReason: 'logout' },
+      overrideAccess: true,
+      depth: 0,
+      req,
+    })
+    await audit(req.payload, { action: 'auth.logout', area: 'security' }, req)
+  }
+}
+
+/** Wrong passwords for existing accounts are logged (unknown addresses are not: no value). */
+const recordFailedLogin: CollectionAfterErrorHook = async ({ error, req }) => {
+  if (!req.url?.includes('/users/login')) return
+  const status = (error as { status?: number }).status
+  if (status !== 401 && status !== 423) return
+  const email = (req.data as { email?: unknown } | undefined)?.email
+  if (typeof email !== 'string') return
+  const { docs } = await req.payload.find({
+    collection: 'users',
+    where: { email: { equals: email.trim().toLowerCase() } },
+    limit: 1,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const account = docs[0] as Account | undefined
+  if (!account) return
+  await audit(req.payload, {
+    action: status === 423 ? 'auth.account_locked' : 'auth.password_failed',
+    area: 'security',
+    result: 'failed',
+    actor: { id: account.id, name: account.name, role: account.role },
+    target: { type: 'users', id: account.id, label: account.name ?? null },
+  })
+}
+
+const changed = (
+  data: Record<string, unknown>,
+  original: Record<string, unknown> | undefined,
+  key: string,
+) => {
+  if (!(key in data)) return false
+  const normalize = (value: unknown) =>
+    JSON.stringify(Array.isArray(value) ? [...value].sort() : (value ?? null))
+  return normalize(data[key]) !== normalize(original?.[key])
+}
+
+const STEP_UP_MESSAGE = label(
+  'Bitte bestätigen Sie diese Änderung zuerst mit einem Code aus Ihrer Authenticator-App (Abschnitt „Sicherheitsbestätigung“).',
+  'Please confirm this change first with a code from your authenticator app (section “Security confirmation”).',
+  'يرجى تأكيد هذا التغيير أولًا برمز من تطبيق المصادقة (قسم «تأكيد الأمان»).',
+)
+const NOT_ALLOWED = label(
+  'Diese Änderung ist mit Ihrer Rolle nicht erlaubt.',
+  'Your role does not allow this change.',
+  'دورك لا يسمح بهذا التغيير.',
+)
+const LAST_SUPER_ADMIN = label(
+  'Es muss mindestens eine aktive Super-Administration bleiben.',
+  'At least one active super administrator must remain.',
+  'يجب أن يبقى مسؤول عام نشط واحد على الأقل.',
+)
+
+async function otherActiveSuperAdmins(req: PayloadRequest, exceptId: number) {
+  const { totalDocs } = await req.payload.count({
+    collection: 'users',
+    where: {
+      role: { equals: 'superAdmin' },
+      disabled: { not_equals: true },
+      id: { not_equals: exceptId },
+    },
+    overrideAccess: true,
+    req,
+  })
+  return totalDocs
+}
+
+/**
+ * Rules for changing accounts through the admin or the API (server scripts are exempt):
+ * - who may assign which role (board administrators only editors and membership managers),
+ * - nobody changes their own role, restrictions or deactivation,
+ * - passwords of other accounts are never set by someone else after creation,
+ * - the last active super administrator cannot be demoted or deactivated,
+ * - role, restrictions, deactivation, e-mail and password changes and new accounts need a
+ *   fresh second-factor confirmation (step-up).
+ */
+const guardAccountChanges: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  if (req.context?.[SERVER_COMMAND] || !req.user) return data
+  const actor = req.user as Account
+  const original = originalDoc as Account | undefined
+  const manage = can(actor, 'users.manage')
+  const manageLimited = can(actor, 'users.manageLimited')
+  const self = operation === 'update' && original?.id === actor.id
+  const nextRole = (data.role ?? original?.role) as Role | undefined
+
+  if (operation === 'create') {
+    if (!manage && !(manageLimited && nextRole && LIMITED_ROLES.includes(nextRole))) {
+      throw refuse(req, NOT_ALLOWED)
+    }
+  } else if (
+    !self &&
+    !manage &&
+    !(manageLimited && original?.role && LIMITED_ROLES.includes(original.role))
+  ) {
+    throw refuse(req, NOT_ALLOWED)
+  }
+
+  const roleChanged = operation === 'update' && changed(data, original, 'role')
+  if (roleChanged) {
+    if (self) throw refuse(req, NOT_ALLOWED)
+    if (!manage && !(nextRole && LIMITED_ROLES.includes(nextRole))) throw refuse(req, NOT_ALLOWED)
+  }
+  if (self && (changed(data, original, 'restrictions') || changed(data, original, 'disabled'))) {
+    throw refuse(req, NOT_ALLOWED)
+  }
+  if (operation === 'update' && !self && typeof data.password === 'string' && data.password) {
+    throw refuse(
+      req,
+      label(
+        'Passwörter anderer Konten werden nicht gesetzt; die Person nutzt „Passwort vergessen“.',
+        'Passwords of other accounts are not set by others; the person uses “Forgot password”.',
+        'لا تُعيَّن كلمات مرور الحسابات الأخرى؛ يستخدم الشخص «نسيت كلمة المرور».',
+      ),
+    )
+  }
+  if (isRole(nextRole) && Array.isArray(data.restrictions)) {
+    data.restrictions = validRestrictions(nextRole, data.restrictions as string[])
+  }
+
+  if (
+    operation === 'update' &&
+    original?.role === 'superAdmin' &&
+    (nextRole !== 'superAdmin' || data.disabled === true) &&
+    (await otherActiveSuperAdmins(req, original.id)) === 0
+  ) {
+    throw refuse(req, LAST_SUPER_ADMIN, 400)
+  }
+
+  const sensitive =
+    operation === 'create' ||
+    roleChanged ||
+    changed(data, original, 'restrictions') ||
+    changed(data, original, 'disabled') ||
+    changed(data, original, 'email') ||
+    (typeof data.password === 'string' && data.password.length > 0)
+  if (sensitive && !(await hasFreshStepUp(req))) throw refuse(req, STEP_UP_MESSAGE)
+  return data
+}
+
+const guardDelete: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  if (req.context?.[SERVER_COMMAND] || !req.user) return
+  if (String(id) === String(req.user.id)) throw refuse(req, NOT_ALLOWED)
+  const target = (await req.payload.findByID({
+    collection: 'users',
+    id,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as Account
+  if (target.role === 'superAdmin' && (await otherActiveSuperAdmins(req, target.id)) === 0) {
+    throw refuse(req, LAST_SUPER_ADMIN, 400)
+  }
+  if (!(await hasFreshStepUp(req))) throw refuse(req, STEP_UP_MESSAGE)
+}
+
+const afterAccountChange: CollectionAfterChangeHook = async ({
+  context,
+  doc,
+  operation,
+  previousDoc,
+  req,
+}) => {
+  const account = doc as Account
+  if (operation === 'update' && account.disabled && !(previousDoc as Account)?.disabled) {
+    await endAllSessions(req.payload, account.id, 'disabled', undefined, req)
+  }
+  const passwordChanged = Boolean(context?.passwordChanged)
+  if (!context?.[SKIP_AUDIT]) {
+    await audit(
+      req.payload,
+      {
+        action: `users.${operation}`,
+        area: 'users',
+        actor: req.user ? undefined : null,
+        target: { type: 'users', id: account.id, label: account.name ?? null },
+        stepUp: Boolean(req.user) && (await hasFreshStepUp(req)),
+        detail: {
+          ...(operation === 'update' ? describeChange(doc, previousDoc) : { role: account.role }),
+          ...(passwordChanged ? { password: 'changed' } : {}),
+        },
+      },
+      req,
+    )
+  }
+  if (passwordChanged && operation === 'update' && account.email) {
+    await sendSecurityNotice(req.payload, account.email, { kind: 'passwordChanged' })
+  }
+  return doc
+}
+
+/** Remembers (without the password itself) that it changed, for the audit entry and notice. */
+const notePasswordChange: CollectionBeforeChangeHook = ({ context, data }) => {
+  if (typeof data.password === 'string' && data.password) context.passwordChanged = true
+  return data
+}
+
+/**
+ * Sign-in records go before the account itself: their reference to it is required, so the
+ * database could not keep them without it. Same transaction as the deletion.
+ */
+const removeSecurityRecords: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  for (const collection of ['auth-mfa', 'auth-sessions', 'trusted-devices'] as const) {
+    await req.payload.delete({
+      collection,
+      where: { user: { equals: id } },
+      overrideAccess: true,
+      req,
+    })
+  }
+}
+
+const afterAccountDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {
+  const account = doc as Account
+  await audit(
+    req.payload,
+    {
+      action: 'users.delete',
+      area: 'users',
+      target: { type: 'users', id: account.id, label: account.name ?? null },
+      stepUp: true,
+    },
+    req,
+  )
+  return doc
+}
+
+/** Payload's admin panel only for verified sessions of active accounts with a valid role. */
+const adminPanel = async ({ req }: { req: PayloadRequest }) => {
+  const user = req.user as Account | null
+  if (!user || user.disabled || !isRole(user.role)) return false
+  return isVerifiedSession(req)
+}
+
+const readAccounts: Access = async ({ req }) => {
+  if (!req.user || !(await isVerifiedSession(req))) return false
+  if (can(req.user as Account, 'users.read')) return true
+  return { id: { equals: req.user.id } }
+}
+
+const updateAccounts: Access = async ({ req }) => {
+  if (!req.user || !(await isVerifiedSession(req))) return false
+  const actor = req.user as Account
+  if (can(actor, 'users.manage')) return true
+  const own: Where = { id: { equals: actor.id } }
+  if (can(actor, 'users.manageLimited')) {
+    return { or: [own, { role: { in: [...LIMITED_ROLES] } }] }
+  }
+  return own
+}
+
+const createAccounts: Access = async ({ req }) =>
+  (await allowed(req, 'users.manage')) || (await allowed(req, 'users.manageLimited'))
+
+/** Role, restrictions and deactivation: set by those who manage accounts, never on oneself. */
+const manageField: FieldAccess = async ({ doc, req }) => {
+  if (!req.user || (doc && doc.id === req.user.id)) return false
+  return (await allowed(req, 'users.manage')) || (await allowed(req, 'users.manageLimited'))
+}
+
+const manageFieldOnCreate: FieldAccess = async ({ req }) =>
+  (await allowed(req, 'users.manage')) || (await allowed(req, 'users.manageLimited'))
+
+/** Two-factor status is visible to the account itself and to those who may see accounts. */
+const seeSecurity: FieldAccess = async ({ doc, req }) =>
+  Boolean(req.user) && (doc?.id === req.user?.id || (await allowed(req, 'users.read')))
+
+const emailHTML = async (args?: { token?: string }) => {
+  const token = args?.token ?? ''
+  const link = `${adminUrl()}/admin/reset/${token}`
+  return [
+    '<p>Sie können ein neues Passwort für Ihr Konto im Youth of Peace Control Center festlegen. Der Link gilt eine Stunde.</p>',
+    '<p>You can set a new password for your Youth of Peace Control Center account. The link is valid for one hour.</p>',
+    '<p dir="rtl">يمكنك تعيين كلمة مرور جديدة لحسابك في مركز التحكم. الرابط صالح لمدة ساعة.</p>',
+    `<p><a href="${link}">${link}</a></p>`,
+    '<p>Falls Sie das nicht angefordert haben, ignorieren Sie diese E-Mail. / If you did not ask for this, ignore this e-mail. / إن لم تطلب ذلك فتجاهل هذه الرسالة.</p>',
+  ].join('\n')
 }
 
 export const Users: CollectionConfig = {
   slug: 'users',
   labels: {
     singular: label('Benutzerkonto', 'User', 'مستخدم'),
-    plural: label('Benutzerkonten', 'Users', 'المستخدمون'),
+    plural: label('Benutzer & Rollen', 'Users & roles', 'المستخدمون والأدوار'),
   },
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'role'],
-    group: groups.admin,
+    defaultColumns: ['name', 'email', 'role', 'mfaEnabled', 'disabled'],
+    group: groups.security,
+    hidden: ({ user }) => !can(user as PermissionSubject, 'users.read'),
   },
   auth: {
     maxLoginAttempts: 5,
@@ -96,17 +460,32 @@ export const Users: CollectionConfig = {
       sameSite: 'Strict',
       secure: process.env.NODE_ENV === 'production',
     },
+    forgotPassword: {
+      generateEmailHTML: emailHTML,
+      generateEmailSubject: () =>
+        'Youth of Peace – Passwort zurücksetzen / Reset password / إعادة تعيين كلمة المرور',
+    },
   },
+  endpoints: authEndpoints,
   access: {
-    create: isAdmin,
-    read: isAdminOrSelf,
-    update: isAdminOrSelf,
-    delete: isAdmin,
+    admin: adminPanel,
+    create: createAccounts,
+    read: readAccounts,
+    update: updateAccounts,
+    delete: async ({ req }) => allowed(req, 'users.manage'),
+    unlock: async ({ req }) => allowed(req, 'users.manage'),
   },
   hooks: {
     beforeOperation: [guardAuthOperations],
     beforeValidate: [passwordLength],
-    beforeChange: [noSignUp],
+    beforeChange: [noSignUp, guardAccountChanges, notePasswordChange],
+    beforeDelete: [guardDelete, removeSecurityRecords],
+    beforeLogin: [blockDisabled],
+    afterLogin: [holdForSecondFactor],
+    afterLogout: [recordLogout],
+    afterChange: [afterAccountChange],
+    afterDelete: [afterAccountDelete],
+    afterError: [recordFailedLogin],
   },
   fields: [
     {
@@ -119,24 +498,73 @@ export const Users: CollectionConfig = {
       name: 'role',
       type: 'select',
       required: true,
-      defaultValue: 'editor',
       saveToJWT: true,
       label: label('Rolle', 'Role', 'الدور'),
-      options: [
-        { value: 'admin', label: label('Administration', 'Administrator', 'مسؤول') },
-        { value: 'editor', label: label('Redaktion', 'Editor', 'محرر') },
-        { value: 'board', label: label('Vorstand', 'Board', 'مجلس الإدارة') },
-      ],
-      access: {
-        create: isAdminField,
-        update: isAdminField,
-      },
+      options: ROLES.map((value) => ({ value, label: roleLabels[value] })),
+      access: { create: manageFieldOnCreate, update: manageField },
       admin: {
         description: label(
-          'Nur Administrator:innen können Rollen vergeben.',
-          'Only administrators can assign roles.',
-          'المسؤولون وحدهم يمكنهم تعيين الأدوار.',
+          'Bestimmt die Grundrechte (siehe Sicherheit → Rollen). Die eigene Rolle kann niemand ändern.',
+          'Sets the basic permissions. Nobody can change their own role.',
+          'يحدد الصلاحيات الأساسية. لا يمكن لأحد تغيير دوره بنفسه.',
         ),
+      },
+    },
+    {
+      name: 'restrictions',
+      type: 'select',
+      hasMany: true,
+      label: label('Einschränkungen', 'Restrictions', 'القيود'),
+      options: PERMISSIONS.map((value) => ({ value, label: permissionLabels[value] })),
+      access: { create: manageFieldOnCreate, update: manageField },
+      admin: {
+        description: label(
+          'Rechte, die diese Person trotz ihrer Rolle nicht haben soll. Rechte über die Rolle hinaus gibt es nicht.',
+          'Permissions this person should not have despite their role. There are no permissions beyond the role.',
+          'صلاحيات لا ينبغي أن يملكها هذا الشخص رغم دوره. لا توجد صلاحيات تتجاوز الدور.',
+        ),
+      },
+    },
+    {
+      name: 'disabled',
+      type: 'checkbox',
+      label: label('Deaktiviert', 'Deactivated', 'معطّل'),
+      access: { create: manageFieldOnCreate, update: manageField },
+      admin: {
+        position: 'sidebar',
+        components: { Cell: '/cms/admin/users/cells#DisabledCell' },
+        description: label(
+          'Kann sich nicht mehr anmelden; alle Sitzungen enden sofort.',
+          'Can no longer sign in; all sessions end at once.',
+          'لا يمكنه تسجيل الدخول بعد الآن؛ تنتهي كل الجلسات فورًا.',
+        ),
+      },
+    },
+    {
+      name: 'mfaEnabled',
+      type: 'checkbox',
+      virtual: true,
+      label: label('Zwei-Faktor', 'Two-factor', 'التحقق بخطوتين'),
+      access: { read: seeSecurity, create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        components: { Cell: '/cms/admin/users/cells#MfaCell' },
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) =>
+            data?.id ? Boolean(await getCredential(req.payload, data.id as number, req)) : false,
+        ],
+      },
+    },
+    {
+      name: 'security',
+      type: 'ui',
+      label: label('Sicherheit', 'Security', 'الأمان'),
+      admin: {
+        position: 'sidebar',
+        components: { Field: '/cms/admin/users/AccountSecurity#AccountSecurity' },
       },
     },
   ],

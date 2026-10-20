@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { isEditor, publishedOrEditor } from '../access/roles'
+import { allow, publishedOrContentReader } from '../access/roles'
+import { hiddenWithoutContent } from './content-access'
 import { seoField } from '../fields/seo'
 import { slugField } from '../fields/slug'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
@@ -17,10 +18,16 @@ export const News: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishedAt', '_status'],
     group: groups.content,
+    hidden: hiddenWithoutContent,
   },
   versions: { drafts: true, maxPerDoc: 25 },
   defaultSort: '-publishedAt',
-  access: { read: publishedOrEditor, create: isEditor, update: isEditor, delete: isEditor },
+  access: {
+    read: publishedOrContentReader,
+    create: allow('content.write'),
+    update: allow('content.write'),
+    delete: allow('content.write'),
+  },
   hooks: {
     beforeChange: [setPublishedAt],
     afterChange: [revalidateAfterChange],

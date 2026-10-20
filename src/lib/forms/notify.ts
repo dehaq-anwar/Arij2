@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { siteUrl } from '@/lib/site'
+import { adminUrl } from '@/lib/site'
 
 const subjects = {
   'membership-applications': 'Neuer Mitgliedsantrag / New membership application',
@@ -18,7 +18,7 @@ export async function notifyNewSubmission(
 ) {
   const to = process.env.NOTIFY_EMAIL
   if (!to) return
-  const link = `${siteUrl()}/admin/collections/${collection}/${id}`
+  const link = `${adminUrl()}/admin/collections/${collection}/${id}`
   try {
     await payload.sendEmail({
       to,

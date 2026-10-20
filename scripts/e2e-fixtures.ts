@@ -1,12 +1,26 @@
 // Test data for the end-to-end tests. Runs only against a database whose name ends in "_e2e"
 // (scripts/e2e-server.mjs prepares it); everything here is invented test data, clearly named
 // "E2E", and must never reach the real CMS.
+import { writeFileSync } from 'node:fs'
+import path from 'node:path'
+
+import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { getPayload } from 'payload'
 
+import { createCredential } from '../src/cms/auth/mfa'
 import { SERVER_COMMAND } from '../src/cms/collections/Users'
 import { paragraphs } from '../src/cms/seed/lexical'
 import { seed } from '../src/cms/seed/seed'
 import config from '../src/payload.config'
+import {
+  ROLE_ACCOUNTS,
+  SCENARIO_ACCOUNTS,
+  STATE_FILE,
+  testEmail,
+  testTotpSecret,
+  type AccountName,
+  type E2EState,
+} from '../tests/e2e/secrets'
 
 const database = new URL(process.env.DATABASE_URL ?? 'postgres://invalid/').pathname.slice(1)
 if (!database.endsWith('_e2e')) {
@@ -157,20 +171,53 @@ for (const [name, permissionConfirmed] of [
 }
 
 // Accounts: scripts create them with the server-command flag (there is no open sign-up).
-// The tests sign in as editor (content), board member (applications, messages) and, to run the
-// job queue, administrator; all share the password generated for the run. Each test worker has
-// its own accounts: Payload stores sessions in the account, and two sign-ins to the same account
-// at the same moment can overwrite each other's session (tests/e2e/fixtures.ts → account()).
-const roles = { admin: 'E2E Admin', editor: 'E2E Redaktion', board: 'E2E Vorstand' } as const
+// Every test worker has its own accounts (Payload stores sessions in the account; parallel
+// sign-ins to one account could overwrite each other): one per role, plus accounts for single
+// scenarios. All share the password generated for the run; their second factor is set up here
+// with a secret the tests can derive (tests/e2e/secrets.ts), exactly as an enrolment stores it.
+const state: E2EState = { recoveryCodes: {}, resetTokens: {} }
 for (let worker = 0; worker < 8; worker++) {
-  for (const [role, name] of Object.entries(roles) as [keyof typeof roles, string][]) {
-    await payload.create({
+  const accounts = [
+    ...Object.entries(ROLE_ACCOUNTS).map(([key, name]) => ({
+      key,
+      name,
+      role: key,
+      enrolled: true,
+    })),
+    ...Object.entries(SCENARIO_ACCOUNTS).map(([key, a]) => ({ key, ...a })),
+  ]
+  for (const { key, name, role, enrolled } of accounts) {
+    const email = testEmail(key as AccountName, worker)
+    const user = await payload.create({
       collection: 'users',
-      data: { name, email: `e2e-${role}-${worker}@example.test`, password: editorPassword, role },
+      data: {
+        name,
+        email,
+        password: editorPassword,
+        role: role as never,
+        disabled: key === 'disabled',
+      },
       context: { [SERVER_COMMAND]: true },
     })
+    if (!enrolled) continue
+    const codes = await createCredential(
+      payload,
+      user.id,
+      testTotpSecret(editorPassword, email),
+      -1,
+    )
+    if (key === 'recovery') state.recoveryCodes[email] = codes
+    if (key === 'reset') {
+      state.resetTokens[email] = await payload.forgotPassword({
+        collection: 'users',
+        data: { email },
+        disableEmail: true,
+        context: { [SERVER_COMMAND]: true },
+      })
+    }
   }
 }
+writeFileSync(path.resolve(process.cwd(), STATE_FILE), JSON.stringify(state))
 
 // Retention: entries older than six months (deleted by the retention job) and newer ones (kept).
 // The job is queued here so that the test can run it at once instead of waiting for 03:00.
@@ -224,6 +271,27 @@ for (const [lastName, status, decisionDate] of [
   })
 }
 await payload.jobs.queue({ task: 'retention', queue: 'maintenance', input: {} })
+
+// The audit log must refuse changes in the database itself, not only through Payload.
+const { drizzle } = payload.db as unknown as PostgresAdapter
+const { totalDocs: auditEntries } = await payload.count({ collection: 'audit-log' })
+if (auditEntries === 0) {
+  console.error('The fixtures should have written audit entries.')
+  process.exit(1)
+}
+for (const statement of [
+  sql`update audit_log set action = 'tampered'`,
+  sql`delete from audit_log`,
+]) {
+  const refused = await drizzle.execute(statement).then(
+    () => false,
+    () => true,
+  )
+  if (!refused) {
+    console.error('The audit log accepted an UPDATE or DELETE.')
+    process.exit(1)
+  }
+}
 
 payload.logger.info('E2E fixtures created.')
 process.exit(0)

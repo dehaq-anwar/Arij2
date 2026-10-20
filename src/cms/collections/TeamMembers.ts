@@ -1,6 +1,7 @@
 import type { CheckboxField, CollectionConfig } from 'payload'
 
-import { hasRole, isEditor } from '../access/roles'
+import { allow, allowed } from '../access/roles'
+import { hiddenWithoutContent } from './content-access'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { groups, label } from '../lib/labels'
 
@@ -22,15 +23,16 @@ export const TeamMembers: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'position', 'group', 'publishConsent'],
     group: groups.content,
+    hidden: hiddenWithoutContent,
   },
   defaultSort: 'order',
   access: {
     // Only people who agreed to be shown are public.
-    read: ({ req: { user } }) =>
-      hasRole(user, 'admin', 'editor') ? true : { publishConsent: { equals: true } },
-    create: isEditor,
-    update: isEditor,
-    delete: isEditor,
+    read: async ({ req }) =>
+      (await allowed(req, 'content.read')) ? true : { publishConsent: { equals: true } },
+    create: allow('content.write'),
+    update: allow('content.write'),
+    delete: allow('content.write'),
   },
   hooks: { afterChange: [revalidateAfterChange], afterDelete: [revalidateAfterDelete] },
   fields: [

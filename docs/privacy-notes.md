@@ -1,6 +1,6 @@
 # Privacy notes (technical facts)
 
-Status: Phase 5, 2026-10-19.
+Status: Phase 5, 2026-10-19; Control Center CC-0, 2026-10-20.
 
 This file lists **technical facts** about how the website handles data. It is input for whoever writes the privacy policy (Datenschutzerklärung) and the records of processing. **It is not legal text and not legal advice.** The privacy policy itself is entered by the association in the CMS (`Datenschutzerklärung`) and should be reviewed by a qualified person.
 
@@ -33,9 +33,10 @@ There are two forms: the **membership application** and the **contact form**. Bo
 
 ### Who can see submissions
 
-- Only CMS accounts with the role **board** or **admin**. Editors (role "editor") cannot see them, neither in the CMS nor through the API.
-- Not readable or writable through the public API (checked by end-to-end tests).
-- Membership applications can only be deleted by administrators; contact messages also by the board.
+- Only accounts with the roles **super administrator**, **board administrator** or **membership manager** (CC-0, docs/CONTROL-CENTER.md §4). Content editors, technical administrators and auditors cannot see them, neither in the admin nor through the API (checked by end-to-end tests).
+- Not readable or writable through the public API (checked by end-to-end tests). Since CC-0 the API exists only on the Control Center's host.
+- Membership applications can only be deleted by super administrators; contact messages also by board administrators and membership managers.
+- Every creation, change and deletion of a submission is written to the audit log with its id and, for status changes, the old and new status. No names, addresses or message contents go into the audit log.
 
 ### Retention (decided by the association: six months)
 
@@ -64,16 +65,22 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 - A **signed timestamp** in the form: submissions faster than 3 seconds or older than 24 hours are not accepted.
 - **Rate limiting:** at most 5 submissions per 10 minutes and 20 per day per form and address; sign-in to the CMS at most 20 attempts per 10 minutes and 100 per day per address. The address is not stored: the counter's key is an HMAC of the address with a random secret that exists only in the server's memory and is replaced every day, so a stored key cannot be traced back to an address. Counters expire after at most one day and are deleted.
 
-## CMS (editors only)
+## Control Center (people with an account only)
 
 | Topic | Fact |
 |---|---|
-| Cookie | One cookie, `payload-token`, set **only after an editor signs in** at `/admin`: HttpOnly, Secure (in production), SameSite=Strict, valid for 2 hours |
-| Accounts | Name, e-mail, role, password hash. No public sign-up: accounts are created by an administrator or on the server (`npm run create-admin`) |
-| Sign-in protection | Account locked for 15 minutes after 5 wrong passwords; per-address limit (see above); passwords of at least 12 characters |
-| Password reset | By e-mail (requires SMTP). Without SMTP settings, no e-mail is sent and nothing is written to the logs |
+| Where | Its own host (`ADMIN_URL`, planned: `verwaltung.yop-ye.org`). On the website's host `/admin` and the API answer 404 (media files excepted) |
+| Cookies | `payload-token` (session, set only after signing in: HttpOnly, Secure in production, SameSite=Strict, host-only, 2 hours, renewed while active) and `yop-device` (a random value that recognises a device across sign-ins; HttpOnly, Secure, SameSite=Strict, 400 days; set only for people who sign in). Visitors of the website get neither |
+| Accounts | Name, e-mail, role, optional restrictions, deactivated yes/no, password hash. No public sign-up: accounts are created by an administrator or on the server (`npm run create-admin`) |
+| Sign-in | Password plus a code from an authenticator app (TOTP) for every account. The password alone creates no usable session |
+| Second factor | Stored: the authenticator secret (encrypted, AES-256-GCM, key from `MFA_ENCRYPTION_KEY` or derived from `PAYLOAD_SECRET`), the time step of the last used code, a failure counter, and 10 recovery codes as keyed hashes (the codes themselves are shown once and never stored) |
+| Sign-in records (`auth-sessions`) | Per sign-in: time, status, verification method, last activity (at most every 5 minutes), **browser family, operating system and device class** (e.g. "Firefox · Linux · computer"; no version numbers, no full user-agent string) and a keyed hash of the device cookie. **No IP address.** Ended records are deleted after 30 days by an hourly job (a proposal, adjustable; see decisions) |
+| Known devices (`trusted-devices`) | Per account and device: keyed hash of the device cookie, browser family, operating system, device class, first and last use. Used to notice sign-ins from new devices. Deleted with the account; the person can remove entries on "My security" |
+| Audit log | Time, account id, name and role of the person acting, area, action, object (type, id and — for content and accounts — its title or name), result, whether a fresh code confirmed it, and small details (names of changed fields, old/new status or role, browser family and OS for sign-ins). **No IP addresses, no form or message contents.** Readable per role (super administrators and auditors all, board administrators users/content/association, technical administrators operations); everyone sees their own security events on "My security". Append-only: the database refuses changes and deletions. **Retention is not decided yet** (decision 11): entries are kept until the association decides |
+| Security e-mails | To the account itself: second factor set up, sign-in from a new device (browser family and OS), recovery code used, second factor reset by an administrator, password changed. Time and link only; no address or location. Require SMTP |
+| Sign-in protection | Account locked for 15 minutes after 5 wrong passwords; second factor locked for 15 minutes after 10 wrong codes; 5 wrong codes end a sign-in attempt; per-address limits (see above) for passwords and codes; passwords of at least 12 characters |
+| Password reset | By e-mail with a link to the Control Center's host (requires SMTP). After the new password, the second factor is still required |
 | Account pictures | A neutral icon. Payload's default (Gravatar, which would send a hash of the e-mail address to a third party) is switched off |
-| Two-factor authentication | Not built in (see plan §23 for the options) |
 
 ## Security headers
 

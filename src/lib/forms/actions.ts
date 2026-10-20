@@ -71,6 +71,8 @@ async function submit<T extends object>(
       collection,
       overrideAccess: true,
       depth: 0,
+      // For the audit log: the entry came in through the website, not from a person in the CMS.
+      context: { source: 'website' },
       data: {
         ...(result.data as T),
         locale,

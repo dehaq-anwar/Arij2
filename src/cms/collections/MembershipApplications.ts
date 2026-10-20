@@ -1,8 +1,8 @@
 import { ValidationError, type CollectionBeforeChangeHook, type CollectionConfig } from 'payload'
 
-import { isAdmin, isBoardOrAdmin, nobody } from '../access/roles'
+import { allow, nobody } from '../access/roles'
 import { groups, label, localizedMessage } from '../lib/labels'
-import { consentRecord, hiddenUnlessBoard, submitted, submittedLocale } from './inbox'
+import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
 
 type Guardian = { consentReceivedAt?: string | null } | null | undefined
 
@@ -61,7 +61,7 @@ export const MembershipApplications: CollectionConfig = {
     useAsTitle: 'lastName',
     defaultColumns: ['lastName', 'firstName', 'membershipType', 'status', 'createdAt'],
     group: groups.inbox,
-    hidden: hiddenUnlessBoard,
+    hidden: hiddenWithoutInbox,
     description: label(
       'Rückmeldung an die Antragstellenden per E-Mail. Abgelehnte Anträge werden sechs Monate nach der Entscheidung automatisch gelöscht.',
       'Reply to applicants by e-mail. Rejected applications are deleted automatically six months after the decision.',
@@ -71,9 +71,9 @@ export const MembershipApplications: CollectionConfig = {
   defaultSort: '-createdAt',
   access: {
     create: nobody,
-    read: isBoardOrAdmin,
-    update: isBoardOrAdmin,
-    delete: isAdmin,
+    read: allow('inbox.read'),
+    update: allow('inbox.write'),
+    delete: allow('applications.delete'),
   },
   hooks: { beforeChange: [recordDecision] },
   fields: [

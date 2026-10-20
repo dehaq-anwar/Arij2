@@ -712,3 +712,22 @@ phased plan (CC-0 … CC-5) and the decisions needed are in [CONTROL-CENTER.md](
 (Arabic: [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)); the interactive design is
 [control-center/mockups.html](control-center/mockups.html). Nothing is implemented until the plan
 is approved.
+
+## 25. Control Center CC-0: foundations (2026-10-20)
+
+Approved on 2026-10-20: option A with a separate, narrowly scoped operations agent, phases CC-0 to
+CC-5 with the association's conditions; only CC-0 is implemented. Decisions, contents, the review
+of `otpauth`, the admin host and the steps before going live are in
+[CONTROL-CENTER.md §14](CONTROL-CENTER.md#14-cc-0-implementation-notes-2026-10-20).
+
+- Six roles replace `admin`/`board`/`editor` (migrated: super administrator, board administrator,
+  content editor); access everywhere comes from one permission map.
+- Two-factor sign-in (authenticator app) for every account, recovery codes, step-up for sensitive
+  changes; a password-only token is accepted nowhere.
+- Append-only audit log (database trigger), "My security" page, own sign-in screen, grouped
+  navigation, dashboard with real data only.
+- Admin and API only on `ADMIN_URL` (`verwaltung.yop-ye.org`); the website's host answers 404 for
+  them.
+- New dependencies (exact, older than 14 days): `otpauth` 9.5.2, `jose` 5.10.0 (already installed
+  by Payload, now declared), `uqr` 0.1.3 (QR code drawn on the server, no external service).
+- No accounts are created; the first one is made with `npm run create-admin` by the association.

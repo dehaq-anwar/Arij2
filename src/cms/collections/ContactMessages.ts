@@ -1,8 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import { isBoardOrAdmin, nobody } from '../access/roles'
+import { allow, nobody } from '../access/roles'
 import { groups, label } from '../lib/labels'
-import { consentRecord, hiddenUnlessBoard, submitted, submittedLocale } from './inbox'
+import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
 
 /** Messages from the contact form. Deleted automatically six months after they arrived. */
 export const ContactMessages: CollectionConfig = {
@@ -15,7 +15,7 @@ export const ContactMessages: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'topic', 'status', 'createdAt'],
     group: groups.inbox,
-    hidden: hiddenUnlessBoard,
+    hidden: hiddenWithoutInbox,
     description: label(
       'Antworten per E-Mail. Nachrichten werden sechs Monate nach Eingang automatisch gelöscht.',
       'Reply by e-mail. Messages are deleted automatically six months after they arrived.',
@@ -25,9 +25,9 @@ export const ContactMessages: CollectionConfig = {
   defaultSort: '-createdAt',
   access: {
     create: nobody,
-    read: isBoardOrAdmin,
-    update: isBoardOrAdmin,
-    delete: isBoardOrAdmin,
+    read: allow('inbox.read'),
+    update: allow('inbox.write'),
+    delete: allow('messages.delete'),
   },
   fields: [
     {
