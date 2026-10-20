@@ -1,19 +1,78 @@
-import { ValidationError, type CollectionBeforeChangeHook, type CollectionConfig } from 'payload'
+import {
+  ValidationError,
+  type CollectionAfterChangeHook,
+  type CollectionBeforeChangeHook,
+  type CollectionBeforeDeleteHook,
+  type CollectionConfig,
+} from 'payload'
 
 import { allow, nobody } from '../access/roles'
+import { refuse } from '../lib/errors'
 import { groups, label, localizedMessage } from '../lib/labels'
+import { deleteCaseEvents, recordCaseEvent } from '../membership/events'
+import { adminHref, notify } from '../membership/notifications'
 import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
+import { FROM_APPLICATION } from './Members'
+import {
+  addressGroup,
+  emailField,
+  guardianFields,
+  MEMBERSHIP_ROLES,
+  membershipTypeField,
+  nameRow,
+} from './membership-fields'
 
 type Guardian = { consentReceivedAt?: string | null } | null | undefined
 
+const relationId = (value: unknown) =>
+  value && typeof value === 'object'
+    ? Number((value as { id: number }).id)
+    : value == null
+      ? null
+      : Number(value)
+
 /**
- * A decision records who made it and when; back to "received" clears both. Applicants under 18
- * can only be accepted once the guardian's consent is recorded (also for partial API updates,
- * hence a collection hook rather than a field rule).
+ * Once the register entry exists, the decision is final here: changes to the membership are made
+ * in the members register (ending a membership there, not by "un-accepting" the application).
+ */
+const lockAfterAdmission: CollectionBeforeChangeHook = async ({
+  data,
+  originalDoc,
+  operation,
+  req,
+}) => {
+  if (operation !== 'update' || originalDoc?.status !== 'accepted') return data
+  if (!data.status || data.status === 'accepted') return data
+  const { totalDocs } = await req.payload.count({
+    collection: 'members',
+    where: { application: { equals: originalDoc.id } },
+    overrideAccess: true,
+    req,
+  })
+  if (totalDocs > 0) {
+    throw refuse(
+      req,
+      label(
+        'Diese Person ist bereits im Mitgliederverzeichnis eingetragen. Änderungen der Mitgliedschaft bitte dort vornehmen.',
+        'This person is already in the members register. Please make changes to the membership there.',
+        'هذا الشخص مسجّل بالفعل في سجل الأعضاء. يرجى إجراء تغييرات العضوية هناك.',
+      ),
+      400,
+    )
+  }
+  return data
+}
+
+/**
+ * A decision (accepted or rejected) records who made it and when; any open stage clears both.
+ * Applicants under 18 can only be accepted once the guardian's consent is recorded (the rule
+ * from Phase 5, unchanged; a collection hook so that partial API updates are covered too).
  */
 const recordDecision: CollectionBeforeChangeHook = ({ data, originalDoc, operation, req }) => {
   if (operation !== 'update' || !data.status || data.status === originalDoc?.status) return data
-  if (data.status === 'received') return { ...data, decisionDate: null, decidedBy: null }
+  if (data.status === 'received' || data.status === 'inReview') {
+    return { ...data, decisionDate: null, decidedBy: null }
+  }
   const under18 = 'under18' in data ? data.under18 : originalDoc?.under18
   const consent = (
     'guardian' in data ? (data.guardian as Guardian) : (originalDoc?.guardian as Guardian)
@@ -47,6 +106,111 @@ const recordDecision: CollectionBeforeChangeHook = ({ data, originalDoc, operati
 }
 
 /**
+ * Case history, the register entry on acceptance, and a notification for whoever the application
+ * is assigned to. Runs in the change's transaction: if creating the register entry fails, the
+ * acceptance is rolled back too.
+ */
+const afterApplicationChange: CollectionAfterChangeHook = async ({
+  doc,
+  operation,
+  previousDoc,
+  req,
+}) => {
+  const application = Number(doc.id)
+  if (operation === 'create') {
+    await recordCaseEvent(req.payload, { event: 'application.received', application }, req)
+    return doc
+  }
+  if (previousDoc?.status !== doc.status) {
+    await recordCaseEvent(
+      req.payload,
+      { event: 'application.status', application, from: previousDoc?.status, to: doc.status },
+      req,
+    )
+  }
+  if (!previousDoc?.guardian?.consentReceivedAt && doc.guardian?.consentReceivedAt) {
+    await recordCaseEvent(
+      req.payload,
+      { event: 'application.consent', application, to: doc.guardian.consentReceivedAt },
+      req,
+    )
+  }
+  const assignee = relationId(doc.assignedTo)
+  if (assignee !== relationId(previousDoc?.assignedTo)) {
+    const person = assignee
+      ? await req.payload.findByID({
+          collection: 'users',
+          id: assignee,
+          depth: 0,
+          overrideAccess: true,
+          select: { name: true },
+          req,
+        })
+      : null
+    await recordCaseEvent(
+      req.payload,
+      { event: 'application.assigned', application, to: person?.name ?? null },
+      req,
+    )
+    if (assignee && assignee !== Number(req.user?.id)) {
+      await notify(
+        req.payload,
+        {
+          kind: 'assigned',
+          recipients: [assignee],
+          subjectType: 'membership-applications',
+          subjectId: application,
+          href: adminHref('membership-applications', application),
+        },
+        req,
+      )
+    }
+  }
+  if ((previousDoc?.followUpOn ?? null) !== (doc.followUpOn ?? null)) {
+    await recordCaseEvent(
+      req.payload,
+      { event: 'application.followUp', application, to: doc.followUpOn ?? null },
+      req,
+    )
+  }
+  if (doc.status === 'accepted' && previousDoc?.status !== 'accepted') {
+    const { totalDocs } = await req.payload.count({
+      collection: 'members',
+      where: { application: { equals: application } },
+      overrideAccess: true,
+      req,
+    })
+    if (totalDocs === 0) {
+      await req.payload.create({
+        collection: 'members',
+        data: {
+          firstName: doc.firstName,
+          lastName: doc.lastName,
+          email: doc.email,
+          address: doc.address,
+          membershipType: doc.membershipType,
+          memberSince: doc.decisionDate ?? new Date().toISOString(),
+          status: 'active',
+          minorAtAdmission: Boolean(doc.under18),
+          guardian: doc.under18 ? doc.guardian : undefined,
+          application,
+        },
+        context: { [FROM_APPLICATION]: true },
+        overrideAccess: true,
+        depth: 0,
+        req,
+      })
+    }
+  }
+  return doc
+}
+
+/** The case history belongs to the application and goes with it. */
+const removeHistory: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  await deleteCaseEvents(req.payload, { application: Number(id) }, req)
+}
+
+/**
  * Online membership applications (Satzung § 3). Only the fields the Satzung needs are collected:
  * no date of birth, phone, gender, nationality, religion or bank details. Created by the website
  * form on the server; never readable through the public API.
@@ -62,6 +226,9 @@ export const MembershipApplications: CollectionConfig = {
     defaultColumns: ['lastName', 'firstName', 'membershipType', 'status', 'createdAt'],
     group: groups.inbox,
     hidden: hiddenWithoutInbox,
+    components: {
+      views: { list: { Component: '/cms/admin/membership/ApplicationsList#ApplicationsList' } },
+    },
     description: label(
       'Rückmeldung an die Antragstellenden per E-Mail. Abgelehnte Anträge werden sechs Monate nach der Entscheidung automatisch gelöscht.',
       'Reply to applicants by e-mail. Rejected applications are deleted automatically six months after the decision.',
@@ -75,90 +242,16 @@ export const MembershipApplications: CollectionConfig = {
     update: allow('inbox.write'),
     delete: allow('applications.delete'),
   },
-  hooks: { beforeChange: [recordDecision] },
+  hooks: {
+    beforeChange: [lockAfterAdmission, recordDecision],
+    afterChange: [afterApplicationChange],
+    beforeDelete: [removeHistory],
+  },
   fields: [
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'firstName',
-          type: 'text',
-          required: true,
-          maxLength: 100,
-          label: label('Vorname', 'First name', 'الاسم الأول'),
-        },
-        {
-          name: 'lastName',
-          type: 'text',
-          required: true,
-          maxLength: 100,
-          label: label('Nachname', 'Last name', 'اسم العائلة'),
-        },
-      ],
-    },
-    {
-      name: 'email',
-      type: 'email',
-      required: true,
-      label: label('E-Mail', 'E-mail', 'البريد الإلكتروني'),
-    },
-    {
-      name: 'address',
-      type: 'group',
-      label: label('Anschrift', 'Address', 'العنوان'),
-      admin: {
-        description: label(
-          'Für schriftliche Einladungen zur Mitgliederversammlung (Satzung § 7).',
-          'For written invitations to the general meeting (Satzung § 7).',
-          'لإرسال الدعوات المكتوبة إلى الجمعية العمومية (النظام الأساسي § 7).',
-        ),
-      },
-      fields: [
-        {
-          name: 'street',
-          type: 'text',
-          required: true,
-          maxLength: 150,
-          label: label('Straße und Hausnummer', 'Street and number', 'الشارع ورقم المنزل'),
-        },
-        {
-          type: 'row',
-          fields: [
-            {
-              name: 'postalCode',
-              type: 'text',
-              required: true,
-              maxLength: 12,
-              label: label('PLZ', 'Postcode', 'الرمز البريدي'),
-            },
-            {
-              name: 'city',
-              type: 'text',
-              required: true,
-              maxLength: 100,
-              label: label('Ort', 'City', 'المدينة'),
-            },
-            {
-              name: 'country',
-              type: 'text',
-              required: true,
-              maxLength: 100,
-              label: label('Land', 'Country', 'البلد'),
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'membershipType',
-      type: 'select',
-      required: true,
-      label: label('Art der Mitgliedschaft', 'Type of membership', 'نوع العضوية'),
-      options: [
-        { value: 'ordinary', label: label('Ordentlich', 'Ordinary', 'عادية') },
-        { value: 'supporting', label: label('Fördernd', 'Supporting', 'داعمة') },
-      ],
-    },
+    nameRow,
+    emailField,
+    addressGroup,
+    membershipTypeField,
     {
       name: 'declarations',
       type: 'group',
@@ -221,32 +314,18 @@ export const MembershipApplications: CollectionConfig = {
           'تحصل الجمعية على الموافقة من هذا الشخص (كتابيًا مثلًا). ويقرر مجلس الإدارة أي صيغة تكفي.',
         ),
       },
-      fields: [
-        {
-          type: 'row',
-          fields: [
-            {
-              name: 'name',
-              type: 'text',
-              maxLength: 200,
-              label: label('Name', 'Name', 'الاسم'),
-            },
-            {
-              name: 'email',
-              type: 'email',
-              label: label('E-Mail', 'E-mail', 'البريد الإلكتروني'),
-            },
-          ],
-        },
-        {
-          name: 'consentReceivedAt',
-          type: 'date',
-          label: label('Zustimmung liegt vor seit', 'Consent received on', 'تاريخ استلام الموافقة'),
-        },
-      ],
+      fields: guardianFields,
     },
     consentRecord,
     submittedLocale,
+    {
+      name: 'casePanel',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '/cms/admin/membership/CasePanel#ApplicationPanel' },
+      },
+    },
     {
       name: 'status',
       type: 'select',
@@ -255,6 +334,7 @@ export const MembershipApplications: CollectionConfig = {
       label: label('Status', 'Status', 'الحالة'),
       options: [
         { value: 'received', label: label('Eingegangen', 'Received', 'وارد') },
+        { value: 'inReview', label: label('In Prüfung', 'In review', 'قيد المراجعة') },
         { value: 'accepted', label: label('Aufgenommen', 'Accepted', 'مقبول') },
         { value: 'rejected', label: label('Abgelehnt', 'Rejected', 'مرفوض') },
       ],
@@ -272,6 +352,30 @@ export const MembershipApplications: CollectionConfig = {
       relationTo: 'users',
       label: label('Entschieden von', 'Decided by', 'صاحب القرار'),
       admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      name: 'assignedTo',
+      type: 'relationship',
+      relationTo: 'users',
+      label: label('Zuständig', 'Assigned to', 'المسؤول'),
+      filterOptions: {
+        and: [{ role: { in: [...MEMBERSHIP_ROLES] } }, { disabled: { not_equals: true } }],
+      },
+      admin: { position: 'sidebar' },
+    },
+    {
+      name: 'followUpOn',
+      type: 'date',
+      label: label('Wiedervorlage am', 'Follow up on', 'موعد المتابعة'),
+      admin: {
+        position: 'sidebar',
+        date: { pickerAppearance: 'dayOnly' },
+        description: label(
+          'An diesem Tag erinnert das Control Center die zuständige Person.',
+          'On this day the Control Center reminds the person assigned.',
+          'في هذا اليوم يذكّر مركز التحكم الشخص المسؤول.',
+        ),
+      },
     },
     {
       name: 'internalNotes',

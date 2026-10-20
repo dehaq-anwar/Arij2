@@ -203,3 +203,64 @@ export function useStepUpCountdown(validUntil: number | null) {
 }
 
 export { fill }
+
+/** JSON request to this Control Center's API with the session cookie. */
+export async function apiJson<T = Record<string, unknown>>(
+  path: string,
+  init: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {},
+): Promise<ApiResult<T>> {
+  const response = await fetch(`/api${path}`, {
+    method: init.method ?? 'GET',
+    credentials: 'include',
+    headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: init.body ? JSON.stringify(init.body) : undefined,
+  })
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string }
+  return { status: response.status, data }
+}
+
+/** The first error message of a Payload API response, if there is one. */
+export const apiError = (data: unknown): string | null => {
+  const errors = (data as { errors?: { message?: string }[] } | null)?.errors
+  return errors?.[0]?.message ?? null
+}
+
+/**
+ * "Confirm with a code" for a sensitive change on this screen (valid five minutes on the server):
+ * the same control as on accounts, for other records.
+ */
+export function StepUpSection({ hint }: { hint: string }) {
+  const { t } = useAdminText()
+  const [open, setOpen] = useState(false)
+  const [validUntil, setValidUntil] = useState<number | null>(null)
+  const minutes = useStepUpCountdown(validUntil)
+  return (
+    <div className="yop-stepup">
+      <h3 className="yop-account-security__title">
+        <Icon name="shield" />
+        {t.securityConfirmation}
+      </h3>
+      <p className="yop-hint">{hint}</p>
+      {minutes ? (
+        <p className="yop-pill yop-pill--good">
+          <Icon name="check" />
+          {fill(t.stepUpActive, { min: minutes })}
+        </p>
+      ) : (
+        <button
+          type="button"
+          className="yop-button yop-button--small yop-button--block"
+          onClick={() => setOpen(true)}
+        >
+          <Icon name="lock" />
+          {t.confirmWithCode}
+        </button>
+      )}
+      <StepUpDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onConfirmed={() => setValidUntil(Date.now() + 5 * 60_000)}
+      />
+    </div>
+  )
+}

@@ -55,9 +55,12 @@ test.describe('contact form', () => {
       status: 'new',
       consent: { given: true, text: expect.stringContaining('Ich willige ein') },
     })
-    // No address, browser or other metadata is stored with a message.
+    // No address, browser or other metadata is stored with a message (`assignedTo` is the
+    // association's own handling: who answers it; empty when it arrives).
+    expect(doc!.assignedTo ?? null).toBeNull()
     expect(Object.keys(doc!).sort()).toEqual(
       [
+        'assignedTo',
         'consent',
         'createdAt',
         'email',

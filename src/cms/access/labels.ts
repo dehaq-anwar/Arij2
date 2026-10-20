@@ -33,10 +33,23 @@ export const permissionLabels: Record<Permission, AdminLabel> = {
   ),
   'applications.delete': label('Anträge löschen', 'Delete applications', 'حذف الطلبات'),
   'messages.delete': label('Nachrichten löschen', 'Delete messages', 'حذف الرسائل'),
+  'members.read': label('Mitglieder ansehen', 'View members', 'عرض الأعضاء'),
+  'members.write': label('Mitglieder bearbeiten', 'Edit members', 'تحرير بيانات الأعضاء'),
+  'members.delete': label('Mitglieder löschen', 'Delete members', 'حذف الأعضاء'),
   'personalData.export': label(
     'Personenbezogene Daten exportieren',
     'Export personal data',
     'تصدير البيانات الشخصية',
+  ),
+  'exports.review': label(
+    'Exportprotokoll prüfen',
+    'Review the export register',
+    'مراجعة سجل التصدير',
+  ),
+  'settings.manage': label(
+    'Einstellungen des Control Centers',
+    'Control Center settings',
+    'إعدادات مركز التحكم',
   ),
   'operations.read': label('Betrieb ansehen', 'View operations', 'عرض التشغيل'),
   'operations.act': label(

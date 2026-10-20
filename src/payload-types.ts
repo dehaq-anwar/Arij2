@@ -76,6 +76,10 @@ export interface Config {
     media: Media;
     'membership-applications': MembershipApplication;
     'contact-messages': ContactMessage;
+    members: Member;
+    'case-events': CaseEvent;
+    exports: Export;
+    notifications: Notification;
     users: User;
     'audit-log': AuditLog;
     'auth-sessions': AuthSession;
@@ -99,6 +103,10 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     'membership-applications': MembershipApplicationsSelect<false> | MembershipApplicationsSelect<true>;
     'contact-messages': ContactMessagesSelect<false> | ContactMessagesSelect<true>;
+    members: MembersSelect<false> | MembersSelect<true>;
+    'case-events': CaseEventsSelect<false> | CaseEventsSelect<true>;
+    exports: ExportsSelect<false> | ExportsSelect<true>;
+    notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'audit-log': AuditLogSelect<false> | AuditLogSelect<true>;
     'auth-sessions': AuthSessionsSelect<false> | AuthSessionsSelect<true>;
@@ -124,6 +132,7 @@ export interface Config {
     'legal-notice': LegalNotice;
     'privacy-policy': PrivacyPolicy;
     'site-settings': SiteSetting;
+    'control-center-settings': ControlCenterSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
@@ -135,6 +144,7 @@ export interface Config {
     'legal-notice': LegalNoticeSelect<false> | LegalNoticeSelect<true>;
     'privacy-policy': PrivacyPolicySelect<false> | PrivacyPolicySelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    'control-center-settings': ControlCenterSettingsSelect<false> | ControlCenterSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: 'de' | 'en' | 'ar';
@@ -146,6 +156,8 @@ export interface Config {
     tasks: {
       retention: TaskRetention;
       'auth-cleanup': TaskAuthCleanup;
+      'audit-retention': TaskAuditRetention;
+      'membership-reminders': TaskMembershipReminders;
       inline: {
         input: unknown;
         output: unknown;
@@ -447,9 +459,14 @@ export interface MembershipApplication {
     text?: string | null;
   };
   locale: 'de' | 'en' | 'ar';
-  status: 'received' | 'accepted' | 'rejected';
+  status: 'received' | 'inReview' | 'accepted' | 'rejected';
   decisionDate?: string | null;
   decidedBy?: (number | null) | User;
+  assignedTo?: (number | null) | User;
+  /**
+   * On this day the Control Center reminds the person assigned.
+   */
+  followUpOn?: string | null;
   /**
    * Write down only what is necessary.
    */
@@ -479,7 +496,12 @@ export interface User {
         | 'inbox.write'
         | 'applications.delete'
         | 'messages.delete'
+        | 'members.read'
+        | 'members.write'
+        | 'members.delete'
         | 'personalData.export'
+        | 'exports.review'
+        | 'settings.manage'
         | 'operations.read'
         | 'operations.act'
         | 'email.manage'
@@ -534,7 +556,137 @@ export interface ContactMessage {
     text?: string | null;
   };
   locale: 'de' | 'en' | 'ar';
-  status: 'new' | 'answered';
+  status: 'new' | 'answered' | 'closed';
+  assignedTo?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Members register. Entries are created when an application is accepted, or entered by hand. There is no automatic deletion (the association’s decision 12 is pending).
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members".
+ */
+export interface Member {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  /**
+   * For written invitations to the general meeting (Satzung § 7).
+   */
+  address: {
+    street: string;
+    postalCode: string;
+    city: string;
+    country: string;
+  };
+  membershipType: 'ordinary' | 'supporting';
+  minorAtAdmission?: boolean | null;
+  guardian?: {
+    name?: string | null;
+    email?: string | null;
+    consentReceivedAt?: string | null;
+  };
+  status: 'active' | 'ended';
+  memberSince: string;
+  endedOn?: string | null;
+  source?: ('application' | 'manual') | null;
+  application?: (number | null) | MembershipApplication;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "case-events".
+ */
+export interface CaseEvent {
+  id: number;
+  event:
+    | 'application.received'
+    | 'application.status'
+    | 'application.consent'
+    | 'application.assigned'
+    | 'application.followUp'
+    | 'member.created'
+    | 'member.updated'
+    | 'member.ended'
+    | 'member.reactivated';
+  application?: (number | null) | MembershipApplication;
+  member?: (number | null) | Member;
+  from?: string | null;
+  to?: string | null;
+  actorId?: number | null;
+  actorName?: string | null;
+  detail?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Every export of personal data, with its purpose and legal basis. Cannot be changed.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports".
+ */
+export interface Export {
+  id: number;
+  dataset: 'applications' | 'members';
+  rows: number;
+  purpose: string;
+  legalBasis: string;
+  columns?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  filter?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  actorId?: number | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications".
+ */
+export interface Notification {
+  id: number;
+  recipient: number | User;
+  kind:
+    | 'newApplication'
+    | 'newMessage'
+    | 'assigned'
+    | 'followUpDue'
+    | 'applicationWaiting'
+    | 'consentPending'
+    | 'exportCreated'
+    | 'memberDeleted'
+    | 'newDevice';
+  subjectType: 'membership-applications' | 'members' | 'contact-messages' | 'exports' | 'security';
+  subjectId?: string | null;
+  href: string;
+  readAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -710,7 +862,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'retention' | 'auth-cleanup';
+        taskSlug: 'inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders';
         taskID: string;
         input?:
           | {
@@ -743,7 +895,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'retention' | 'auth-cleanup') | null;
+  taskSlug?: ('inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -801,6 +953,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'contact-messages';
         value: number | ContactMessage;
+      } | null)
+    | ({
+        relationTo: 'members';
+        value: number | Member;
       } | null)
     | ({
         relationTo: 'users';
@@ -1083,6 +1239,8 @@ export interface MembershipApplicationsSelect<T extends boolean = true> {
   status?: T;
   decisionDate?: T;
   decidedBy?: T;
+  assignedTo?: T;
+  followUpOn?: T;
   internalNotes?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1106,6 +1264,87 @@ export interface ContactMessagesSelect<T extends boolean = true> {
       };
   locale?: T;
   status?: T;
+  assignedTo?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members_select".
+ */
+export interface MembersSelect<T extends boolean = true> {
+  firstName?: T;
+  lastName?: T;
+  email?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        postalCode?: T;
+        city?: T;
+        country?: T;
+      };
+  membershipType?: T;
+  minorAtAdmission?: T;
+  guardian?:
+    | T
+    | {
+        name?: T;
+        email?: T;
+        consentReceivedAt?: T;
+      };
+  status?: T;
+  memberSince?: T;
+  endedOn?: T;
+  source?: T;
+  application?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "case-events_select".
+ */
+export interface CaseEventsSelect<T extends boolean = true> {
+  event?: T;
+  application?: T;
+  member?: T;
+  from?: T;
+  to?: T;
+  actorId?: T;
+  actorName?: T;
+  detail?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports_select".
+ */
+export interface ExportsSelect<T extends boolean = true> {
+  dataset?: T;
+  rows?: T;
+  purpose?: T;
+  legalBasis?: T;
+  columns?: T;
+  filter?: T;
+  actorId?: T;
+  actorName?: T;
+  actorRole?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications_select".
+ */
+export interface NotificationsSelect<T extends boolean = true> {
+  recipient?: T;
+  kind?: T;
+  subjectType?: T;
+  subjectId?: T;
+  href?: T;
+  readAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1673,6 +1912,38 @@ export interface SiteSetting {
   createdAt?: string | null;
 }
 /**
+ * Reminders and exports. Changes are recorded in the audit log.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "control-center-settings".
+ */
+export interface ControlCenterSetting {
+  id: number;
+  reminders: {
+    /**
+     * Received applications not worked on for this long trigger a reminder.
+     */
+    waitingDays: number;
+    /**
+     * Applications of people under 18 without a recorded consent for this long trigger a reminder.
+     */
+    consentDays: number;
+  };
+  /**
+   * To be set by the association. Whoever exports chooses one of them; without an entry, exporting is not possible.
+   */
+  exportLegalBases?:
+    | {
+        de: string;
+        en?: string | null;
+        ar?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
@@ -1868,6 +2139,29 @@ export interface SiteSettingsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "control-center-settings_select".
+ */
+export interface ControlCenterSettingsSelect<T extends boolean = true> {
+  reminders?:
+    | T
+    | {
+        waitingDays?: T;
+        consentDays?: T;
+      };
+  exportLegalBases?:
+    | T
+    | {
+        de?: T;
+        en?: T;
+        ar?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats_select".
  */
 export interface PayloadJobsStatsSelect<T extends boolean = true> {
@@ -1907,6 +2201,27 @@ export interface TaskAuthCleanup {
   output: {
     expired?: number | null;
     removed?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskAudit-retention".
+ */
+export interface TaskAuditRetention {
+  input?: unknown;
+  output: {
+    auditLog?: number | null;
+    exports?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskMembership-reminders".
+ */
+export interface TaskMembershipReminders {
+  input?: unknown;
+  output: {
+    sent?: number | null;
   };
 }
 /**

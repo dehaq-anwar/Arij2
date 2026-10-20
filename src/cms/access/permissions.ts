@@ -25,8 +25,16 @@ export const PERMISSIONS = [
   'inbox.write',
   'applications.delete',
   'messages.delete',
-  /** Export of personal data (CC-1; always with a recorded purpose). */
+  /** Members register (CC-1), separate from the applications. */
+  'members.read',
+  'members.write',
+  'members.delete',
+  /** Export of personal data (CC-1; always with a recorded purpose, a legal basis and a code). */
   'personalData.export',
+  /** Read the register of all exports (oversight; everyone who exports sees their own). */
+  'exports.review',
+  /** Control Center settings: reminder periods, the legal bases offered for exports. */
+  'settings.manage',
   /** Server status, logs, backups (CC-3). */
   'operations.read',
   /** Restarts and restore drills (CC-3). */
@@ -53,17 +61,28 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'inbox.read',
     'inbox.write',
     'messages.delete',
+    'members.read',
+    'members.write',
     'personalData.export',
+    'exports.review',
     'operations.read',
     'users.read',
     'users.manageLimited',
     'audit.read',
   ],
   contentEditor: ['content.read', 'content.write'],
-  membershipManager: ['inbox.read', 'inbox.write', 'messages.delete', 'personalData.export'],
+  membershipManager: [
+    'inbox.read',
+    'inbox.write',
+    'messages.delete',
+    'members.read',
+    'members.write',
+    'personalData.export',
+  ],
   // Deliberately without any access to applications, members or messages.
   technicalAdmin: ['operations.read', 'operations.act', 'email.manage', 'jobs.run', 'audit.read'],
-  auditor: ['content.read', 'operations.read', 'users.read', 'audit.read'],
+  // Oversight without personal data: the export register holds no personal data.
+  auditor: ['content.read', 'operations.read', 'users.read', 'audit.read', 'exports.review'],
 }
 
 /** Areas of the audit log; each entry belongs to one. */

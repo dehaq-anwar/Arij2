@@ -4,11 +4,14 @@ import type { Payload, TaskConfig } from 'payload'
 export const RETENTION_MONTHS = 6
 
 /** The same calendar day six months earlier (end-of-month days roll back, never forward). */
-export function retentionCutoff(now: Date): Date {
+export const retentionCutoff = (now: Date): Date => monthsBefore(now, RETENTION_MONTHS)
+
+/** The same calendar day `months` months earlier (end-of-month days roll back, never forward). */
+export function monthsBefore(now: Date, months: number): Date {
   const cutoff = new Date(now)
   const day = cutoff.getUTCDate()
   cutoff.setUTCDate(1)
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - RETENTION_MONTHS)
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - months)
   const lastDay = new Date(
     Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 1, 0),
   ).getUTCDate()

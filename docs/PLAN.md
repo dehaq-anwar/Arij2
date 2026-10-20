@@ -731,3 +731,20 @@ of `otpauth`, the admin host and the steps before going live are in
 - New dependencies (exact, older than 14 days): `otpauth` 9.5.2, `jose` 5.10.0 (already installed
   by Payload, now declared), `uqr` 0.1.3 (QR code drawn on the server, no external service).
 - No accounts are created; the first one is made with `npm run create-admin` by the association.
+
+## 26. Control Center CC-1: membership administration (2026-10-20)
+
+Approved on 2026-10-20 together with the acceptance of CC-0. Details in
+[CONTROL-CENTER.md §15](CONTROL-CENTER.md#15-cc-1-implementation-notes-2026-10-20).
+
+- Decisions: audit log kept 12 months (initial setting, legal review before production); ended
+  sign-in records deleted after 30 days (provisional); second super administrator named later.
+- CC-0 notes closed: the last active super administrator is protected in the application and in
+  the database (also for simultaneous changes, tested); no way around the second factor for any
+  collection, global or endpoint (tested); resetting a second factor tested; audit retention job.
+- Members register separate from the applications, with its own permissions and only the
+  application's fields; applications as a work list with stages, assignment, follow-up dates and
+  a case history; exports with purpose, legal basis and a code, recorded in an append-only export
+  register; in-app notifications and daily reminders; settings without code; dashboard figures.
+- New dev dependencies (exact, older than 14 days): `pg` 8.20.0 and `@types/pg` 8.20.0 (already
+  installed through Payload; now declared for the database-level tests).

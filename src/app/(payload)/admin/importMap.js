@@ -12,6 +12,10 @@ import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { HeadingFeatureClient as HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ParagraphFeatureClient as ParagraphFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { ApplicationPanel as ApplicationPanel_ab37b3f0bcee99d9b530aa883d1e0cd0 } from '../../../cms/admin/membership/CasePanel'
+import { ApplicationsList as ApplicationsList_8fcef2465322a0c771fac8e36bdd7c60 } from '../../../cms/admin/membership/ApplicationsList'
+import { MemberPanel as MemberPanel_ab37b3f0bcee99d9b530aa883d1e0cd0 } from '../../../cms/admin/membership/CasePanel'
+import { MembersList as MembersList_f82f10afbbc2c5aa9d7f387045fb96ff } from '../../../cms/admin/membership/MembersList'
 import { DisabledCell as DisabledCell_be9a4542cb71595e74a250e28967df07 } from '../../../cms/admin/users/cells'
 import { MfaCell as MfaCell_be9a4542cb71595e74a250e28967df07 } from '../../../cms/admin/users/cells'
 import { AccountSecurity as AccountSecurity_eea8bb4c27f84aa89907bc0b4d500d7a } from '../../../cms/admin/users/AccountSecurity'
@@ -21,10 +25,13 @@ import { TargetCell as TargetCell_be9a4542cb71595e74a250e28967df07 } from '../..
 import { Nav as Nav_12334e1e8e715cb5d5b2ff7d509c6d0b } from '../../../cms/admin/nav/Nav'
 import { Icon as Icon_93a9ecdfc1feebac9bd452b39417c04f } from '../../../cms/admin/brand/Brand'
 import { Logo as Logo_93a9ecdfc1feebac9bd452b39417c04f } from '../../../cms/admin/brand/Brand'
+import { Bell as Bell_a87320e77d6783c693ea1b0c2f0c6957 } from '../../../cms/admin/notifications/Bell'
 import { AdminProvider as AdminProvider_9f4b0df6dbd67dc6fa77fe9a8fa1803f } from '../../../cms/admin/AdminProvider'
 import { SignInView as SignInView_ab81c8558823ad62f7080ac33b4a4e34 } from '../../../cms/admin/sign-in/SignInView'
 import { Dashboard as Dashboard_ac5e73e07aaecf4a73df6823b5fd3dfb } from '../../../cms/admin/dashboard/Dashboard'
 import { SecurityView as SecurityView_0b430472f5a085374ca8d837efe1e8a3 } from '../../../cms/admin/security/SecurityView'
+import { ExportView as ExportView_a990e879977d54a13a248da98faaaab2 } from '../../../cms/admin/membership/ExportView'
+import { NotificationsView as NotificationsView_c8eedb764a579fd00557c4110e8f5133 } from '../../../cms/admin/notifications/NotificationsView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 
@@ -44,6 +51,10 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#HeadingFeatureClient": HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ParagraphFeatureClient": ParagraphFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "/cms/admin/membership/CasePanel#ApplicationPanel": ApplicationPanel_ab37b3f0bcee99d9b530aa883d1e0cd0,
+  "/cms/admin/membership/ApplicationsList#ApplicationsList": ApplicationsList_8fcef2465322a0c771fac8e36bdd7c60,
+  "/cms/admin/membership/CasePanel#MemberPanel": MemberPanel_ab37b3f0bcee99d9b530aa883d1e0cd0,
+  "/cms/admin/membership/MembersList#MembersList": MembersList_f82f10afbbc2c5aa9d7f387045fb96ff,
   "/cms/admin/users/cells#DisabledCell": DisabledCell_be9a4542cb71595e74a250e28967df07,
   "/cms/admin/users/cells#MfaCell": MfaCell_be9a4542cb71595e74a250e28967df07,
   "/cms/admin/users/AccountSecurity#AccountSecurity": AccountSecurity_eea8bb4c27f84aa89907bc0b4d500d7a,
@@ -53,10 +64,13 @@ export const importMap = {
   "/cms/admin/nav/Nav#Nav": Nav_12334e1e8e715cb5d5b2ff7d509c6d0b,
   "/cms/admin/brand/Brand#Icon": Icon_93a9ecdfc1feebac9bd452b39417c04f,
   "/cms/admin/brand/Brand#Logo": Logo_93a9ecdfc1feebac9bd452b39417c04f,
+  "/cms/admin/notifications/Bell#Bell": Bell_a87320e77d6783c693ea1b0c2f0c6957,
   "/cms/admin/AdminProvider#AdminProvider": AdminProvider_9f4b0df6dbd67dc6fa77fe9a8fa1803f,
   "/cms/admin/sign-in/SignInView#SignInView": SignInView_ab81c8558823ad62f7080ac33b4a4e34,
   "/cms/admin/dashboard/Dashboard#Dashboard": Dashboard_ac5e73e07aaecf4a73df6823b5fd3dfb,
   "/cms/admin/security/SecurityView#SecurityView": SecurityView_0b430472f5a085374ca8d837efe1e8a3,
+  "/cms/admin/membership/ExportView#ExportView": ExportView_a990e879977d54a13a248da98faaaab2,
+  "/cms/admin/notifications/NotificationsView#NotificationsView": NotificationsView_c8eedb764a579fd00557c4110e8f5133,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24
 }

@@ -14,11 +14,15 @@ import { allowed } from './cms/access/roles'
 import { auditCollection, auditGlobal } from './cms/audit/log'
 import { AuditLog } from './cms/collections/AuditLog'
 import { AuthCredentials, AuthSessions, TrustedDevices } from './cms/collections/AuthSecurity'
+import { CaseEvents } from './cms/collections/CaseEvents'
 import { ContactMessages } from './cms/collections/ContactMessages'
+import { Exports } from './cms/collections/Exports'
 import { FocusAreas } from './cms/collections/FocusAreas'
 import { Media } from './cms/collections/Media'
+import { Members } from './cms/collections/Members'
 import { MembershipApplications } from './cms/collections/MembershipApplications'
 import { News } from './cms/collections/News'
+import { Notifications } from './cms/collections/Notifications'
 import { Partners } from './cms/collections/Partners'
 import { Projects } from './cms/collections/Projects'
 import { RateLimitBuckets } from './cms/collections/RateLimitBuckets'
@@ -29,12 +33,15 @@ import { emailAdapter } from './cms/email'
 import { richTextEditor } from './cms/fields/richText'
 import { AboutPage } from './cms/globals/AboutPage'
 import { ContactPage } from './cms/globals/ContactPage'
+import { ControlCenterSettings } from './cms/globals/ControlCenterSettings'
 import { HomePage } from './cms/globals/HomePage'
 import { LegalNotice, PrivacyPolicy } from './cms/globals/LegalPages'
 import { MembershipPage } from './cms/globals/MembershipPage'
 import { SiteSettings } from './cms/globals/SiteSettings'
 import { SupportPage } from './cms/globals/SupportPage'
+import { auditRetentionTask } from './cms/jobs/audit-retention'
 import { authCleanupTask } from './cms/jobs/auth-cleanup'
+import { membershipRemindersTask } from './cms/jobs/membership-reminders'
 import { retentionTask } from './cms/jobs/retention'
 import { migrations } from './migrations'
 
@@ -95,7 +102,18 @@ export default buildConfig({
           path: '/security',
           exact: true,
         },
+        export: {
+          Component: '/cms/admin/membership/ExportView#ExportView',
+          path: '/export',
+          exact: true,
+        },
+        notifications: {
+          Component: '/cms/admin/notifications/NotificationsView#NotificationsView',
+          path: '/notifications',
+          exact: true,
+        },
       },
+      actions: ['/cms/admin/notifications/Bell#Bell'],
     },
   },
   collections: [
@@ -108,6 +126,10 @@ export default buildConfig({
     audited(Media, 'content'),
     audited(MembershipApplications, 'association', true),
     audited(ContactMessages, 'association', true),
+    audited(Members, 'association', true),
+    CaseEvents,
+    Exports,
+    Notifications,
     Users,
     AuditLog,
     AuthSessions,
@@ -124,6 +146,7 @@ export default buildConfig({
     LegalNotice,
     PrivacyPolicy,
     SiteSettings,
+    ControlCenterSettings,
   ].map((global) => ({
     ...global,
     hooks: { ...global.hooks, afterChange: [...(global.hooks?.afterChange ?? []), auditGlobal] },
@@ -155,7 +178,7 @@ export default buildConfig({
     },
   },
   jobs: {
-    tasks: [retentionTask, authCleanupTask],
+    tasks: [retentionTask, authCleanupTask, auditRetentionTask, membershipRemindersTask],
     // Checks the queue every 10 minutes; the tasks' own schedules decide when they are due.
     autoRun: [{ cron: '*/10 * * * *', queue: 'maintenance' }],
     access: { run: ({ req }) => allowed(req, 'jobs.run') },

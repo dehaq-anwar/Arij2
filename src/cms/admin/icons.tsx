@@ -38,6 +38,13 @@ const paths = {
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="M18 6 6 18M6 6l12 12"/>',
   shield: '<path d="M12 3 4 6v6c0 4.5 3.3 7.9 8 9 4.7-1.1 8-4.5 8-9V6z"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  members:
+    '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>',
+  register:
+    '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
 } as const
 
 export type IconName = keyof typeof paths

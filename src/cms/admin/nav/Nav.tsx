@@ -5,7 +5,7 @@ import { roleLabels } from '../../access/labels'
 import { can, isRole, type PermissionSubject } from '../../access/permissions'
 import { adminLanguage, adminTexts } from '../i18n'
 import type { IconName } from '../icons'
-import { NavClient, type NavGroupData } from './NavClient'
+import { NavClient, type NavGroupData, type NavItemData } from './NavClient'
 
 const COLLECTION_ICONS: Record<string, IconName> = {
   projects: 'projects',
@@ -16,7 +16,9 @@ const COLLECTION_ICONS: Record<string, IconName> = {
   partners: 'partners',
   media: 'media',
   'membership-applications': 'apps',
+  members: 'members',
   'contact-messages': 'inbox',
+  exports: 'register',
   users: 'users',
   'audit-log': 'audit',
 }
@@ -35,9 +37,15 @@ const GROUPS = [
     ],
   },
   { key: 'pages', globals: true },
-  { key: 'association', collections: ['membership-applications', 'contact-messages'] },
+  {
+    key: 'association',
+    collections: ['membership-applications', 'members', 'contact-messages', 'exports'],
+  },
   { key: 'security', collections: ['users', 'audit-log'] },
 ] as const
+
+/** Globals that are settings of the Control Center, not page texts of the website. */
+const SETTINGS_GLOBALS: string[] = ['control-center-settings']
 
 type Props = ServerProps & { visibleEntities?: VisibleEntities; req?: PayloadRequest }
 
@@ -64,7 +72,7 @@ export async function Nav(props: Props) {
     const [applications, messages] = await Promise.all([
       payload.count({
         collection: 'membership-applications',
-        where: { status: { equals: 'received' } },
+        where: { status: { in: ['received', 'inReview'] } },
         overrideAccess: true,
       }),
       payload.count({
@@ -90,14 +98,24 @@ export async function Nav(props: Props) {
       items: [
         { id: 'nav-dashboard', href: '/admin', label: t.dashboard, icon: 'home', exact: true },
         { id: 'nav-security', href: '/admin/security', label: t.mySecurity, icon: 'key' },
+        {
+          id: 'nav-notifications',
+          href: '/admin/notifications',
+          label: t.notifications,
+          icon: 'bell',
+          exact: true,
+        },
       ],
     },
   ]
   for (const group of GROUPS) {
-    const items =
+    const items: NavItemData[] =
       'globals' in group
         ? payload.config.globals
-            .filter((global) => visible.globals.includes(global.slug))
+            .filter(
+              (global) =>
+                visible.globals.includes(global.slug) && !SETTINGS_GLOBALS.includes(global.slug),
+            )
             .map((global) => ({
               id: `nav-global-${global.slug}`,
               href: `/admin/globals/${global.slug}`,
@@ -114,6 +132,30 @@ export async function Nav(props: Props) {
               badge: counts[slug] || undefined,
             }
           })
+    if (group.key === 'association' && can(person, 'personalData.export')) {
+      const at = items.findIndex((item) => item.id === 'nav-exports')
+      items.splice(at === -1 ? items.length : at, 0, {
+        id: 'nav-export',
+        href: '/admin/export',
+        label: t.navExport,
+        icon: 'download',
+        badge: undefined,
+      })
+    }
+    if (group.key === 'security') {
+      for (const slug of SETTINGS_GLOBALS) {
+        const global = payload.config.globals.find((g) => g.slug === slug)
+        if (global && (visible.globals as string[]).includes(slug)) {
+          items.push({
+            id: `nav-global-${slug}`,
+            href: `/admin/globals/${slug}`,
+            label: getTranslation(global.label, i18n),
+            icon: 'settings',
+            badge: undefined,
+          })
+        }
+      }
+    }
     if (items.length) groups.push({ key: group.key, label: groupLabel[group.key], items })
   }
 

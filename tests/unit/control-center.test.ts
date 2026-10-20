@@ -172,16 +172,26 @@ describe('roles and permissions', () => {
       'inbox.read',
       'inbox.write',
       'messages.delete',
+      'members.read',
+      'members.write',
       'personalData.export',
+      'exports.review',
       'operations.read',
       'users.read',
       'users.manageLimited',
       'audit.read',
     ],
     contentEditor: ['content.read', 'content.write'],
-    membershipManager: ['inbox.read', 'inbox.write', 'messages.delete', 'personalData.export'],
+    membershipManager: [
+      'inbox.read',
+      'inbox.write',
+      'messages.delete',
+      'members.read',
+      'members.write',
+      'personalData.export',
+    ],
     technicalAdmin: ['operations.read', 'operations.act', 'email.manage', 'jobs.run', 'audit.read'],
-    auditor: ['content.read', 'operations.read', 'users.read', 'audit.read'],
+    auditor: ['content.read', 'operations.read', 'users.read', 'audit.read', 'exports.review'],
   }
 
   it.each(ROLES)('%s has exactly the permissions of the matrix', (role) => {
@@ -195,6 +205,10 @@ describe('roles and permissions', () => {
       'personalData.export',
       'applications.delete',
       'messages.delete',
+      'members.read',
+      'members.write',
+      'members.delete',
+      'exports.review',
     ] as const) {
       expect(can({ role: 'technicalAdmin' }, permission)).toBe(false)
     }

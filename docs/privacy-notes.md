@@ -1,6 +1,6 @@
 # Privacy notes (technical facts)
 
-Status: Phase 5, 2026-10-19; Control Center CC-0, 2026-10-20.
+Status: Phase 5, 2026-10-19; Control Center CC-0 and CC-1, 2026-10-20.
 
 This file lists **technical facts** about how the website handles data. It is input for whoever writes the privacy policy (Datenschutzerklärung) and the records of processing. **It is not legal text and not legal advice.** The privacy policy itself is entered by the association in the CMS (`Datenschutzerklärung`) and should be reviewed by a qualified person.
 
@@ -48,7 +48,7 @@ A scheduled job runs every night at 03:00 (server time) and deletes:
 | Rejected membership applications | six months after the decision (decision date is recorded automatically when the status changes) |
 | Rate-limit counters | as soon as they expire (at most one day) |
 
-**Not deleted automatically:** accepted applications (they become member records; their retention follows the association's membership administration) and applications still marked "received" (waiting for a decision). **To decide:** whether accepted applications should be moved out of the website's database into the association's member administration and deleted here.
+**Not deleted automatically:** accepted applications (since CC-1 they also have an entry in the members register, see below) and applications still open ("received" or "in review", waiting for a decision). **To decide (decision 12):** whether accepted applications should be reduced or deleted once the register entry exists; until then the data exists twice.
 
 Backups of the database (Phase 6) contain submissions until the backup itself expires; the backup retention period is still to be decided.
 
@@ -65,6 +65,18 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 - A **signed timestamp** in the form: submissions faster than 3 seconds or older than 24 hours are not accepted.
 - **Rate limiting:** at most 5 submissions per 10 minutes and 20 per day per form and address; sign-in to the CMS at most 20 attempts per 10 minutes and 100 per day per address. The address is not stored: the counter's key is an HMAC of the address with a random secret that exists only in the server's memory and is replaced every day, so a stored key cannot be traced back to an address. Counters expire after at most one day and are deleted.
 
+## Members register and case handling (CC-1)
+
+| Topic | Fact |
+|---|---|
+| Members register | Separate from the applications, with its own permissions (super administrators, board administrators, membership managers; technical administrators, content editors and auditors have no access, checked by end-to-end tests). Fields: first and last name, e-mail, address, type of membership, under 18 when admitted (yes/no) and, only then, the guardian's name, e-mail and consent date — exactly the application's fields — plus membership status (active/ended), member since, ended on, and whether the entry came from an online application or was entered by hand. **No new personal fields.** |
+| How entries are created | Automatically when an application is accepted, or by hand for people who joined before the website existed |
+| Retention | **No automatic deletion.** How long entries are kept after a membership ends is the association's decision (decision 12). Deleting an entry needs a super administrator and a fresh code; other super administrators are notified |
+| Case history | Per application and member: who changed what and when (stage from → to, consent date recorded, assignment, follow-up date, register entry created, membership ended). Values are stages, dates and account names, never the person's data. Written by the server only; deleted together with the application or member |
+| Assignment and follow-up | Applications and contact messages can be assigned to a person of the association; applications can get a follow-up date |
+| Exports | Only the columns chosen, with a purpose and a legal basis chosen from a list the association maintains (empty until filled in; without it no export is possible), confirmed with a code. The file is created on request and sent to the person; it is **not stored** on the server. Every export is recorded in the **export register**: person, time, dataset, column names, number of rows, purpose, legal basis — no personal data of members or applicants (a search text, which could be a name, is recorded only as "search: yes"). The register cannot be changed or deleted (database trigger) and is kept as long as the audit log. Super administrators, board administrators and auditors see all exports and are notified of each; everyone else who may export sees their own |
+| In-app notifications | Per account: kind (e.g. "new membership application"), a reference (type and number of the record), a link, time, read yes/no. **No names or other personal data.** Not deleted automatically yet (no rule decided) |
+
 ## Control Center (people with an account only)
 
 | Topic | Fact |
@@ -74,9 +86,9 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 | Accounts | Name, e-mail, role, optional restrictions, deactivated yes/no, password hash. No public sign-up: accounts are created by an administrator or on the server (`npm run create-admin`) |
 | Sign-in | Password plus a code from an authenticator app (TOTP) for every account. The password alone creates no usable session |
 | Second factor | Stored: the authenticator secret (encrypted, AES-256-GCM, key from `MFA_ENCRYPTION_KEY` or derived from `PAYLOAD_SECRET`), the time step of the last used code, a failure counter, and 10 recovery codes as keyed hashes (the codes themselves are shown once and never stored) |
-| Sign-in records (`auth-sessions`) | Per sign-in: time, status, verification method, last activity (at most every 5 minutes), **browser family, operating system and device class** (e.g. "Firefox · Linux · computer"; no version numbers, no full user-agent string) and a keyed hash of the device cookie. **No IP address.** Ended records are deleted after 30 days by an hourly job (a proposal, adjustable; see decisions) |
+| Sign-in records (`auth-sessions`) | Per sign-in: time, status, verification method, last activity (at most every 5 minutes), **browser family, operating system and device class** (e.g. "Firefox · Linux · computer"; no version numbers, no full user-agent string) and a keyed hash of the device cookie. **No IP address.** Ended records are deleted after 30 days by an hourly job (provisionally approved by the association on 2026-10-20, unless a documented security need requires longer) |
 | Known devices (`trusted-devices`) | Per account and device: keyed hash of the device cookie, browser family, operating system, device class, first and last use. Used to notice sign-ins from new devices. Deleted with the account; the person can remove entries on "My security" |
-| Audit log | Time, account id, name and role of the person acting, area, action, object (type, id and — for content and accounts — its title or name), result, whether a fresh code confirmed it, and small details (names of changed fields, old/new status or role, browser family and OS for sign-ins). **No IP addresses, no form or message contents.** Readable per role (super administrators and auditors all, board administrators users/content/association, technical administrators operations); everyone sees their own security events on "My security". Append-only: the database refuses changes and deletions. **Retention is not decided yet** (decision 11): entries are kept until the association decides |
+| Audit log | Time, account id, name and role of the person acting, area, action, object (type, id and — for content and accounts — its title or name), result, whether a fresh code confirmed it, and small details (names of changed fields, old/new status or role, browser family and OS for sign-ins). **No IP addresses, no form or message contents.** Readable per role (super administrators and auditors all, board administrators users/content/association, technical administrators operations); everyone sees their own security events on "My security". Append-only: the database refuses changes and deletions. **Kept for 12 months** (decided 2026-10-20 as the initial setting; adjustable on the server with `AUDIT_RETENTION_MONTHS`; its legal adequacy is to be reviewed before production): a nightly job deletes older entries — the only deletion the database allows, and only for entries older than the period. Each purge is itself logged |
 | Security e-mails | To the account itself: second factor set up, sign-in from a new device (browser family and OS), recovery code used, second factor reset by an administrator, password changed. Time and link only; no address or location. Require SMTP |
 | Sign-in protection | Account locked for 15 minutes after 5 wrong passwords; second factor locked for 15 minutes after 10 wrong codes; 5 wrong codes end a sign-in attempt; per-address limits (see above) for passwords and codes; passwords of at least 12 characters |
 | Password reset | By e-mail with a link to the Control Center's host (requires SMTP). After the new password, the second factor is still required |

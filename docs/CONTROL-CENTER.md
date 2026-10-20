@@ -1,8 +1,8 @@
 # Youth of Peace — Administration & Control Center
 
-**Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions). CC-0 is
-implemented (section 14); CC-1 and later wait for the association's approval. Plan date:
-2026-10-19.
+**Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions). CC-0 and CC-1
+are implemented (sections 14 and 15); CC-2 and later wait for the association's approval. Plan
+date: 2026-10-19.
 **Arabic version:** [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)
 **Visual design (interactive):** [control-center/mockups.html](control-center/mockups.html). Open the
 file in a browser. It needs no network access: fonts and logo are embedded. Useful addresses:
@@ -606,6 +606,100 @@ are used; checking codes is our own code.
   changed) are written, but no automated test reads them: the tests run without SMTP, where the
   app sends nothing and logs only that an e-mail was skipped. Check them once with the
   association's mail provider before going live.
+
+## 15. CC-1 implementation notes (2026-10-20)
+
+### Decisions by the association (2026-10-20)
+
+- CC-0 accepted; CC-1 approved. CC-2 only after explicit approval.
+- **Audit log:** kept for **12 months** as the initial setting, adjustable later, its legal
+  adequacy to be reviewed before production; protected against unauthorised change and deletion.
+- **Ended sign-in records:** deleted after 30 days (provisionally approved) unless a documented
+  security need requires longer.
+- **Second super administrator:** to be named later; no further account is created.
+- No unnecessary personal fields; no change to the admission rules or retention rules without
+  asking; applications separate from the members register; sensitive exports, edits and
+  deletions subject to permissions, logging and review.
+
+### Closing the CC-0 notes
+
+| Note | What was done |
+|---|---|
+| Last super administrator | Checked twice: in the application (with a transaction-wide advisory lock, so two simultaneous changes are counted one after the other) and by a database trigger (`users_keep_super_admin`, same lock) that refuses demoting, deactivating or deleting the last active super administrator — also for direct SQL. Tested end to end: two super administrators demoting, deactivating and deleting each other at the same moment (one change succeeds, the other is refused), and two database connections at the same moment |
+| No way around the second factor | Tested for every collection and global the Control Center has (read, count, create, change, delete) and every custom endpoint: a super administrator's password-only token gets exactly what an anonymous visitor gets, status and content. No admin screen opens with it |
+| Resetting a second factor | Tested: only super administrators (any other account) and board administrators (content editors and membership managers only), never for oneself, always with a fresh code; afterwards all sessions of the person are ended, the old app codes are useless, the next sign-in requires setting up the app, and the account has exactly the same permissions as before (compared with `/api/access`). Logged with "confirmed with code" |
+| Separation of the technical administrator | Kept and extended: no applications, members, case history, exports or export register through the API, no menu entries, no export screen |
+| Audit log retention | 12 months (`AUDIT_RETENTION_MONTHS`, 1–120, server setting only). A nightly job deletes older entries of the audit log and the export register; both tables stay append-only in the database, the only exception being this job, and even then the database itself refuses to delete anything younger than the period (tested in the fixtures). Each purge is logged |
+| Tests not yet done | See "Tests not yet done" below |
+
+### What CC-1 contains
+
+| Part | Implementation |
+|---|---|
+| Applications as a work list | Own list view: tabs by stage with counts (all open, received, in review, consent pending, accepted, rejected, all), search by name or e-mail, filters (type, assigned to, due follow-ups), sorting, pagination; a table on the desktop, cards on a phone; filters stay in the address. "Consent pending" is derived (under 18 without a recorded consent date); the admission rule itself is unchanged |
+| Case handling | New stage "in review"; assignment to a person (super, board or membership roles) and a follow-up date; buttons for the next step (start review, accept, reject, reopen) with confirmation; the case history (who, when, what, from → to) on every application, written only by the server |
+| Members register | Separate collection with its own permissions (`members.read/write/delete`): created automatically when an application is accepted (same transaction), or entered by hand for earlier members. Only the application's fields — no new personal fields. Active/ended with dates; where an entry came from is set by the server. Once the register entry exists the application's decision is locked. Deleting needs `members.delete` (super administrators) and a fresh code; other super administrators are notified. **No automatic deletion** (decision 12 is the association's) |
+| Export | Own screen: dataset, selection, only the chosen columns, purpose (10–300 characters) and a legal basis from the list in the settings; a fresh code; the file is created on request and never stored. CSV in UTF-8 with semicolons; spreadsheet formulas in values are neutralised. Every export goes into the **export register** (who, when, dataset, columns, row count, purpose, legal basis — no personal data, append-only like the audit log) and the audit log, and reviewers (super administrators, board administrators, auditors) are notified |
+| Notifications | Bell in the header and a page: new applications and messages, assignments, due follow-ups, applications waiting too long, consent still pending, new exports (reviewers), deleted members (super administrators), sign-ins from a new device (the account itself). No personal data in them. A daily job creates the reminders; it does not repeat one while it is unread |
+| Settings without code | Reminder periods and the list of legal bases for exports (super administrators; changes are logged). **The list starts empty:** which legal bases apply is the association's decision; until one is entered, exports are refused |
+| Dashboard | Applications by stage with links, decisions of the last 30 days, "my tasks" (assigned to me or due), active members and admissions this year — each only for roles allowed to see it |
+| Contact messages | Status "closed" and assignment added; the six-month retention is unchanged |
+
+### Permissions added
+
+| Permission | Super admin | Board admin | Membership manager | Content editor | Technical admin | Auditor |
+|---|---|---|---|---|---|---|
+| `members.read`, `members.write` | ✓ | ✓ | ✓ | — | — | — |
+| `members.delete` | ✓ | — | — | — | — | — |
+| `exports.review` (all exports) | ✓ | ✓ | — | — | — | ✓ |
+| `settings.manage` | ✓ | — | — | — | — | — |
+
+Everyone who may export sees their own exports. Restrictions per person apply to the new
+permissions as well.
+
+### Verification (2026-10-20)
+
+- `npm run verify`: lint (ESLint, logical CSS, motion direction, contrast), types, 131 unit
+  tests (10 of them new for CC-1: stages and their queries, search limits, CSV quoting and formula
+  neutralisation, byte-order mark and line ends, export columns and their translation, purpose
+  and filter cleaning, audit retention bounds, month arithmetic, the start of tomorrow in Berlin
+  in summer and winter), production build, package age (all ≥ 14 days; new: `pg` and
+  `@types/pg` 8.20.0, test tools only) and `npm audit` (unchanged).
+- End-to-end (Playwright, production build, `_e2e` database): **197 of 197 passed**,
+  20 of them new for CC-1: the application from received to review to accepted with history,
+  register entry and lock; under 18 stays "consent pending" until the date is recorded; the
+  application list (tabs with counts, search, filters, cards on a phone); the register entered by
+  hand, ended and deleted only by a super administrator with a code; the register list per role;
+  export (permission, fresh code, purpose, legal basis, safe CSV, register, audit, reviewers
+  notified, register unchangeable); the export screen with the code dialog and the download;
+  notifications (assignment, read, daily reminder, bell); separation of duties (technical
+  administrator, content editor and auditor reach no membership data); axe on the new screens
+  (light German, dark Arabic); the second factor cannot be bypassed (every collection, global and
+  endpoint, every screen); resetting a second factor; the last super administrator (simultaneous
+  demotion, deactivation, deletion; two database connections).
+- The database rules are also checked when the test database is built: the audit log and the
+  export register refuse changes and deletions, the nightly purge removes only entries older
+  than the period, and the database refuses a purge of younger entries.
+
+### Tests not yet done
+
+| What | Why not yet | How |
+|---|---|---|
+| Security e-mails and new-submission e-mails through the real provider | No SMTP provider is configured yet | Once SMTP is set: set up a test account, trigger each notice (set-up, new device, recovery code, reset, password change, new application), check sender, content and that no personal data is included |
+| Exported CSV in Excel and LibreOffice | No office software in the test environment | Open one export of each dataset; check umlauts, Arabic names and that values starting with "=" appear as text |
+| Server-level protection of the admin host (Caddy, IP allowlist) | Comes with CC-3 | Tested with the reverse proxy in CC-3 |
+| Restore of a backup including the triggers | Backups come with CC-3 | Restore drill in CC-3 must check that the append-only and super-administrator triggers exist after a restore |
+| Behaviour under real load (many applications) | No production data | The lists are paginated (25) and every filter is a database query; to be checked with the first real data |
+
+### Known limitations
+
+- Membership managers can only assign applications to themselves: the list of other accounts
+  is visible only to roles with `users.read`. Board and super administrators can assign to anyone.
+- Payload's own edit screens are used for applications and members, with the case panel in the
+  sidebar; their layout is Payload's.
+- Accepted applications stay next to their register entry (the data exists twice). Whether they
+  should be reduced or deleted after the register entry exists is part of decision 12.
+- Notifications are not deleted automatically (no rule decided yet; they contain no personal data).
 
 ---
 

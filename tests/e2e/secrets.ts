@@ -28,6 +28,8 @@ export const SCENARIO_ACCOUNTS = {
   target: { name: 'E2E Zielkonto', role: 'contentEditor', enrolled: true },
   second: { name: 'E2E Zweitgerät', role: 'contentEditor', enrolled: true },
   disabled: { name: 'E2E Deaktiviert', role: 'contentEditor', enrolled: true },
+  mfaTarget: { name: 'E2E Zurücksetzen', role: 'contentEditor', enrolled: true },
+  spareAdmin: { name: 'E2E Zweite Super-Administration', role: 'superAdmin', enrolled: true },
 } as const
 
 export type AccountName = keyof typeof ROLE_ACCOUNTS | keyof typeof SCENARIO_ACCOUNTS

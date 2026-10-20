@@ -339,6 +339,8 @@ test.describe('roles', () => {
 test.describe('sensitive changes', () => {
   test('changing a role needs a fresh code, and is logged', async ({ request }) => {
     const target = await idOf(request, 'target')
+    // A new session: one this worker used before may still hold a recent code confirmation.
+    await signedInToken(request, 'superAdmin', true)
     const headers = await authHeaders(request, 'superAdmin')
     const change = (role: string) =>
       request.patch(adminUrl(`/api/users/${target}`), { headers, data: { role } })

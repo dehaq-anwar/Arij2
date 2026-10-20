@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 
+import { adminHref, notify, recipientsWith } from '@/cms/membership/notifications'
 import { adminUrl } from '@/lib/site'
 
 const subjects = {
@@ -16,6 +17,18 @@ export async function notifyNewSubmission(
   collection: keyof typeof subjects,
   id: number | string,
 ) {
+  // In the Control Center: everyone who works on applications and messages (no personal data).
+  try {
+    await notify(payload, {
+      kind: collection === 'membership-applications' ? 'newApplication' : 'newMessage',
+      recipients: await recipientsWith(payload, 'inbox.read'),
+      subjectType: collection,
+      subjectId: id,
+      href: adminHref(collection, id),
+    })
+  } catch (error) {
+    payload.logger.warn({ err: error }, 'In-app notification failed')
+  }
   const to = process.env.NOTIFY_EMAIL
   if (!to) return
   const link = `${adminUrl()}/admin/collections/${collection}/${id}`

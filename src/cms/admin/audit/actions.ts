@@ -39,6 +39,16 @@ const ACTIONS: Record<string, Three> = {
   ],
   'users.reset-mfa': ['Zwei-Faktor zurückgesetzt', 'Two-factor reset', 'إعادة ضبط التحقق بخطوتين'],
   'users.end-sessions': ['Alle Sitzungen beendet', 'All sessions ended', 'إنهاء كل الجلسات'],
+  'export.created': [
+    'Personenbezogene Daten exportiert',
+    'Personal data exported',
+    'تصدير بيانات شخصية',
+  ],
+  'audit.purged': [
+    'Alte Protokolleinträge gelöscht (Aufbewahrungsfrist)',
+    'Old log entries deleted (retention period)',
+    'حذف إدخالات قديمة من السجل (مدة الاحتفاظ)',
+  ],
 }
 
 const OPERATIONS: Record<string, Three> = {
@@ -58,6 +68,8 @@ const SUBJECTS: Record<string, Three> = {
   media: ['Medium', 'Media file', 'ملف وسائط'],
   'membership-applications': ['Mitgliedsantrag', 'Membership application', 'طلب عضوية'],
   'contact-messages': ['Kontaktnachricht', 'Contact message', 'رسالة تواصل'],
+  members: ['Mitglied', 'Member', 'عضو'],
+  'control-center-settings': ['Einstellungen', 'Settings', 'الإعدادات'],
   'home-page': ['Startseite', 'Home page', 'الصفحة الرئيسية'],
   'about-page': ['Seite „Über uns“', 'About page', 'صفحة من نحن'],
   'membership-page': ['Seite „Mitglied werden“', 'Membership page', 'صفحة العضوية'],

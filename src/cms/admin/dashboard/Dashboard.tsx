@@ -6,10 +6,13 @@ import { roleLabels } from '../../access/labels'
 import { auditAreasOf, can, isRole, type PermissionSubject } from '../../access/permissions'
 import { getCredential, unusedRecoveryCodes } from '../../auth/mfa'
 import { listActiveSessions } from '../../auth/sessions'
+import { startOfTomorrowBerlin } from '../../jobs/membership-reminders'
+import { OPEN_STATUSES, stageWhere } from '../../membership/stage'
 import { actionLabel } from '../audit/actions'
 import {
   adminLanguage,
   adminTexts,
+  fill,
   formatDate,
   formatDateTime,
   greeting,
@@ -58,6 +61,78 @@ async function contentSummary(req: PayloadRequest) {
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
     .slice(0, 5)
   return { projectsLive, projectsDraft, newsLive, newsDraft, recent }
+}
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+async function membershipPipeline(req: PayloadRequest) {
+  const count = (where: Where | null) =>
+    req.payload
+      .count({ collection: 'membership-applications', where: where ?? {}, overrideAccess: true })
+      .then((r) => r.totalDocs)
+  const [received, inReview, consentPending, decided] = await Promise.all([
+    count(stageWhere('received')),
+    count(stageWhere('inReview')),
+    count(stageWhere('consentPending')),
+    count({
+      and: [
+        { status: { in: ['accepted', 'rejected'] } },
+        { decisionDate: { greater_than: daysAgo(30) } },
+      ],
+    }),
+  ])
+  return { received, inReview, consentPending, decided }
+}
+
+async function myTasks(req: PayloadRequest, userId: number) {
+  const { docs } = await req.payload.find({
+    collection: 'membership-applications',
+    where: {
+      and: [
+        { status: { in: [...OPEN_STATUSES] } },
+        {
+          or: [
+            { assignedTo: { equals: userId } },
+            {
+              and: [
+                { assignedTo: { exists: false } },
+                { followUpOn: { less_than: startOfTomorrowBerlin().toISOString() } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    sort: 'followUpOn',
+    limit: 6,
+    depth: 0,
+    overrideAccess: true,
+    select: { firstName: true, lastName: true, followUpOn: true, status: true, assignedTo: true },
+  })
+  return docs as unknown as {
+    id: number
+    firstName: string
+    lastName: string
+    followUpOn?: string | null
+    status: string
+  }[]
+}
+
+async function membersSummary(req: PayloadRequest) {
+  const yearStart = `${new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric' }).format(new Date())}-01-01T00:00:00.000Z`
+  const [active, joined] = await Promise.all([
+    req.payload.count({
+      collection: 'members',
+      where: { status: { equals: 'active' } },
+      overrideAccess: true,
+    }),
+    req.payload.count({
+      collection: 'members',
+      where: { memberSince: { greater_than_equal: yearStart } },
+      overrideAccess: true,
+    }),
+  ])
+  return { active: active.totalDocs, joined: joined.totalDocs }
 }
 
 function Stat({
@@ -122,7 +197,7 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
       ? Promise.all([
           req.payload.count({
             collection: 'membership-applications',
-            where: { status: { equals: 'received' } },
+            where: { status: { in: [...OPEN_STATUSES] } },
             overrideAccess: true,
           }),
           req.payload.count({
@@ -178,6 +253,12 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
           }),
         ])
       : null,
+  ])
+
+  const [pipeline, tasks, members] = await Promise.all([
+    showInbox ? membershipPipeline(req) : null,
+    showInbox ? myTasks(req, person.id) : null,
+    can(person, 'members.read') ? membersSummary(req) : null,
   ])
 
   const recoveryLeft = credential ? unusedRecoveryCodes(credential) : 0
@@ -238,7 +319,7 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
               icon="apps"
               label={t.openApplications}
               value={inbox[0].totalDocs}
-              href="/admin/collections/membership-applications?where[status][equals]=received"
+              href="/admin/collections/membership-applications?stage=open"
             />
             <Stat
               icon="inbox"
@@ -268,6 +349,111 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
           />
         )}
       </section>
+
+      {(pipeline || members) && (
+        <div className="yop-grid yop-grid--main">
+          {pipeline && (
+            <section className="yop-card" aria-labelledby="yop-pipeline-title">
+              <div className="yop-card__head">
+                <h2 id="yop-pipeline-title">{t.pipelineTitle}</h2>
+                <span className="yop-card__sub">{t.pipelineHint}</span>
+                <Link
+                  className="yop-link yop-card__more"
+                  href="/admin/collections/membership-applications"
+                  prefetch={false}
+                >
+                  {t.openApplicationsList}
+                </Link>
+              </div>
+              <ol className="yop-pipeline">
+                {(
+                  [
+                    ['received', pipeline.received, 'received'],
+                    ['inReview', pipeline.inReview, 'inReview'],
+                    ['consentPending', pipeline.consentPending, 'consentPending'],
+                  ] as const
+                ).map(([key, value, stage]) => (
+                  <li key={key}>
+                    <Link
+                      href={`/admin/collections/membership-applications?stage=${stage}`}
+                      prefetch={false}
+                      className={`yop-pipeline__step${key === 'consentPending' && value > 0 ? ' yop-pipeline__step--warning' : ''}`}
+                    >
+                      <span className="yop-pipeline__value">{value}</span>
+                      <span className="yop-pipeline__label">{t[`stage_${key}`]}</span>
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    href="/admin/collections/membership-applications?stage=accepted"
+                    prefetch={false}
+                    className="yop-pipeline__step yop-pipeline__step--done"
+                  >
+                    <span className="yop-pipeline__value">{pipeline.decided}</span>
+                    <span className="yop-pipeline__label">{t.decided30}</span>
+                  </Link>
+                </li>
+              </ol>
+              <h3 className="yop-subhead">{t.myTasks}</h3>
+              {tasks?.length ? (
+                <ul className="yop-list">
+                  {tasks.map((task) => (
+                    <li key={task.id}>
+                      <Link
+                        href={`/admin/collections/membership-applications/${task.id}`}
+                        prefetch={false}
+                      >
+                        <bdi className="yop-list__title">
+                          {task.lastName}, {task.firstName}
+                        </bdi>
+                        <span className="yop-list__meta">
+                          {t[`stage_${task.status === 'inReview' ? 'inReview' : 'received'}`]}
+                          {task.followUpOn ? (
+                            <>
+                              {' · '}
+                              {t.colFollowUp}: <bdi>{formatDate(task.followUpOn, language)}</bdi>
+                            </>
+                          ) : null}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="yop-empty">{t.noTasks}</p>
+              )}
+            </section>
+          )}
+          {members && (
+            <section className="yop-card" aria-labelledby="yop-members-title">
+              <div className="yop-card__head">
+                <h2 id="yop-members-title">{t.membersCard}</h2>
+                <Link
+                  className="yop-link yop-card__more"
+                  href="/admin/collections/members"
+                  prefetch={false}
+                >
+                  {t.openRegisterList}
+                </Link>
+              </div>
+              <div className="yop-split">
+                <Link
+                  href="/admin/collections/members?status=active"
+                  prefetch={false}
+                  className="yop-split__item"
+                >
+                  <span className="yop-split__label">{t.membersActiveLabel}</span>
+                  <span className="yop-split__value">{members.active}</span>
+                  <span className="yop-stat__hint">
+                    {fill(t.joinedThisYear, { count: members.joined })}
+                  </span>
+                </Link>
+              </div>
+            </section>
+          )}
+        </div>
+      )}
 
       <div className="yop-grid yop-grid--main">
         {content && (

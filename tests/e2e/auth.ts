@@ -85,8 +85,9 @@ export async function signInBrowser(
   context: BrowserContext,
   request: APIRequestContext,
   name: AccountName,
+  fresh = false,
 ) {
-  const token = await signedInToken(request, name)
+  const token = await signedInToken(request, name, fresh)
   await context.addCookies([
     {
       name: 'payload-token',

@@ -28,6 +28,7 @@ import {
 } from './sessions'
 import { readTokenReference } from './token'
 import { formatSecret, newTotpSecret, totpUri, verifyTotp } from './totp'
+import { notify } from '../membership/notifications'
 
 type Account = {
   id: number
@@ -150,6 +151,12 @@ async function recogniseDevice(req: PayloadRequest, account: Account) {
         kind: 'newDevice',
         browser: info.browser,
         os: info.os,
+      })
+      await notify(req.payload, {
+        kind: 'newDevice',
+        recipients: [account.id],
+        subjectType: 'security',
+        href: '/admin/security',
       })
     }
   }

@@ -19,6 +19,8 @@ import {
   type Where,
 } from 'payload'
 
+import { sql } from '@payloadcms/db-postgres'
+
 import { adminUrl } from '@/lib/site'
 
 import { allowAttempt, clientAddress, LIMITS } from '../../lib/forms/rate-limit'
@@ -40,7 +42,9 @@ import { getCredential } from '../auth/mfa'
 import { sendSecurityNotice } from '../auth/notify'
 import { currentSession, hasFreshStepUp, isVerifiedSession } from '../auth/session-state'
 import { endAllSessions, holdSession, sidOfToken } from '../auth/sessions'
-import { groups, label, localizedMessage, type AdminLabel } from '../lib/labels'
+import { requestDb, SUPER_ADMIN_LOCK } from '../lib/db'
+import { NOT_ALLOWED, refuse, STEP_UP_MESSAGE } from '../lib/errors'
+import { groups, label, localizedMessage } from '../lib/labels'
 
 export const MIN_PASSWORD_LENGTH = 12
 
@@ -59,9 +63,6 @@ type Account = PermissionSubject & {
   restrictions?: string[] | null
   disabled?: boolean | null
 }
-
-const refuse = (req: PayloadRequest, message: AdminLabel, status = 403) =>
-  new APIError(localizedMessage(message, req), status, null, true)
 
 const noSignUp: CollectionBeforeChangeHook = ({ data, operation, req }) => {
   if (operation === 'create' && !req.user && !req.context?.[SERVER_COMMAND]) {
@@ -194,23 +195,20 @@ const changed = (
   return normalize(data[key]) !== normalize(original?.[key])
 }
 
-const STEP_UP_MESSAGE = label(
-  'Bitte bestätigen Sie diese Änderung zuerst mit einem Code aus Ihrer Authenticator-App (Abschnitt „Sicherheitsbestätigung“).',
-  'Please confirm this change first with a code from your authenticator app (section “Security confirmation”).',
-  'يرجى تأكيد هذا التغيير أولًا برمز من تطبيق المصادقة (قسم «تأكيد الأمان»).',
-)
-const NOT_ALLOWED = label(
-  'Diese Änderung ist mit Ihrer Rolle nicht erlaubt.',
-  'Your role does not allow this change.',
-  'دورك لا يسمح بهذا التغيير.',
-)
 const LAST_SUPER_ADMIN = label(
   'Es muss mindestens eine aktive Super-Administration bleiben.',
   'At least one active super administrator must remain.',
   'يجب أن يبقى مسؤول عام نشط واحد على الأقل.',
 )
 
+/**
+ * How many other active super administrators there are. Takes a transaction-wide lock first, so
+ * that two changes at the same moment (two super administrators demoting each other) are
+ * counted one after the other: the second sees the first one's result and is refused. The
+ * database trigger `users_keep_super_admin` enforces the same rule with the same lock.
+ */
 async function otherActiveSuperAdmins(req: PayloadRequest, exceptId: number) {
+  await (await requestDb(req)).execute(sql`select pg_advisory_xact_lock(${SUPER_ADMIN_LOCK})`)
   const { totalDocs } = await req.payload.count({
     collection: 'users',
     where: {
@@ -371,6 +369,12 @@ const removeSecurityRecords: CollectionBeforeDeleteHook = async ({ id, req }) =>
       req,
     })
   }
+  await req.payload.delete({
+    collection: 'notifications',
+    where: { recipient: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
 }
 
 const afterAccountDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {

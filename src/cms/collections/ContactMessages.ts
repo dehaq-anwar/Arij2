@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { allow, nobody } from '../access/roles'
 import { groups, label } from '../lib/labels'
 import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
+import { MEMBERSHIP_ROLES } from './membership-fields'
 
 /** Messages from the contact form. Deleted automatically six months after they arrived. */
 export const ContactMessages: CollectionConfig = {
@@ -13,7 +14,7 @@ export const ContactMessages: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'topic', 'status', 'createdAt'],
+    defaultColumns: ['name', 'topic', 'status', 'assignedTo', 'createdAt'],
     group: groups.inbox,
     hidden: hiddenWithoutInbox,
     description: label(
@@ -84,7 +85,18 @@ export const ContactMessages: CollectionConfig = {
       options: [
         { value: 'new', label: label('Neu', 'New', 'جديدة') },
         { value: 'answered', label: label('Beantwortet', 'Answered', 'تم الرد') },
+        { value: 'closed', label: label('Erledigt', 'Closed', 'مغلقة') },
       ],
+      admin: { position: 'sidebar' },
+    },
+    {
+      name: 'assignedTo',
+      type: 'relationship',
+      relationTo: 'users',
+      label: label('Zuständig', 'Assigned to', 'المسؤول'),
+      filterOptions: {
+        and: [{ role: { in: [...MEMBERSHIP_ROLES] } }, { disabled: { not_equals: true } }],
+      },
       admin: { position: 'sidebar' },
     },
   ],
