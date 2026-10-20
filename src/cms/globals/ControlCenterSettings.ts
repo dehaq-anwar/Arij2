@@ -121,6 +121,7 @@ export const ControlCenterSettings: GlobalConfig = {
               type: 'text',
               maxLength: 200,
               label: label('Arabisch', 'Arabic', 'العربية'),
+              admin: { rtl: true },
             },
           ],
         },
