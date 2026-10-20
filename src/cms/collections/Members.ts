@@ -17,6 +17,7 @@ import { deleteCaseEvents, recordCaseEvent } from '../membership/events'
 import { notify, recipientsWith } from '../membership/notifications'
 import {
   addressGroup,
+  DAY_PICKER,
   emailField,
   guardianFields,
   membershipTypeField,
@@ -220,7 +221,7 @@ export const Members: CollectionConfig = {
       required: true,
       defaultValue: today,
       label: label('Mitglied seit', 'Member since', 'عضو منذ'),
-      admin: { position: 'sidebar', date: { pickerAppearance: 'dayOnly' } },
+      admin: { position: 'sidebar', date: DAY_PICKER },
     },
     {
       name: 'endedOn',
@@ -229,7 +230,7 @@ export const Members: CollectionConfig = {
       admin: {
         position: 'sidebar',
         condition: (data) => data?.status === 'ended',
-        date: { pickerAppearance: 'dayOnly' },
+        date: DAY_PICKER,
       },
     },
     {

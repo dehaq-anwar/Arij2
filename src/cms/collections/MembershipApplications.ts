@@ -15,6 +15,7 @@ import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from '.
 import { FROM_APPLICATION } from './Members'
 import {
   addressGroup,
+  DAY_PICKER,
   emailField,
   guardianFields,
   MEMBERSHIP_ROLES,
@@ -344,7 +345,7 @@ export const MembershipApplications: CollectionConfig = {
       name: 'decisionDate',
       type: 'date',
       label: label('Entschieden am', 'Decided on', 'تاريخ القرار'),
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { position: 'sidebar', readOnly: true, date: DAY_PICKER },
     },
     {
       name: 'decidedBy',
@@ -369,7 +370,7 @@ export const MembershipApplications: CollectionConfig = {
       label: label('Wiedervorlage am', 'Follow up on', 'موعد المتابعة'),
       admin: {
         position: 'sidebar',
-        date: { pickerAppearance: 'dayOnly' },
+        date: DAY_PICKER,
         description: label(
           'An diesem Tag erinnert das Control Center die zuständige Person.',
           'On this day the Control Center reminds the person assigned.',

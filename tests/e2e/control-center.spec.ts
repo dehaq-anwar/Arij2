@@ -490,6 +490,8 @@ test.describe('accessibility of the Control Center', () => {
     const fits = () =>
       page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
     expect(await fits()).toBe(true)
+    // The page uses the whole screen, not the (empty) column of the hidden menu.
+    expect((await page.locator('.template-default__wrap').boundingBox())?.width).toBe(390)
     await page.locator('.nav-toggler:visible').first().click()
     const menu = page.locator('aside.yop-nav')
     await expect(menu.getByRole('link', { name: 'Dashboard' })).toBeVisible()

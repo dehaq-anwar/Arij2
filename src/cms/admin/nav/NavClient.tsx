@@ -139,7 +139,7 @@ export function NavClient({ groups, person, texts }: Props) {
                   .toUpperCase()}
               </span>
               <span className="yop-nav__person-text">
-                <strong>{person.name}</strong>
+                <strong dir="auto">{person.name}</strong>
                 <span>{person.role}</span>
               </span>
             </Link>

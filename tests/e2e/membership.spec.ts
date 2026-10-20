@@ -223,6 +223,8 @@ test.describe('applications', () => {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true)
     await expect(rows.first().locator('td').first()).toHaveCSS('display', 'flex')
+    // The cards span the screen (minus the page margins), so their values have room.
+    expect((await page.locator('.yop-records').boundingBox())!.width).toBeGreaterThan(340)
   })
 })
 

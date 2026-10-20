@@ -711,6 +711,10 @@ html[data-theme='dark'] .yop-nav {
   color: var(--yop-muted);
 }
 [lang='ar'] .yop-nav__heading,
+/* A German or English text in an Arabic screen keeps its punctuation in place. */
+[dir='rtl'] .field-type textarea {
+  unicode-bidi: plaintext;
+}
 [dir='rtl'] .yop-nav__heading {
   letter-spacing: 0;
 }
@@ -805,6 +809,8 @@ html[data-theme='dark'] .yop-nav {
 .yop-nav__person-text strong {
   font-size: 13px;
   font-weight: 550;
+  /* The name keeps its own direction (dir="auto") but lines up with the sidebar. */
+  text-align: match-parent;
 }
 .yop-nav__person-text span {
   font-size: 12px;
@@ -1701,6 +1707,10 @@ html[data-theme='dark'] .yop-nav {
   .nav.yop-nav:not(.nav--nav-open) {
     visibility: hidden;
   }
+  /* With the menu out of the grid the page would fall into the menu's (empty) column. */
+  .template-default__wrap {
+    grid-column: 2;
+  }
   .yop-nav__close {
     display: block;
   }
@@ -1782,6 +1792,14 @@ html[data-theme='dark'] .yop-nav {
     inline-size: 9.5em;
     color: var(--yop-muted);
     font-size: 12.5px;
+  }
+  /* Long names and labels wrap inside the card instead of running past its edge. */
+  .yop-records td > * {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  .yop-records td .yop-pill {
+    white-space: normal;
   }
   .yop-split,
   .yop-facts {

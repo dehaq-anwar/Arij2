@@ -2,6 +2,9 @@ import type { Field } from 'payload'
 
 import { label } from '../lib/labels'
 
+/** Calendar days in the edit screens, with the year (Payload's default for days omits it). */
+export const DAY_PICKER = { pickerAppearance: 'dayOnly', displayFormat: 'dd.MM.yyyy' } as const
+
 /**
  * The person's fields as the membership application collects them (Satzung § 3). The members
  * register uses exactly these and nothing more: no field here may be added without the
@@ -117,6 +120,7 @@ export const guardianFields: Field[] = [
     name: 'consentReceivedAt',
     type: 'date',
     label: label('Zustimmung liegt vor seit', 'Consent received on', 'تاريخ استلام الموافقة'),
+    admin: { date: DAY_PICKER },
   },
 ]
 
