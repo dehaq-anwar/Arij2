@@ -18,8 +18,18 @@ export function Logo({
   tone?: 'auto' | 'night' | 'day'
   className?: string
 }) {
+  // Served as the file itself (10 KB, cached for a year): the image optimizer has no cache in
+  // this setup (isrFlushToDisk is off, next.config.ts), so it would re-encode the logo for every
+  // page view, and a stuck optimization blocked every later page's logo in CI.
   const mark = (src: typeof logo, extra: string) => (
-    <Image src={src} alt="" height={40} loading="eager" className={`h-9 w-auto sm:h-10 ${extra}`} />
+    <Image
+      src={src}
+      alt=""
+      height={40}
+      loading="eager"
+      unoptimized
+      className={`h-9 w-auto sm:h-10 ${extra}`}
+    />
   )
   return (
     <Link

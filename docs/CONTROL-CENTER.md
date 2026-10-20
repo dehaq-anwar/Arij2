@@ -595,6 +595,13 @@ are used; checking codes is our own code.
   Center's colours and font; deeper redesign comes with the screens of CC-1 and CC-2.
 - The "last super administrator" rule is covered by code review, not by an automated test (the
   test database has several super administrators per worker).
+- Found through the first CI run of CC-0 (not caused by it): Next.js' image optimizer has no
+  cache in this setup, because `isrFlushToDisk: false` (read-only container, Phase 4) also turns
+  off its disk cache. Every image is re-encoded on every page view, and in CI one stuck
+  optimization of the header logo blocked the logo on every later page until the server was
+  restarted. The logo is now served as its file (10 KB, cached by the browser for a year).
+  Project and news images still go through the optimizer without a cache: to decide in Phase 6
+  (CC-3), e.g. a small writable cache volume or image sizes generated once by Payload.
 - The security e-mails (set-up, new device, recovery code used, second factor reset, password
   changed) are written, but no automated test reads them: the tests run without SMTP, where the
   app sends nothing and logs only that an e-mail was skipped. Check them once with the
