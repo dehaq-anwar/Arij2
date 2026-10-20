@@ -21,6 +21,8 @@ export async function NotificationsView(props: AdminViewServerProps) {
       req={req}
       searchParams={searchParams}
       user={req.user}
+      // The header actions (the notification bell), as Payload passes them to its own views.
+      viewActions={req.payload.config.admin?.components?.actions}
       visibleEntities={initPageResult.visibleEntities}
     >
       <NotificationsClient />

@@ -1274,7 +1274,7 @@ html[data-theme='dark'] .yop-nav {
 .yop-tabs__item[aria-current='page'] {
   background: var(--yop-accent);
   border-color: var(--yop-accent);
-  color: var(--yop-surface);
+  color: var(--yop-accent-ink);
 }
 .yop-tabs__count {
   min-inline-size: 22px;
@@ -1287,8 +1287,8 @@ html[data-theme='dark'] .yop-nav {
   font-variant-numeric: tabular-nums;
 }
 .yop-tabs__item[aria-current='page'] .yop-tabs__count {
-  background: var(--yop-surface);
-  color: var(--yop-accent-ink);
+  background: var(--yop-accent-ink);
+  color: var(--yop-accent);
 }
 .yop-filters {
   display: grid;
