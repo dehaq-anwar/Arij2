@@ -300,6 +300,50 @@ test.describe('the page builder', () => {
     await expect(drawer.locator('img[src*="/admin/blocks/"]').first()).toBeVisible()
     await expect(drawer.getByText('Seitenanfang', { exact: true })).toBeVisible()
   })
+
+  test('two language menus, interface and content; on a phone they fit the screen', async ({
+    page,
+    request,
+  }) => {
+    const created = await api(request, 'contentEditor', 'post', '/api/pages?locale=de', {
+      title: 'E2E Sprachen',
+      slug: `e2e-sprachen-${worker()}`,
+      layout: germanLayout(),
+      _status: 'published',
+    })
+    const id = (created.body?.doc as Doc).id
+    await signInBrowser(page.context(), request, 'contentEditor')
+    const interfaceMenu = page.getByRole('button', { name: 'Oberfläche: Deutsch' })
+    const contentMenu = page.locator('.app-header__localizer')
+    await page.goto(adminUrl(`/admin/collections/pages/${id}`))
+    await expect(interfaceMenu).toBeVisible()
+    await expect(contentMenu).toContainText('Inhaltssprache')
+    // Screens whose data have no languages show only the interface language.
+    await page.goto(adminUrl('/admin'))
+    await expect(interfaceMenu).toBeVisible()
+    await expect(contentMenu).toBeHidden()
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    const fits = (path: string) =>
+      expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), {
+          message: path,
+        })
+        .toBe(true)
+    for (const path of ['/admin/collections/pages', `/admin/collections/pages/${id}`]) {
+      await page.goto(adminUrl(path))
+      await expect(interfaceMenu).toBeVisible()
+      await expect(contentMenu).toBeVisible()
+      await fits(path)
+    }
+    // Right to left too (lists, and a screen with a rich-text editor).
+    await page.context().addCookies([{ name: 'payload-lng', value: 'ar', url: adminUrl('/') }])
+    for (const path of ['/admin/collections/pages', '/admin/globals/legal-notice']) {
+      await page.goto(adminUrl(path))
+      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+      await fits(path)
+    }
+  })
 })
 
 test.describe('live preview', () => {

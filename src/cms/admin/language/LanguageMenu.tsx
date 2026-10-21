@@ -76,7 +76,9 @@ export function LanguageMenu() {
       >
         <Icon name="globe" />
         <span className="yop-language__label">{t.interfaceLanguage}:</span>{' '}
-        <span lang={current.code}>{current.name}</span>
+        <span className="yop-language__name" lang={current.code}>
+          {current.name}
+        </span>
       </button>
       {open && (
         <ul id={menuId} className="yop-language__menu" aria-label={t.interfaceLanguage}>
