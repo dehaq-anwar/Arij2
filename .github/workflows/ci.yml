@@ -65,7 +65,7 @@ jobs:
           (cd "$check" && ACME_EMAIL=ci@example.org SITE_HOST=example.org \
             ADMIN_HOST=admin.example.org ADMIN_GATE_SECRET=ci POSTGRES_PASSWORD=ci \
             OPS_AGENT_SECRET=ci PAYLOAD_SECRET=ci docker compose -f docker-compose.prod.yml config --quiet)
-          for image in $(grep -oE '(caddy|tecnativa/docker-socket-proxy):[^ ]+' docker-compose.prod.yml); do
+          for image in $(sed -nE 's/^ *image: ((caddy|tecnativa\/docker-socket-proxy):[^ ]+)$/\1/p' docker-compose.prod.yml); do
             docker pull --quiet "$image"
           done
       - name: Integration tests (migrations, data transfers, backup and restore drill, proxies)
