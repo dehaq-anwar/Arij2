@@ -1,35 +1,100 @@
-# Production: app + PostgreSQL. Media goes to an external EU-region S3 provider.
-# A Caddy reverse proxy (TLS, HTTP→HTTPS, access-log retention, the Control Center host
-# ADMIN_URL with its own protection) follows in CC-3. The app must only be reachable through it:
-# the rate limiter trusts X-Forwarded-For, the admin host check trusts the Host header.
-# Secrets come from .env on the server (never committed).
+# Production (docs/OPERATIONS.md): Caddy in front (TLS, both hosts, access logs), the website and
+# Control Center (app), PostgreSQL, the operations agent and the Docker socket proxy. Media go to
+# an external EU-region S3 provider. Secrets come from .env on the server (never committed).
+#
+# Networks keep the parts apart: only Caddy is published; PostgreSQL, the agent and the socket
+# proxy have no route to the internet unless they need one, and only the agent reaches the
+# socket proxy (which allows the agent's exact calls only, docker/socket-proxy).
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+
+name: yop
 
 services:
+  caddy:
+    # Caddy 2.11.7 (released 2026-10-03)
+    image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set in .env}
+      SITE_HOST: ${SITE_HOST:?set in .env}
+      ADMIN_HOST: ${ADMIN_HOST:?set in .env}
+      ADMIN_GATE_SECRET: ${ADMIN_GATE_SECRET:?set in .env}
+      # Space-separated networks allowed to open the Control Center; default: everyone (the app
+      # still requires sign-in with two factors).
+      ADMIN_ALLOW_IPS: ${ADMIN_ALLOW_IPS:-0.0.0.0/0 ::/0}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    networks: [web]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+
   app:
     image: yop-website:${APP_VERSION:-latest}
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-latest}
+        APP_COMMIT: ${APP_COMMIT:-unknown}
     restart: unless-stopped
-    env_file: .env
+    # Only what the app uses (not the whole .env: the backup password and the backup storage
+    # keys stay with the agent).
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SERVER_URL: https://${SITE_HOST}
+      ADMIN_URL: https://${ADMIN_HOST}
+      ALLOW_INDEXING: ${ALLOW_INDEXING:-false}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?set in .env}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      ADMIN_GATE_SECRET: ${ADMIN_GATE_SECRET}
+      OPS_AGENT_URL: http://ops-agent:4100
+      OPS_AGENT_SECRET: ${OPS_AGENT_SECRET}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL:-}
+      AUDIT_RETENTION_MONTHS: ${AUDIT_RETENTION_MONTHS:-}
+      MEMBERSHIP_CONSOLIDATION: ${MEMBERSHIP_CONSOLIDATION:-off}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NEXT_TELEMETRY_DISABLED: '1'
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      # Bound to localhost only; the reverse proxy is the public entry point.
-      - '127.0.0.1:3000:3000'
+    # Not published: Caddy is the only entry point (the rate limiter trusts X-Forwarded-For,
+    # the admin host check trusts the Host header).
+    networks: [web, db, ops, egress]
     read_only: true
     tmpfs:
       - /tmp
     volumes:
       - nextcache:/app/.next/cache
+    cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
 
   postgres:
-    image: postgres:18.6-alpine3.24
+    image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set in .env}
@@ -42,8 +107,93 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    # Not published to the host: only the app container can reach it.
+    networks: [db]
+    security_opt:
+      - no-new-privileges:true
+
+  # Backups, restore drills, status, masked logs, restarts of app and Caddy, certificate checks,
+  # visitor statistics (counts only). Reachable only from the app, with signed requests.
+  ops-agent:
+    image: yop-ops-agent:${APP_VERSION:-latest}
+    build:
+      context: ./ops-agent
+    restart: unless-stopped
+    environment:
+      OPS_AGENT_SECRET: ${OPS_AGENT_SECRET:?set in .env}
+      AGENT_VERSION: ${APP_VERSION:-latest}
+      DOCKER_URL: http://socket-proxy:2375
+      COMPOSE_PROJECT: yop
+      SITE_HOST: ${SITE_HOST}
+      CERT_HOSTS: ${SITE_HOST},${ADMIN_HOST}
+      CERT_CONNECT: caddy:443
+      ACCESS_LOG_DIR: /var/log/caddy
+      # Backups (decision 9): restic repository (EU storage with object lock) and its password;
+      # the password also exists offline with the board. S3 credentials for the repository:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      BACKUP_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      BACKUP_MEDIA: s3
+      # The media bucket, read through rclone (same values as the app's).
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      BACKUP_TIME: ${BACKUP_TIME:-02:30}
+      DRILL_DAY: ${DRILL_DAY:-sun}
+      DRILL_TIME: ${DRILL_TIME:-04:00}
+    volumes:
+      - agent_data:/var/lib/agent
+      - caddy_logs:/var/log/caddy:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # web: certificate checks against Caddy; egress: backup storage and media bucket.
+    networks: [ops, docker, db, web, egress]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  # Docker API for the agent only, restricted to its exact calls (docker/socket-proxy).
+  socket-proxy:
+    # docker-socket-proxy 0.5.0 (released 2026-07-27)
+    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: warning
+      # The internal network has no IPv6; listening on [::] would stop the proxy from starting.
+      DISABLE_IPV6: '1'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/socket-proxy/haproxy.cfg.template:/usr/local/etc/haproxy/haproxy.cfg.template:ro
+    networks: [docker]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  web: {}
+  egress: {}
+  db:
+    internal: true
+  ops:
+    internal: true
+  docker:
+    internal: true
 
 volumes:
   pgdata:
   nextcache:
+  caddy_data:
+  caddy_config:
+  caddy_logs:
+  agent_data:

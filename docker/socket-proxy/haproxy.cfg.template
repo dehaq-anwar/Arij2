@@ -1,0 +1,52 @@
+# Rules for docker-socket-proxy (replaces the image's own template). The image's switches allow
+# whole API sections, and POST together with CONTAINERS would also allow creating containers —
+# root on the host. These rules allow exactly the operations agent's calls and nothing else:
+#   GET  /_ping, /version
+#   GET  /containers/json, /containers/{id}/json, /containers/{id}/logs
+#   POST /containers/yop-app-N/restart, /containers/yop-caddy-N/restart
+# ("yop" is the Compose project name in docker-compose.prod.yml; change both together.)
+# Container details (/json) include the containers' settings; the agent takes only the state
+# (running, health, start time, restarts) from them and passes nothing else on.
+# Tested against the real proxy and Docker API: tests/integration/socket-proxy.test.ts.
+global
+    log stdout format raw daemon "${LOG_LEVEL}"
+    pidfile /run/haproxy.pid
+    maxconn 200
+    server-state-file /var/lib/haproxy/server-state
+
+defaults
+    mode http
+    log global
+    option httplog
+    option dontlognull
+    option http-server-close
+    retries 3
+    timeout http-request 10s
+    timeout queue 30s
+    timeout connect 10s
+    timeout client 2m
+    timeout server 2m
+    timeout http-keep-alive 10s
+    maxconn 100
+    load-server-state-from-file global
+    errorfile 400 /usr/local/etc/haproxy/errors/400.http
+    errorfile 403 /usr/local/etc/haproxy/errors/403.http
+    errorfile 408 /usr/local/etc/haproxy/errors/408.http
+    errorfile 500 /usr/local/etc/haproxy/errors/500.http
+    errorfile 502 /usr/local/etc/haproxy/errors/502.http
+    errorfile 503 /usr/local/etc/haproxy/errors/503.http
+    errorfile 504 /usr/local/etc/haproxy/errors/504.http
+
+backend dockerbackend
+    server dockersocket $SOCKET_PATH
+
+frontend dockerfrontend
+    bind ${BIND_CONFIG}
+    acl api_path path,url_dec -m reg -i ^(/v[0-9.]+)?/(_ping|version|containers/json)$
+    acl container_read path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/[a-zA-Z0-9_.-]+/(json|logs)$
+    acl allowed_restart path,url_dec -m reg -i ^(/v[0-9.]+)?/containers/yop-(app|caddy)-[0-9]+/restart$
+    http-request allow if METH_GET api_path
+    http-request allow if METH_GET container_read
+    http-request allow if METH_POST allowed_restart
+    http-request deny
+    default_backend dockerbackend

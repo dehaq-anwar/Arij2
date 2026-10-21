@@ -440,9 +440,9 @@ describe('the agent over HTTP', () => {
           ),
         )
       }
-      const logs = url.pathname.match(/^\/containers\/(\w+)\/logs$/)
+      const logs = url.pathname.match(/^\/containers\/([\w.-]+)\/logs$/)
       if (logs) return res.end('2026-10-21T10:00:00Z login anna@example.org from 198.51.100.7\n')
-      const restart = url.pathname.match(/^\/containers\/(\w+)\/restart$/)
+      const restart = url.pathname.match(/^\/containers\/([\w.-]+)\/restart$/)
       if (restart && req.method === 'POST') {
         restarted.push(restart[1]!)
         res.statusCode = 204
@@ -529,7 +529,7 @@ describe('the agent over HTTP', () => {
       expect((await call('POST', '/v1/restart', '{"service":"app"}')).status).toBe(202)
     expect((await call('POST', '/v1/restart', '{"service":"app"}')).status).toBe(429)
     await new Promise((resolve) => setTimeout(resolve, 600))
-    expect(restarted).toEqual(['a1', 'a1', 'a1'])
+    expect(restarted).toEqual(['yop-app-1', 'yop-app-1', 'yop-app-1'])
     const { json } = await call('GET', '/v1/events')
     expect(
       (json.events as { kind: string; ok: boolean }[]).filter((e) => e.kind === 'restart'),

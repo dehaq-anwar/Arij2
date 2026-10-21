@@ -26,9 +26,14 @@ RUN npm run build
 # --- runtime ---
 FROM base AS runner
 WORKDIR /app
+# Shown in the Control Center under "Operations" (the release that is running).
+ARG APP_VERSION=dev
+ARG APP_COMMIT=unknown
 ENV NODE_ENV=production \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    APP_VERSION=$APP_VERSION \
+    APP_COMMIT=$APP_COMMIT
 RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder /app/public ./public
 RUN mkdir .next && chown nextjs:nodejs .next

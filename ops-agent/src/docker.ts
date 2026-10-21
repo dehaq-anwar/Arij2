@@ -121,24 +121,25 @@ export class DockerClient {
     )
   }
 
-  private async idOf(project: string, service: string): Promise<string> {
+  /** The container of a service, by name (the socket proxy allows restarts by name only). */
+  private async nameOf(project: string, service: string): Promise<string> {
     const filters = encodeURIComponent(
       JSON.stringify({
         label: [`com.docker.compose.project=${project}`, `com.docker.compose.service=${service}`],
       }),
     )
     const list = await this.json<DockerContainer[]>(`/containers/json?all=1&filters=${filters}`)
-    const first = list[0]
-    if (!first) throw new DockerError(`no container for service ${service}`, 404)
-    return first.Id
+    const name = (list[0]?.Names?.[0] ?? '').replace(/^\//, '')
+    if (!name) throw new DockerError(`no container for service ${service}`, 404)
+    return name
   }
 
   /** The last `lines` log lines (stdout and stderr, with timestamps). */
   async logs(project: string, service: string, lines: number): Promise<string[]> {
-    const id = await this.idOf(project, service)
+    const name = await this.nameOf(project, service)
     const { status, body } = await this.call(
       'GET',
-      `/containers/${encodeURIComponent(id)}/logs?stdout=1&stderr=1&timestamps=1&tail=${lines}`,
+      `/containers/${encodeURIComponent(name)}/logs?stdout=1&stderr=1&timestamps=1&tail=${lines}`,
     )
     if (status !== 200) throw new DockerError(`logs: ${status}`, status)
     return demultiplex(body)
@@ -147,8 +148,11 @@ export class DockerClient {
   }
 
   async restart(project: string, service: string): Promise<void> {
-    const id = await this.idOf(project, service)
-    const { status } = await this.call('POST', `/containers/${encodeURIComponent(id)}/restart?t=20`)
+    const name = await this.nameOf(project, service)
+    const { status } = await this.call(
+      'POST',
+      `/containers/${encodeURIComponent(name)}/restart?t=20`,
+    )
     if (status !== 204) throw new DockerError(`restart: ${status}`, status)
   }
 }

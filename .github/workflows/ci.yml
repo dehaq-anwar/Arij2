@@ -55,7 +55,20 @@ jobs:
       # The operations agent's image: the backup and restore drill test runs it for real.
       - name: Build the operations agent image
         run: docker build -t yop-ops-agent:test ops-agent
-      - name: Integration tests (migrations, data transfers, backup and restore drill)
+      # The production compose file with the example settings, and the pinned Caddy and socket
+      # proxy images its tests run (tests/integration/caddy.test.ts, socket-proxy.test.ts).
+      - name: Production configuration
+        run: |
+          check="$(mktemp -d)"
+          cp -r docker-compose.prod.yml docker ops-agent "$check"/
+          cp .env.example "$check/.env"
+          (cd "$check" && ACME_EMAIL=ci@example.org SITE_HOST=example.org \
+            ADMIN_HOST=admin.example.org ADMIN_GATE_SECRET=ci POSTGRES_PASSWORD=ci \
+            OPS_AGENT_SECRET=ci PAYLOAD_SECRET=ci docker compose -f docker-compose.prod.yml config --quiet)
+          for image in $(grep -oE '(caddy|tecnativa/docker-socket-proxy):[^ ]+' docker-compose.prod.yml); do
+            docker pull --quiet "$image"
+          done
+      - name: Integration tests (migrations, data transfers, backup and restore drill, proxies)
         run: npm run test:integration
       - name: End-to-end tests (CMS content, i18n, RTL, navigation, privacy, motion, axe)
         run: npm run test:e2e

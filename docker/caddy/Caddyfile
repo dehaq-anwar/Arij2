@@ -1,0 +1,74 @@
+# Caddy (docs/CONTROL-CENTER.md §3.1, CC-3): TLS certificates (automatic, Let's Encrypt), HTTP
+# to HTTPS, the website's host and the Control Center's own host, access logs for the
+# statistics. Values come from the environment (docker-compose.prod.yml, .env).
+{
+	email {$ACME_EMAIL}
+	# No admin API: a configuration change means restarting the container.
+	admin off
+	log {
+		output stdout
+		format json
+		level WARN
+	}
+}
+
+# Access log (JSON, one file per host). Shortened IP addresses (/24, /48), no query strings
+# (they can hold tokens), no cookies or credentials, no forwarded addresses, no response
+# headers. Rolled at 50 MB and kept 7 days (proposal, decision 7); the agent counts the
+# website's log every hour and passes on counts only.
+(access_log) {
+	log {
+		output file /var/log/caddy/{args[0]}.log {
+			roll_size 50MiB
+			roll_keep 30
+			roll_keep_for 168h
+		}
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>client_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+				request>remote_port delete
+				request>uri regexp \?.*$ ""
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>X-Forwarded-For delete
+				request>headers>X-Admin-Gate delete
+				resp_headers delete
+			}
+		}
+	}
+}
+
+# The website. Admin and API answer 404 here (the app checks the host); media files are served.
+{$SITE_HOST} {
+	import access_log access
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# Only the admin host's block may send this header.
+		header_up -X-Admin-Gate
+	}
+}
+
+www.{$SITE_HOST} {
+	redir https://{$SITE_HOST}{uri} permanent
+}
+
+# The Control Center. Optional IP allowlist (ADMIN_ALLOW_IPS, e.g. the association's office);
+# everything else gets 404, as on the website's host. The gate header proves to the app that a
+# request came through this block (ADMIN_GATE_SECRET).
+{$ADMIN_HOST} {
+	import access_log admin-access
+	@outside not remote_ip {$ADMIN_ALLOW_IPS:0.0.0.0/0 ::/0}
+	respond @outside 404
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		header_up X-Admin-Gate {$ADMIN_GATE_SECRET}
+	}
+}
