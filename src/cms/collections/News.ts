@@ -5,6 +5,7 @@ import { hiddenWithoutContent } from './content-access'
 import { seoField } from '../fields/seo'
 import { slugField } from '../fields/slug'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
+import { livePreview, previewUrl } from '../preview/live-preview'
 import { groups, label } from '../lib/labels'
 import { setPublishedAt } from './Projects'
 
@@ -17,10 +18,12 @@ export const News: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishedAt', '_status'],
+    livePreview: livePreview('news'),
+    preview: (doc, { locale, req }) => previewUrl('news', doc?.id, locale, req),
     group: groups.content,
     hidden: hiddenWithoutContent,
   },
-  versions: { drafts: true, maxPerDoc: 25 },
+  versions: { drafts: { autosave: { interval: 2000 }, schedulePublish: true }, maxPerDoc: 50 },
   defaultSort: '-publishedAt',
   access: {
     read: publishedOrContentReader,

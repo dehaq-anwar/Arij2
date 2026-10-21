@@ -15,6 +15,12 @@ export const seoField: GroupField = {
   },
   fields: [
     {
+      // How the page appears in search results, live while typing (src/cms/admin/seo).
+      name: 'searchPreview',
+      type: 'ui',
+      admin: { components: { Field: '/cms/admin/seo/SearchPreview#SearchPreview' } },
+    },
+    {
       name: 'metaTitle',
       type: 'text',
       localized: true,
@@ -33,6 +39,30 @@ export const seoField: GroupField = {
       type: 'upload',
       relationTo: 'media',
       label: label('Bild beim Teilen', 'Sharing image', 'صورة المشاركة'),
+      admin: {
+        description: label(
+          'Erscheint, wenn die Seite in Messengern oder sozialen Netzwerken geteilt wird. Ohne Angabe: das Titelbild.',
+          'Shown when the page is shared in messengers or social networks. If empty: the cover image.',
+          'تظهر عند مشاركة الصفحة في تطبيقات المراسلة أو الشبكات الاجتماعية. إن تُركت فارغة: صورة الغلاف.',
+        ),
+      },
+    },
+    {
+      name: 'noIndex',
+      type: 'checkbox',
+      defaultValue: false,
+      label: label(
+        'Nicht in Suchmaschinen anzeigen',
+        'Hide from search engines',
+        'إخفاء من محركات البحث',
+      ),
+      admin: {
+        description: label(
+          'Die Seite bleibt erreichbar, wird aber nicht in Suchergebnisse und die Sitemap aufgenommen.',
+          'The page stays reachable but is left out of search results and the sitemap.',
+          'تبقى الصفحة متاحة لكنها لا تظهر في نتائج البحث ولا في خريطة الموقع.',
+        ),
+      },
     },
   ],
 }

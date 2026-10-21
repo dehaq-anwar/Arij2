@@ -48,6 +48,31 @@ export const securityHeaders = [
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ]
 
+/**
+ * The live preview of drafts is the only page that may be framed, and only by the Control Center
+ * on the same host (the editor shows it next to the form). It is never indexed or stored.
+ */
+const withFrames = (csp: string, { ancestors = "'none'", frames = "'none'" }) =>
+  csp
+    .replace("frame-ancestors 'none'", `frame-ancestors ${ancestors}`)
+    .replace("frame-src 'none'", `frame-src ${frames}`)
+
+const adminHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: withFrames(contentSecurityPolicy, { frames: "'self'" }),
+  },
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+]
+const previewHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: withFrames(contentSecurityPolicy, { ancestors: "'self'" }),
+  },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+]
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
@@ -57,8 +82,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
-      // The CMS is never indexed, whatever ALLOW_INDEXING says for the website.
-      { source: '/admin/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
+      // The CMS is never indexed, whatever ALLOW_INDEXING says for the website; it may frame
+      // its own live preview.
+      { source: '/admin/:path*', headers: adminHeaders },
+      { source: '/preview/:path*', headers: previewHeaders },
+      { source: '/:locale(en|ar)/preview/:path*', headers: previewHeaders },
     ]
   },
   experimental: {

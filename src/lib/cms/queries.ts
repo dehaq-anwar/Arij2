@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { routing, type Locale } from '@/i18n/routing'
 import type {
   Config,
+  Event,
   FocusArea,
   News,
   Partner,
@@ -36,8 +37,12 @@ export const getGlobal = cache(
   },
 )
 
-type ItemCollection = 'projects' | 'news'
-type ItemDoc<C extends ItemCollection> = C extends 'projects' ? Project : News
+type ItemCollection = 'projects' | 'news' | 'events'
+type ItemDoc<C extends ItemCollection> = C extends 'projects'
+  ? Project
+  : C extends 'news'
+    ? News
+    : Event
 
 /** IDs of documents that have their own title in `locale` (i.e. are translated). */
 async function translatedIds(collection: ItemCollection, locale: Locale, ids: number[]) {
@@ -62,7 +67,11 @@ async function translatedIds(collection: ItemCollection, locale: Locale, ids: nu
 async function findItems<C extends ItemCollection>(
   collection: C,
   locale: Locale,
-  { limit = 100, where }: { limit?: number; where?: Where } = {},
+  {
+    limit = 100,
+    where,
+    sort = '-publishedAt',
+  }: { limit?: number; where?: Where; sort?: string } = {},
 ): Promise<Localized<ItemDoc<C>>[]> {
   const payload = await getPayloadClient()
   const result = await payload.find({
@@ -70,12 +79,12 @@ async function findItems<C extends ItemCollection>(
     locale,
     fallbackLocale: 'de',
     where,
-    sort: '-publishedAt',
+    sort,
     limit,
     depth: 1,
     ...visitor,
   })
-  const docs = result.docs as ItemDoc<C>[]
+  const docs = result.docs as unknown as ItemDoc<C>[]
   const translated = await translatedIds(
     collection,
     locale,
@@ -121,6 +130,40 @@ async function findItemBySlug<C extends ItemCollection>(
   const available = routing.locales.filter((l) => Boolean(byLocale[l]?.trim()))
   return { doc, translated: available.includes(locale), available }
 }
+
+/**
+ * Events that have not ended yet (soonest first), or those that have (latest first). "Now" is
+ * the moment of rendering; cached pages are rendered again whenever the CMS changes.
+ */
+export const getUpcomingEvents = cache((locale: Locale, limit = 100) => {
+  const now = new Date().toISOString()
+  return findItems('events', locale, {
+    limit,
+    sort: 'startsAt',
+    where: {
+      or: [
+        { endsAt: { greater_than_equal: now } },
+        { and: [{ endsAt: { exists: false } }, { startsAt: { greater_than_equal: now } }] },
+      ],
+    },
+  })
+})
+export const getPastEvents = cache((locale: Locale, limit = 24) => {
+  const now = new Date().toISOString()
+  return findItems('events', locale, {
+    limit,
+    sort: '-startsAt',
+    where: {
+      or: [
+        { endsAt: { less_than: now } },
+        { and: [{ endsAt: { exists: false } }, { startsAt: { less_than: now } }] },
+      ],
+    },
+  })
+})
+export const getEvent = cache((slug: string, locale: Locale) =>
+  findItemBySlug('events', slug, locale),
+)
 
 export const getProject = cache((slug: string, locale: Locale) =>
   findItemBySlug('projects', slug, locale),
@@ -187,12 +230,16 @@ export const getPartners = cache(async (locale: Locale): Promise<Partner[]> => {
   return docs
 })
 
-/** Slugs and per-language availability of all published items (for the sitemap). */
+/**
+ * Slugs and per-language availability of all published items (for the sitemap), without those
+ * hidden from search engines.
+ */
 export async function getAllItemSlugs(collection: ItemCollection) {
   const payload = await getPayloadClient()
   const { docs } = await payload.find({
     collection,
     locale: 'all',
+    where: { 'seo.noIndex': { not_equals: true } },
     select: { slug: true, title: true, updatedAt: true },
     limit: 1000,
     depth: 0,
@@ -208,3 +255,29 @@ export async function getAllItemSlugs(collection: ItemCollection) {
     }
   })
 }
+
+type FormTextValues = {
+  membership: {
+    principles?: string | null
+    fees?: string | null
+    guardian?: string | null
+    consent?: string | null
+  }
+  contact: { consent?: string | null }
+}
+
+/**
+ * The wording inside the forms (declarations, consents). Since CC-2 in its own global; until the
+ * first start of the new version has moved it there, still from the former page globals.
+ */
+export const getFormTexts = cache(async (locale: Locale): Promise<FormTextValues> => {
+  const texts = await getGlobal('form-texts', locale)
+  if (texts.updatedAt) {
+    return { membership: texts.membership ?? {}, contact: texts.contact ?? {} }
+  }
+  const [membership, contact] = await Promise.all([
+    getGlobal('membership-page', locale),
+    getGlobal('contact-page', locale),
+  ])
+  return { membership: membership.form ?? {}, contact: { consent: contact.form?.consent ?? null } }
+})

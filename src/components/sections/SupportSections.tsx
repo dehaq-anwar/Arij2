@@ -5,7 +5,16 @@ import { CmsImage } from '@/components/ui/CmsImage'
 import { CmsText } from '@/components/ui/CmsText'
 import { Container } from '@/components/ui/Container'
 import { Placeholder } from '@/components/ui/Placeholder'
-import type { Partner, SupportPage } from '@/payload-types'
+import { safeHref } from '@/lib/safe-url'
+import type { Partner } from '@/payload-types'
+
+type BankAccount = {
+  accountHolder?: string | null
+  bankName?: string | null
+  iban?: string | null
+  bic?: string | null
+  reference?: string | null
+}
 
 /** "DE89 3704 …": IBANs are easier to read and copy in groups of four. */
 const groupIban = (iban: string) =>
@@ -18,7 +27,7 @@ const groupIban = (iban: string) =>
  * Bank details exactly as entered in the CMS; a placeholder until the association adds them.
  * Account data is always left-to-right (also on the Arabic page) and never machine-translated.
  */
-export async function BankDetails({ donate }: { donate: SupportPage['donate'] }) {
+export async function BankDetails({ donate }: { donate: BankAccount | null | undefined }) {
   const t = await getTranslations('Support')
   const rows = [
     { key: 'accountHolder', label: t('accountHolder'), value: donate?.accountHolder },
@@ -59,14 +68,22 @@ export async function BankDetails({ donate }: { donate: SupportPage['donate'] })
 }
 
 /** Partners that have agreed to be named (enforced by the collection's read access). */
-export async function PartnerList({ partners }: { partners: Partner[] }) {
+export async function PartnerList({
+  partners,
+  heading,
+  id = 'partners-heading',
+}: {
+  partners: Partner[]
+  heading?: string | null
+  id?: string
+}) {
   if (!partners.length) return null
   const t = await getTranslations('Support')
   return (
-    <section className="bg-canvas py-24 sm:py-28" aria-labelledby="partners-heading">
+    <section className="bg-canvas py-24 sm:py-28" aria-labelledby={id}>
       <Container>
-        <h2 id="partners-heading" className="text-heading">
-          {t('partnersHeading')}
+        <h2 id={id} className="text-heading">
+          {heading || t('partnersHeading')}
         </h2>
         <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
           {partners.map((partner) => (
@@ -77,7 +94,13 @@ export async function PartnerList({ partners }: { partners: Partner[] }) {
             >
               <CmsImage media={partner.logo} sizes="12rem" className="h-14 w-auto object-contain" />
               <h3 className="font-semibold">
-                <bdi>{partner.url ? <a href={partner.url}>{partner.name}</a> : partner.name}</bdi>
+                <bdi>
+                  {safeHref(partner.url) ? (
+                    <a href={safeHref(partner.url)}>{partner.name}</a>
+                  ) : (
+                    partner.name
+                  )}
+                </bdi>
               </h3>
               <CmsText text={partner.description} className="text-sm text-ink-muted" />
             </li>

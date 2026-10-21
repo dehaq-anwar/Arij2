@@ -6,7 +6,7 @@ import { after } from 'next/server'
 
 import { routing, type Locale } from '@/i18n/routing'
 import { getPayloadClient } from '@/lib/cms/payload'
-import { getGlobal } from '@/lib/cms/queries'
+import { getFormTexts, getGlobal } from '@/lib/cms/queries'
 
 import { notifyNewSubmission } from './notify'
 import { allowAttempt, clientAddress, LIMITS } from './rate-limit'
@@ -99,7 +99,7 @@ export async function submitMembership(_previous: FormState, formData: FormData)
     'membership-applications',
     formData,
     validateMembership,
-    async (locale) => (await getGlobal('membership-page', locale)).form?.consent ?? '',
+    async (locale) => (await getFormTexts(locale)).membership.consent ?? '',
   )
 }
 
@@ -109,6 +109,6 @@ export async function submitContact(_previous: FormState, formData: FormData) {
     'contact-messages',
     formData,
     validateContact,
-    async (locale) => (await getGlobal('contact-page', locale)).form?.consent ?? '',
+    async (locale) => (await getFormTexts(locale)).contact.consent ?? '',
   )
 }

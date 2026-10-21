@@ -168,17 +168,27 @@ test.describe('changes in the CMS are published immediately', () => {
     await page.goto('/', { waitUntil: 'networkidle' }) // cached from here on
     const statsHeading = `E2E Kennzahlen ${Date.now()}`
     const headers = await signIn(request)
-    const update = await request.post(adminUrl('/api/globals/home-page?locale=de'), {
+    // The home page is a page of the page builder (CC-2): its statistics block has the heading.
+    const found = await request.get(
+      adminUrl('/api/pages?where[systemKey][equals]=home&depth=0&locale=de'),
+      { headers },
+    )
+    const home = (
+      (await found.json()) as { docs: { id: number; layout: { blockType: string }[] }[] }
+    ).docs[0]!
+    const withHeading = (heading: string) =>
+      home.layout.map((block) => (block.blockType === 'stats' ? { ...block, heading } : block))
+    const update = await request.patch(adminUrl(`/api/pages/${home.id}?locale=de`), {
       headers,
-      data: { statsHeading },
+      data: { layout: withHeading(statsHeading), _status: 'published' },
     })
     expect(update.status()).toBe(200)
     await page.goto('/')
     await expect(page.getByRole('main')).toContainText(statsHeading)
     // Back to the seeded heading for the other tests.
-    await request.post(adminUrl('/api/globals/home-page?locale=de'), {
+    await request.patch(adminUrl(`/api/pages/${home.id}?locale=de`), {
       headers,
-      data: { statsHeading: 'In Zahlen' },
+      data: { layout: withHeading('In Zahlen'), _status: 'published' },
     })
   })
 

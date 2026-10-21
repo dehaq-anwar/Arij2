@@ -6,7 +6,12 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import { ar } from '@payloadcms/translations/languages/ar'
 import { de } from '@payloadcms/translations/languages/de'
 import { en } from '@payloadcms/translations/languages/en'
-import { buildConfig, defaultLoggerOptions, type CollectionConfig } from 'payload'
+import {
+  buildConfig,
+  defaultLoggerOptions,
+  type CollectionConfig,
+  type GlobalConfig,
+} from 'payload'
 import sharp from 'sharp'
 
 import type { AuditArea } from './cms/access/permissions'
@@ -16,6 +21,7 @@ import { AuditLog } from './cms/collections/AuditLog'
 import { AuthCredentials, AuthSessions, TrustedDevices } from './cms/collections/AuthSecurity'
 import { CaseEvents } from './cms/collections/CaseEvents'
 import { ContactMessages } from './cms/collections/ContactMessages'
+import { Events } from './cms/collections/Events'
 import { Exports } from './cms/collections/Exports'
 import { FocusAreas } from './cms/collections/FocusAreas'
 import { LegalBases } from './cms/collections/LegalBases'
@@ -23,11 +29,13 @@ import { Media } from './cms/collections/Media'
 import { Members } from './cms/collections/Members'
 import { MembershipApplications } from './cms/collections/MembershipApplications'
 import { News } from './cms/collections/News'
+import { Pages } from './cms/collections/Pages'
 import { Notifications } from './cms/collections/Notifications'
 import { Partners } from './cms/collections/Partners'
 import { ProcessingPurposes } from './cms/collections/ProcessingPurposes'
 import { Projects } from './cms/collections/Projects'
 import { RateLimitBuckets } from './cms/collections/RateLimitBuckets'
+import { Redirects } from './cms/collections/Redirects'
 import { Statistics } from './cms/collections/Statistics'
 import { TeamMembers } from './cms/collections/TeamMembers'
 import { Users } from './cms/collections/Users'
@@ -36,9 +44,11 @@ import { richTextEditor } from './cms/fields/richText'
 import { AboutPage } from './cms/globals/AboutPage'
 import { ContactPage } from './cms/globals/ContactPage'
 import { ControlCenterSettings } from './cms/globals/ControlCenterSettings'
+import { ensureFormTexts, FormTexts } from './cms/globals/FormTexts'
 import { HomePage } from './cms/globals/HomePage'
 import { LegalNotice, PrivacyPolicy } from './cms/globals/LegalPages'
 import { MembershipPage } from './cms/globals/MembershipPage'
+import { ensureNavigation, Navigation } from './cms/globals/Navigation'
 import { SiteSettings } from './cms/globals/SiteSettings'
 import { SupportPage } from './cms/globals/SupportPage'
 import { auditRetentionTask } from './cms/jobs/audit-retention'
@@ -46,6 +56,8 @@ import { authCleanupTask } from './cms/jobs/auth-cleanup'
 import { membershipRemindersTask } from './cms/jobs/membership-reminders'
 import { notificationsRetentionTask } from './cms/jobs/notifications-retention'
 import { retentionTask } from './cms/jobs/retention'
+import { withCheckedSchedule } from './cms/jobs/scheduled-publish'
+import { ensureSystemPages } from './cms/pages/system-pages'
 import { migrations } from './migrations'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -75,7 +87,19 @@ function audited(collection: CollectionConfig, area: AuditArea, personalData = f
   }
 }
 
-export default buildConfig({
+/**
+ * The page globals before the page builder (CC-2): kept unchanged as the record of the former
+ * texts, no longer shown or edited; the website reads the pages collection instead.
+ */
+function legacyPage(global: GlobalConfig): GlobalConfig {
+  return {
+    ...global,
+    admin: { ...global.admin, hidden: true },
+    access: { ...global.access, update: () => false },
+  }
+}
+
+const config = buildConfig({
   serverURL,
   secret: process.env.PAYLOAD_SECRET ?? '',
   telemetry: false,
@@ -124,8 +148,11 @@ export default buildConfig({
     },
   },
   collections: [
+    audited(Pages, 'content'),
     audited(Projects, 'content'),
     audited(News, 'content'),
+    audited(Events, 'content'),
+    audited(Redirects, 'content'),
     audited(FocusAreas, 'content'),
     audited(TeamMembers, 'content'),
     audited(Statistics, 'content'),
@@ -147,11 +174,9 @@ export default buildConfig({
     RateLimitBuckets,
   ],
   globals: [
-    HomePage,
-    AboutPage,
-    MembershipPage,
-    SupportPage,
-    ContactPage,
+    ...[HomePage, AboutPage, MembershipPage, SupportPage, ContactPage].map(legacyPage),
+    Navigation,
+    FormTexts,
     LegalNotice,
     PrivacyPolicy,
     SiteSettings,
@@ -160,6 +185,19 @@ export default buildConfig({
     ...global,
     hooks: { ...global.hooks, afterChange: [...(global.hooks?.afterChange ?? []), auditGlobal] },
   })),
+  // The fixed pages and the form texts moved out of the old page globals (CC-2): built once from
+  // them on the first start of the new version, never overwritten afterwards.
+  onInit: async (payload) => {
+    try {
+      await ensureFormTexts(payload)
+      await ensureNavigation(payload)
+      await ensureSystemPages(payload, { log: (message) => payload.logger.info(message) })
+    } catch (error) {
+      // E.g. a database that is not migrated yet (tests, scripts): the website then shows the
+      // pages from the old texts directly (src/lib/cms/pages.ts), and the next start tries again.
+      payload.logger.warn({ err: error }, 'Could not build the pages from their former texts')
+    }
+  },
   editor: richTextEditor,
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL ?? '' },
@@ -194,8 +232,12 @@ export default buildConfig({
       membershipRemindersTask,
       notificationsRetentionTask,
     ],
-    // Checks the queue every 10 minutes; the tasks' own schedules decide when they are due.
-    autoRun: [{ cron: '*/10 * * * *', queue: 'maintenance' }],
+    // Checks the maintenance queue every 10 minutes (the tasks' own schedules decide when they
+    // are due) and the default queue, where scheduled publications wait, every minute.
+    autoRun: [
+      { cron: '*/10 * * * *', queue: 'maintenance' },
+      { cron: '* * * * *', queue: 'default' },
+    ],
     access: { run: ({ req }) => allowed(req, 'jobs.run') },
   },
   localization: {
@@ -248,3 +290,6 @@ export default buildConfig({
     }),
   ],
 })
+
+// Scheduled publications check that the person who scheduled them may still publish.
+export default config.then(withCheckedSchedule)

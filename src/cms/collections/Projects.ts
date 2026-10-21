@@ -5,6 +5,7 @@ import { hiddenWithoutContent } from './content-access'
 import { seoField } from '../fields/seo'
 import { slugField } from '../fields/slug'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
+import { livePreview, previewUrl } from '../preview/live-preview'
 import { groups, label } from '../lib/labels'
 
 /** Sets the publication date the first time a document is published. */
@@ -22,10 +23,12 @@ export const Projects: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'stage', 'publishedAt', '_status'],
+    livePreview: livePreview('projects'),
+    preview: (doc, { locale, req }) => previewUrl('projects', doc?.id, locale, req),
     group: groups.content,
     hidden: hiddenWithoutContent,
   },
-  versions: { drafts: true, maxPerDoc: 25 },
+  versions: { drafts: { autosave: { interval: 2000 }, schedulePublish: true }, maxPerDoc: 50 },
   defaultSort: '-publishedAt',
   access: {
     read: publishedOrContentReader,

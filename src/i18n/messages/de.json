@@ -22,6 +22,7 @@
     "about": "Über uns",
     "projects": "Projekte",
     "news": "Aktuelles",
+    "events": "Veranstaltungen",
     "membership": "Mitglied werden",
     "support": "Unterstützen",
     "contact": "Kontakt",
@@ -167,5 +168,21 @@
     },
     "submit": "Nachricht senden",
     "success": "Ihre Nachricht ist bei uns eingegangen. Wir antworten per E-Mail."
+  },
+  "Preview": {
+    "badge": "Vorschau des Entwurfs – nicht veröffentlicht"
+  },
+  "Events": {
+    "upcoming": "Kommende Veranstaltungen",
+    "past": "Vergangene Veranstaltungen",
+    "empty": "Zurzeit sind keine Veranstaltungen geplant.",
+    "when": "Wann",
+    "where": "Wo",
+    "register": "Zur Anmeldung",
+    "calendar": "In den Kalender eintragen",
+    "calendarHint": "Lädt eine Kalenderdatei (.ics) herunter.",
+    "backToEvents": "Zurück zu den Veranstaltungen",
+    "allEvents": "Alle Veranstaltungen",
+    "upcomingHeading": "Nächste Termine"
   }
 }

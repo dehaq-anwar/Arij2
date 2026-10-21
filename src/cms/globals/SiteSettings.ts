@@ -17,6 +17,7 @@ const validateEmail: TextFieldSingleValidation = (value, { req }) =>
 
 export const SiteSettings = pageGlobal({
   slug: 'site-settings',
+  versions: { max: 50 },
   label: label('Website-Einstellungen', 'Site settings', 'إعدادات الموقع'),
   admin: { group: groups.settings },
   fields: [

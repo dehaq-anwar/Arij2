@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import type { CSSProperties } from 'react'
 
+import { BlockButton, type LinkValue } from '@/components/blocks/BlockButton'
 import { Magnetic } from '@/components/motion/Magnetic'
 import { Atmosphere } from '@/components/ui/Atmosphere'
 import { ButtonLink } from '@/components/ui/ButtonLink'
@@ -12,7 +13,16 @@ import { SplitHeading } from '@/components/ui/SplitHeading'
  * the tagline, two ways in. Everything is server-rendered and visible from the first paint
  * (the animations are CSS); the headline is the page's LCP element.
  */
-export async function Hero({ headline, tagline }: { headline: string; tagline?: string | null }) {
+export async function Hero({
+  headline,
+  tagline,
+  buttons,
+}: {
+  headline: string
+  tagline?: string | null
+  /** The page builder's buttons (at most two); without them, membership and support. */
+  buttons?: LinkValue[] | null
+}) {
   const nav = await getTranslations('Navigation')
   return (
     <section
@@ -34,14 +44,28 @@ export async function Hero({ headline, tagline }: { headline: string; tagline?: 
           className="intro-fade mt-10 flex flex-wrap items-center justify-center gap-3"
           style={{ '--delay': '800ms' } as CSSProperties}
         >
-          <Magnetic>
-            <ButtonLink href="/membership" variant="light" arrow>
-              {nav('membership')}
-            </ButtonLink>
-          </Magnetic>
-          <ButtonLink href="/support" variant="glass">
-            {nav('support')}
-          </ButtonLink>
+          {buttons ? (
+            buttons.slice(0, 2).map((button, i) =>
+              i === 0 ? (
+                <Magnetic key={i}>
+                  <BlockButton link={button} variant="light" arrow />
+                </Magnetic>
+              ) : (
+                <BlockButton key={i} link={button} variant="glass" />
+              ),
+            )
+          ) : (
+            <>
+              <Magnetic>
+                <ButtonLink href="/membership" variant="light" arrow>
+                  {nav('membership')}
+                </ButtonLink>
+              </Magnetic>
+              <ButtonLink href="/support" variant="glass">
+                {nav('support')}
+              </ButtonLink>
+            </>
+          )}
         </div>
       </Container>
       <div aria-hidden="true" className="absolute inset-x-0 bottom-8 flex justify-center">

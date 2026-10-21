@@ -22,6 +22,7 @@
     "about": "About us",
     "projects": "Projects",
     "news": "News",
+    "events": "Events",
     "membership": "Become a member",
     "support": "Support us",
     "contact": "Contact",
@@ -167,5 +168,21 @@
     },
     "submit": "Send message",
     "success": "We have received your message and will reply by e-mail."
+  },
+  "Preview": {
+    "badge": "Preview of the draft – not published"
+  },
+  "Events": {
+    "upcoming": "Upcoming events",
+    "past": "Past events",
+    "empty": "There are no events planned at the moment.",
+    "when": "When",
+    "where": "Where",
+    "register": "Register",
+    "calendar": "Add to calendar",
+    "calendarHint": "Downloads a calendar file (.ics).",
+    "backToEvents": "Back to events",
+    "allEvents": "All events",
+    "upcomingHeading": "Coming up"
   }
 }

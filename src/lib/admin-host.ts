@@ -25,6 +25,11 @@ export type HostRequest = {
 export type HostSettings = { adminUrl?: string; siteUrl?: string; gateSecret?: string }
 
 const isAdminPath = (path: string) => path === '/admin' || path.startsWith('/admin/')
+/**
+ * The live preview of drafts (src/app/(frontend)/[locale]/preview): a website page, but served
+ * only on the Control Center's host, next to the editor that shows it.
+ */
+export const isPreviewPath = (path: string) => /^\/(?:(?:en|ar)\/)?preview(?:\/|$)/.test(path)
 const isApiPath = (path: string) => path === '/api' || path.startsWith('/api/')
 /** The only part of the API the website itself uses: its images and files. */
 const isPublicFile = (method: string, path: string) =>
@@ -48,6 +53,7 @@ export function decideHost(request: HostRequest, settings: HostSettings): HostDe
       return { kind: 'notFound' }
     }
     if (isAdminPath(path) || isApiPath(path) || path.startsWith('/_next/')) return { kind: 'admin' }
+    if (isPreviewPath(path)) return { kind: 'site' }
     if (path === '/') return { kind: 'redirect', location: '/admin' }
     // Website pages are not served on the admin host.
     if (settings.siteUrl) {
@@ -59,7 +65,7 @@ export function decideHost(request: HostRequest, settings: HostSettings): HostDe
     return { kind: 'notFound' }
   }
 
-  if (isAdminPath(path)) return { kind: 'notFound' }
+  if (isAdminPath(path) || isPreviewPath(path)) return { kind: 'notFound' }
   if (isApiPath(path)) return isPublicFile(method, path) ? { kind: 'admin' } : { kind: 'notFound' }
   return { kind: 'site' }
 }

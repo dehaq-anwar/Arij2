@@ -87,35 +87,17 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   // translation). The free-text list of CC-1 (control-center-settings) is replaced by them; it
   // was never used in production. No purpose exists yet, so exports stay off until the
   // association approves one.
+  // Plain SQL, not the Local API: a migration must not depend on collections added later.
   for (const basis of LEGAL_BASES) {
-    const doc = await payload.create({
-      collection: 'legal-bases',
-      locale: 'de',
-      data: {
-        code: basis.code,
-        title: basis.title.de,
-        article: basis.article.de,
-        wording: basis.wording.de,
-        explanation: basis.explanation.de,
-        available: true,
-      },
-      context: { disableRevalidate: true },
-      req,
-    })
-    for (const locale of ['en', 'ar'] as const) {
-      await payload.update({
-        collection: 'legal-bases',
-        id: doc.id,
-        locale,
-        data: {
-          title: basis.title[locale],
-          article: basis.article[locale],
-          wording: basis.wording[locale],
-          explanation: basis.explanation[locale],
-        },
-        context: { disableRevalidate: true },
-        req,
-      })
+    const inserted = await db.execute(sql`
+      INSERT INTO "legal_bases" ("code", "available") VALUES (${basis.code}, true) RETURNING "id"`)
+    const id = (inserted as unknown as { rows: { id: number }[] }).rows[0]!.id
+    for (const locale of ['de', 'en', 'ar'] as const) {
+      await db.execute(sql`
+        INSERT INTO "legal_bases_locales"
+          ("title", "article", "wording", "explanation", "_locale", "_parent_id")
+        VALUES (${basis.title[locale]}, ${basis.article[locale]}, ${basis.wording[locale]},
+          ${basis.explanation[locale]}, ${locale}, ${id})`)
     }
   }
 }

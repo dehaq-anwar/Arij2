@@ -3,7 +3,8 @@ import type { ComponentProps } from 'react'
 import { Link } from '@/i18n/navigation'
 import { prefetchFor } from '@/lib/navigation'
 
-type Variant = 'primary' | 'secondary' | 'light' | 'glass'
+export type ButtonVariant = 'primary' | 'secondary' | 'light' | 'glass'
+type Variant = ButtonVariant
 type Props = ComponentProps<typeof Link> & { variant?: Variant; arrow?: boolean }
 
 const base =
@@ -23,6 +24,27 @@ const variants: Record<Variant, string> = {
 const arrowClass =
   'size-4 transition-transform duration-300 group-hover/button:translate-x-1 rtl:-scale-x-100 rtl:group-hover/button:-translate-x-1' // logical-css-ok: mirrored with rtl:
 
+/** The classes of a button, for links that are not internal pages (e-mail, other websites). */
+export const buttonClass = (variant: Variant = 'primary', className = '') =>
+  `${base} ${variants[variant]} ${className}`
+
+export function ButtonArrow() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={arrowClass}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 12h15M13 6l6 6-6 6" />
+    </svg>
+  )
+}
+
 /** Pill-shaped link button. The optional arrow points in reading direction (mirrored in Arabic). */
 export function ButtonLink({
   variant = 'primary',
@@ -32,26 +54,9 @@ export function ButtonLink({
   ...props
 }: Props) {
   return (
-    <Link
-      prefetch={prefetchFor(props.href)}
-      {...props}
-      className={`${base} ${variants[variant]} ${className}`}
-    >
+    <Link prefetch={prefetchFor(props.href)} {...props} className={buttonClass(variant, className)}>
       {children}
-      {arrow ? (
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className={arrowClass}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 12h15M13 6l6 6-6 6" />
-        </svg>
-      ) : null}
+      {arrow ? <ButtonArrow /> : null}
     </Link>
   )
 }

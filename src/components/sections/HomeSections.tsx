@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 
+import { BlockButtons, type LinkValue } from '@/components/blocks/BlockButton'
 import { NewsCard } from '@/components/cards/NewsCard'
 import { ProjectCard } from '@/components/cards/ProjectCard'
 import { Reveal } from '@/components/motion/Reveal'
@@ -39,7 +40,13 @@ async function SectionHead({
  * Projects as images with titles. Five fill a mosaic on large screens (one large tile, four
  * small); on phones they become a row to swipe through.
  */
-export async function ProjectShowcase({ projects }: { projects: Localized<Project>[] }) {
+export async function ProjectShowcase({
+  projects,
+  heading,
+}: {
+  projects: Localized<Project>[]
+  heading?: string | null
+}) {
   if (!projects.length) return null
   const nav = await getTranslations('Navigation')
   const t = await getTranslations('Common')
@@ -48,7 +55,7 @@ export async function ProjectShowcase({ projects }: { projects: Localized<Projec
     <section className="bg-canvas py-24 sm:py-32">
       <Container>
         <SectionHead
-          title={nav('projects')}
+          title={heading || nav('projects')}
           link={{ href: '/projects', label: t('allProjects') }}
         />
       </Container>
@@ -70,15 +77,23 @@ export async function ProjectShowcase({ projects }: { projects: Localized<Projec
 }
 
 /** The four focus areas: icon and name only. */
-export async function FocusAreasSection({ areas }: { areas: FocusArea[] }) {
+export async function FocusAreasSection({
+  areas,
+  heading,
+  id = 'focus-heading',
+}: {
+  areas: FocusArea[]
+  heading?: string | null
+  id?: string
+}) {
   if (!areas.length) return null
   const t = await getTranslations('Home')
   return (
-    <section aria-labelledby="focus-heading" className="bg-surface-sky/60 py-24 sm:py-32">
+    <section aria-labelledby={id} className="bg-surface-sky/60 py-24 sm:py-32">
       <Container>
         <Reveal variant="slide-start">
-          <h2 id="focus-heading" className="text-heading">
-            {t('focusHeading')}
+          <h2 id={id} className="text-heading">
+            {heading || t('focusHeading')}
           </h2>
         </Reveal>
         <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
@@ -142,14 +157,23 @@ export async function StatsSection({
 }
 
 /** Shown only when posts exist: the home page never shows an empty "no news" box. */
-export async function LatestNewsSection({ posts }: { posts: Localized<News>[] }) {
+export async function LatestNewsSection({
+  posts,
+  heading,
+}: {
+  posts: Localized<News>[]
+  heading?: string | null
+}) {
   if (!posts.length) return null
   const t = await getTranslations('Home')
   const common = await getTranslations('Common')
   return (
     <section className="bg-canvas py-24 sm:py-32">
       <Container>
-        <SectionHead title={t('newsHeading')} link={{ href: '/news', label: common('allNews') }} />
+        <SectionHead
+          title={heading || t('newsHeading')}
+          link={{ href: '/news', label: common('allNews') }}
+        />
         <Stagger className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">
           {posts.map(({ doc, translated }) => (
             <NewsCard key={doc.id} post={doc} translated={translated} />
@@ -160,8 +184,15 @@ export async function LatestNewsSection({ posts }: { posts: Localized<News>[] })
   )
 }
 
-/** Closing night band before the footer: one heading, two ways to take part. */
-export async function CallToAction({ heading }: { heading?: string | null }) {
+/** Closing night band before the footer: one heading, ways to take part. */
+export async function CallToAction({
+  heading,
+  buttons,
+}: {
+  heading?: string | null
+  /** The page builder's buttons; without them, the three usual ways in. */
+  buttons?: LinkValue[] | null
+}) {
   const nav = await getTranslations('Navigation')
   return (
     <section
@@ -172,17 +203,21 @@ export async function CallToAction({ heading }: { heading?: string | null }) {
       <Container className="py-28 text-center sm:py-36">
         <Reveal>
           {heading ? <h2 className="text-title">{heading}</h2> : null}
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <ButtonLink href="/membership" variant="light" arrow>
-              {nav('membership')}
-            </ButtonLink>
-            <ButtonLink href="/support" variant="glass">
-              {nav('support')}
-            </ButtonLink>
-            <ButtonLink href="/contact" variant="glass">
-              {nav('contact')}
-            </ButtonLink>
-          </div>
+          {buttons ? (
+            <BlockButtons buttons={buttons} surface="night" className="mt-10 justify-center" />
+          ) : (
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              <ButtonLink href="/membership" variant="light" arrow>
+                {nav('membership')}
+              </ButtonLink>
+              <ButtonLink href="/support" variant="glass">
+                {nav('support')}
+              </ButtonLink>
+              <ButtonLink href="/contact" variant="glass">
+                {nav('contact')}
+              </ButtonLink>
+            </div>
+          )}
         </Reveal>
       </Container>
     </section>

@@ -14,7 +14,8 @@ type Props = {
   title: string
   /** Language of the title/lead when the item is not translated (German fallback). */
   lang?: string
-  back: { href: '/projects' | '/news'; label: string }
+  /** The way back to the list (projects, news); pages of the page builder have none. */
+  back?: { href: '/projects' | '/news' | '/events'; label: string }
   eyebrow?: ReactNode
   children?: ReactNode
 }
@@ -44,24 +45,26 @@ export async function MediaHero({ image, title, lang, back, eyebrow, children }:
         className="absolute inset-0 -z-10 bg-linear-to-t from-night via-night/45 to-night/30"
       />
       <Container className="pt-[calc(var(--header-h)+1.5rem)]">
-        <Link
-          href={back.href}
-          className="glass inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm text-on-night no-underline hover:text-on-night"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="size-4 rtl:-scale-x-100"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {back ? (
+          <Link
+            href={back.href}
+            className="glass inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-sm text-on-night no-underline hover:text-on-night"
           >
-            <path d="M20 12H5M11 6l-6 6 6 6" />
-          </svg>
-          {back.label}
-        </Link>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-4 rtl:-scale-x-100"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 12H5M11 6l-6 6 6 6" />
+            </svg>
+            {back.label}
+          </Link>
+        ) : null}
       </Container>
       <Container className="mt-auto pt-24 pb-14 sm:pb-20">
         {eyebrow || pending ? (

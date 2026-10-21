@@ -12,6 +12,7 @@ import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { HeadingFeatureClient as HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ParagraphFeatureClient as ParagraphFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { SearchPreview as SearchPreview_64299c02e334bd20d73c74a48076f907 } from '../../../cms/admin/seo/SearchPreview'
 import { ApplicationPanel as ApplicationPanel_ab37b3f0bcee99d9b530aa883d1e0cd0 } from '../../../cms/admin/membership/CasePanel'
 import { AssigneeCell as AssigneeCell_ae029eaa55b27654b52c281ebec872e1 } from '../../../cms/admin/membership/AssigneeCell'
 import { AssigneeField as AssigneeField_4500e1ac351d2340dba5866d1d6f086f } from '../../../cms/admin/membership/AssigneeField'
@@ -55,6 +56,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#HeadingFeatureClient": HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ParagraphFeatureClient": ParagraphFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "/cms/admin/seo/SearchPreview#SearchPreview": SearchPreview_64299c02e334bd20d73c74a48076f907,
   "/cms/admin/membership/CasePanel#ApplicationPanel": ApplicationPanel_ab37b3f0bcee99d9b530aa883d1e0cd0,
   "/cms/admin/membership/AssigneeCell#AssigneeCell": AssigneeCell_ae029eaa55b27654b52c281ebec872e1,
   "/cms/admin/membership/AssigneeField#AssigneeField": AssigneeField_4500e1ac351d2340dba5866d1d6f086f,

@@ -1997,3 +1997,45 @@ html[data-yop-content-language='off'] .app-header__localizer {
     transform: none;
   }
 }
+
+/* Search preview in the "Search engines & sharing" group (src/cms/admin/seo). */
+.yop-search-preview {
+  margin-block-end: var(--base);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 12px;
+  background: var(--theme-elevation-0);
+}
+.yop-search-preview p {
+  margin: 0;
+}
+.yop-search-preview__label,
+.yop-search-preview__counts {
+  font-size: 0.8125rem;
+  color: var(--theme-elevation-600);
+}
+.yop-search-preview__result {
+  margin-block: 0.6rem;
+  max-inline-size: 38rem;
+}
+.yop-search-preview__url {
+  font-size: 0.8125rem;
+  color: var(--theme-elevation-700);
+}
+.yop-search-preview__title {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  color: #1a4fa0;
+}
+html[data-theme='dark'] .yop-search-preview__title {
+  color: #8ab4f8;
+}
+.yop-search-preview__description {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--theme-elevation-800);
+}
+.yop-search-preview__hidden {
+  margin-block: 0.6rem !important;
+  font-weight: 500;
+}

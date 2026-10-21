@@ -8,8 +8,11 @@ import type { IconName } from '../icons'
 import { NavClient, type NavGroupData, type NavItemData } from './NavClient'
 
 const COLLECTION_ICONS: Record<string, IconName> = {
+  pages: 'pages',
   projects: 'projects',
   news: 'news',
+  events: 'calendar',
+  redirects: 'arrow',
   'focus-areas': 'focus',
   'team-members': 'team',
   statistics: 'chart',
@@ -31,6 +34,7 @@ const GROUPS = [
     collections: [
       'projects',
       'news',
+      'events',
       'focus-areas',
       'team-members',
       'statistics',
@@ -38,7 +42,8 @@ const GROUPS = [
       'media',
     ],
   },
-  { key: 'pages', globals: true },
+  // The page builder's pages, then the site-wide texts (menu, forms, legal pages, settings).
+  { key: 'pages', collections: ['pages'], globals: true, after: ['redirects'] },
   {
     key: 'association',
     collections: [
@@ -52,6 +57,14 @@ const GROUPS = [
   },
   { key: 'security', collections: ['users', 'audit-log'] },
 ] as const
+
+const GLOBAL_ICONS: Record<string, IconName> = {
+  navigation: 'menu',
+  'form-texts': 'check',
+  'legal-notice': 'info',
+  'privacy-policy': 'shield',
+  'site-settings': 'settings',
+}
 
 /** Globals that are settings of the Control Center, not page texts of the website. */
 const SETTINGS_GLOBALS: string[] = ['control-center-settings']
@@ -117,30 +130,35 @@ export async function Nav(props: Props) {
       ],
     },
   ]
+  const collectionItems = (slugs: readonly string[]): NavItemData[] =>
+    slugs.filter(readable).map((slug) => {
+      const collection = payload.collections[slug as keyof typeof payload.collections]?.config
+      return {
+        id: `nav-${slug}`,
+        href: `/admin/collections/${slug}`,
+        label: getTranslation(collection?.labels?.plural ?? slug, i18n),
+        icon: COLLECTION_ICONS[slug] ?? 'pages',
+        badge: counts[slug] || undefined,
+      }
+    })
   for (const group of GROUPS) {
-    const items: NavItemData[] =
-      'globals' in group
-        ? payload.config.globals
-            .filter(
-              (global) =>
-                visible.globals.includes(global.slug) && !SETTINGS_GLOBALS.includes(global.slug),
-            )
-            .map((global) => ({
-              id: `nav-global-${global.slug}`,
-              href: `/admin/globals/${global.slug}`,
-              label: getTranslation(global.label, i18n),
-              icon: 'pages' as IconName,
-            }))
-        : group.collections.filter(readable).map((slug) => {
-            const collection = payload.collections[slug as keyof typeof payload.collections]?.config
-            return {
-              id: `nav-${slug}`,
-              href: `/admin/collections/${slug}`,
-              label: getTranslation(collection?.labels?.plural ?? slug, i18n),
-              icon: COLLECTION_ICONS[slug] ?? 'pages',
-              badge: counts[slug] || undefined,
-            }
-          })
+    const items: NavItemData[] = collectionItems(group.collections)
+    if ('globals' in group) {
+      items.push(
+        ...payload.config.globals
+          .filter(
+            (global) =>
+              visible.globals.includes(global.slug) && !SETTINGS_GLOBALS.includes(global.slug),
+          )
+          .map((global) => ({
+            id: `nav-global-${global.slug}`,
+            href: `/admin/globals/${global.slug}`,
+            label: getTranslation(global.label, i18n),
+            icon: GLOBAL_ICONS[global.slug] ?? ('pages' as IconName),
+          })),
+        ...collectionItems(group.after),
+      )
+    }
     if (group.key === 'association' && can(person, 'personalData.export')) {
       const at = items.findIndex((item) => item.id === 'nav-exports')
       items.splice(at === -1 ? items.length : at, 0, {

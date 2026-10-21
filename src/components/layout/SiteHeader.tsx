@@ -1,8 +1,10 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
 
-import { ButtonLink } from '@/components/ui/ButtonLink'
+import { ButtonLink, buttonClass } from '@/components/ui/ButtonLink'
 import { Container } from '@/components/ui/Container'
-import { membershipLink } from '@/lib/navigation'
+import type { Locale } from '@/i18n/routing'
+import { getMenu } from '@/lib/cms/navigation'
+import type { Href } from '@/lib/links'
 
 import { HeaderShell } from './HeaderShell'
 import { LanguageSwitcher } from './LanguageSwitcher'
@@ -11,7 +13,9 @@ import { MainNav } from './MainNav'
 import { MobileMenu } from './MobileMenu'
 
 export async function SiteHeader() {
-  const t = await getTranslations('Navigation')
+  const { main, cta } = await getMenu((await getLocale()) as Locale)
+  const ctaClass =
+    'min-h-11 px-5 py-2 group-data-[tone=day]/header:bg-accent group-data-[tone=day]/header:text-on-accent group-data-[tone=night]/header:bg-on-night group-data-[tone=night]/header:text-night'
 
   return (
     <HeaderShell>
@@ -21,17 +25,20 @@ export async function SiteHeader() {
       </Container>
       <Container className="flex h-16 items-center gap-4 lg:h-[4.75rem]">
         <Logo />
-        <MainNav className="ms-auto hidden lg:block" />
+        <MainNav items={main} className="ms-auto hidden lg:block" />
         {/* Own wrapper: ButtonLink sets display itself, so "hidden" on it would not win. */}
         <div className="hidden lg:block">
-          <ButtonLink
-            href={membershipLink.href}
-            className="min-h-11 px-5 py-2 group-data-[tone=day]/header:bg-accent group-data-[tone=day]/header:text-on-accent group-data-[tone=night]/header:bg-on-night group-data-[tone=night]/header:text-night"
-          >
-            {t(membershipLink.key)}
-          </ButtonLink>
+          {cta.external ? (
+            <a href={cta.href as string} className={buttonClass('primary', ctaClass)}>
+              {cta.label}
+            </a>
+          ) : (
+            <ButtonLink href={cta.href as Href} className={ctaClass}>
+              {cta.label}
+            </ButtonLink>
+          )}
         </div>
-        <MobileMenu className="ms-auto lg:hidden" ctaLabel={t(membershipLink.key)} />
+        <MobileMenu className="ms-auto lg:hidden" items={main} cta={cta} />
       </Container>
     </HeaderShell>
   )

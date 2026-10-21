@@ -1,5 +1,8 @@
 import type { GlobalSlug, Payload } from 'payload'
 
+import { ensureFormTexts } from '../globals/FormTexts'
+import { ensureNavigation } from '../globals/Navigation'
+import { ensureSystemPages } from '../pages/system-pages'
 import { placeholderArtwork } from './artwork'
 import * as content from './content'
 import { paragraphs } from './lexical'
@@ -171,4 +174,9 @@ export async function seed(payload: Payload, options: Options = {}) {
   await seedGlobal(payload, 'privacy-policy', content.privacyPolicy, options)
   await seedFocusAreas(payload, options)
   await seedPlaceholderProjects(payload, options)
+  // The page builder's fixed pages and the form texts, from the texts above (CC-2). Existing
+  // pages are never touched, also not with --force.
+  if (await ensureFormTexts(payload)) options.log?.('+ form-texts: taken from the page texts')
+  if (await ensureNavigation(payload)) options.log?.('+ navigation: the usual menu')
+  await ensureSystemPages(payload, { log: options.log })
 }

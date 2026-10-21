@@ -67,8 +67,11 @@ export interface Config {
   };
   blocks: {};
   collections: {
+    pages: Page;
     projects: Project;
     news: News;
+    events: Event;
+    redirects: Redirect;
     'focus-areas': FocusArea;
     'team-members': TeamMember;
     statistics: Statistic;
@@ -96,8 +99,11 @@ export interface Config {
   };
   collectionsJoins: {};
   collectionsSelect: {
+    pages: PagesSelect<false> | PagesSelect<true>;
     projects: ProjectsSelect<false> | ProjectsSelect<true>;
     news: NewsSelect<false> | NewsSelect<true>;
+    events: EventsSelect<false> | EventsSelect<true>;
+    redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     'focus-areas': FocusAreasSelect<false> | FocusAreasSelect<true>;
     'team-members': TeamMembersSelect<false> | TeamMembersSelect<true>;
     statistics: StatisticsSelect<false> | StatisticsSelect<true>;
@@ -133,6 +139,8 @@ export interface Config {
     'membership-page': MembershipPage;
     'support-page': SupportPage;
     'contact-page': ContactPage;
+    navigation: Navigation;
+    'form-texts': FormText;
     'legal-notice': LegalNotice;
     'privacy-policy': PrivacyPolicy;
     'site-settings': SiteSetting;
@@ -145,6 +153,8 @@ export interface Config {
     'membership-page': MembershipPageSelect<false> | MembershipPageSelect<true>;
     'support-page': SupportPageSelect<false> | SupportPageSelect<true>;
     'contact-page': ContactPageSelect<false> | ContactPageSelect<true>;
+    navigation: NavigationSelect<false> | NavigationSelect<true>;
+    'form-texts': FormTextsSelect<false> | FormTextsSelect<true>;
     'legal-notice': LegalNoticeSelect<false> | LegalNoticeSelect<true>;
     'privacy-policy': PrivacyPolicySelect<false> | PrivacyPolicySelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
@@ -163,6 +173,7 @@ export interface Config {
       'audit-retention': TaskAuditRetention;
       'membership-reminders': TaskMembershipReminders;
       'notifications-retention': TaskNotificationsRetention;
+      schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
         output: unknown;
@@ -190,43 +201,52 @@ export interface UserAuthOperations {
   };
 }
 /**
+ * Pages built from the design’s building blocks: add, order and fill blocks with texts and images. Drafts are visible only after "Publish".
+ *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "projects".
+ * via the `definition` "pages".
  */
-export interface Project {
+export interface Page {
   id: number;
   title: string;
   /**
-   * Generated from the title when left empty. Shared by all languages.
+   * Address of the page (the same in all languages). Generated from the title when left empty.
    */
-  slug: string;
+  slug?: string | null;
   /**
-   * Shown in the project list and in search engines.
+   * Part of the fixed structure of the website: address and form stay, it cannot be deleted.
    */
-  excerpt: string;
-  stage?: ('planned' | 'ongoing' | 'completed') | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  location?: string | null;
-  focusAreas?: (number | FocusArea)[] | null;
-  coverImage?: (number | null) | Media;
-  body?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  gallery?: (number | Media)[] | null;
-  partners?: (number | Partner)[] | null;
+  systemKey?: ('home' | 'about' | 'membership' | 'support' | 'contact') | null;
+  /**
+   * Each block is a section in the design of the website. Drag to reorder; the preview shows the result.
+   */
+  layout: (
+    | HeaderBlock
+    | HeroBlock
+    | MediaHeaderBlock
+    | TextBlock
+    | CardsBlock
+    | ImageTextBlock
+    | StatementBlock
+    | QuoteBlock
+    | FaqBlock
+    | GalleryBlock
+    | TimelineBlock
+    | ValuesBlock
+    | JourneyBlock
+    | NightBandBlock
+    | CallToActionBlock
+    | DonationBlock
+    | ProjectsBlock
+    | NewsBlock
+    | EventsBlock
+    | FocusAreasBlock
+    | StatsBlock
+    | BoardBlock
+    | PartnersBlock
+    | MembershipFormBlock
+    | ContactFormBlock
+  )[];
   publishedAt?: string | null;
   /**
    * Optional. When empty, the title and summary are used.
@@ -234,7 +254,14 @@ export interface Project {
   seo?: {
     metaTitle?: string | null;
     metaDescription?: string | null;
+    /**
+     * Shown when the page is shared in messengers or social networks. If empty: the cover image.
+     */
     ogImage?: (number | null) | Media;
+    /**
+     * The page stays reachable but is left out of search results and the sitemap.
+     */
+    noIndex?: boolean | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -242,16 +269,73 @@ export interface Project {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "focus-areas".
+ * via the `definition` "HeaderBlock".
  */
-export interface FocusArea {
-  id: number;
-  title: string;
-  summary: string;
-  icon: 'youth' | 'peace' | 'integration' | 'entrepreneurship' | 'education' | 'community';
-  order?: number | null;
-  updatedAt: string;
-  createdAt: string;
+export interface HeaderBlock {
+  /**
+   * Leave empty to show the title of the page.
+   */
+  title?: string | null;
+  lead?: string | null;
+  showTagline?: boolean | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'header';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock".
+ */
+export interface HeroBlock {
+  /**
+   * The large stage of the home page (only possible there).
+   */
+  headline: string;
+  showTagline?: boolean | null;
+  /**
+   * The first button is the main one and is highlighted.
+   */
+  buttons?:
+    | {
+        label: string;
+        kind: 'route' | 'page' | 'url';
+        route?:
+          | (
+              | '/'
+              | '/about'
+              | '/projects'
+              | '/news'
+              | '/events'
+              | '/membership'
+              | '/support'
+              | '/contact'
+              | '/legal-notice'
+              | '/privacy'
+            )
+          | null;
+        page?: (number | null) | Page;
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'hero';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "MediaHeaderBlock".
+ */
+export interface MediaHeaderBlock {
+  image: number | Media;
+  /**
+   * Leave empty to show the title of the page.
+   */
+  title?: string | null;
+  lead?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'mediaHeader';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -327,6 +411,607 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TextBlock".
+ */
+export interface TextBlock {
+  heading?: string | null;
+  body: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  surface: 'canvas' | 'sky';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'text';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CardsBlock".
+ */
+export interface CardsBlock {
+  heading?: string | null;
+  intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  numbered?: boolean | null;
+  items: {
+    heading?: string | null;
+    text?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    icon?: ('youth' | 'peace' | 'integration' | 'entrepreneurship' | 'education' | 'community') | null;
+    buttons?:
+      | {
+          label: string;
+          kind: 'route' | 'page' | 'url';
+          route?:
+            | (
+                | '/'
+                | '/about'
+                | '/projects'
+                | '/news'
+                | '/events'
+                | '/membership'
+                | '/support'
+                | '/contact'
+                | '/legal-notice'
+                | '/privacy'
+              )
+            | null;
+          page?: (number | null) | Page;
+          url?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    id?: string | null;
+  }[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'cards';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ImageTextBlock".
+ */
+export interface ImageTextBlock {
+  image: number | Media;
+  heading?: string | null;
+  body: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * "At the start" is on the left in German and English, on the right in Arabic.
+   */
+  imagePosition: 'start' | 'end';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'imageText';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "StatementBlock".
+ */
+export interface StatementBlock {
+  statement?: string | null;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'statement';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "QuoteBlock".
+ */
+export interface QuoteBlock {
+  quote: string;
+  /**
+   * Name people only with their consent.
+   */
+  attribution?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'quote';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FaqBlock".
+ */
+export interface FaqBlock {
+  heading?: string | null;
+  items: {
+    question: string;
+    answer: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    };
+    id?: string | null;
+  }[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'faq';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "GalleryBlock".
+ */
+export interface GalleryBlock {
+  heading?: string | null;
+  images: (number | Media)[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'gallery';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TimelineBlock".
+ */
+export interface TimelineBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  entries: {
+    year?: number | null;
+    title: string;
+    text?: string | null;
+    id?: string | null;
+  }[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'timeline';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ValuesBlock".
+ */
+export interface ValuesBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  items: {
+    title: string;
+    description?: string | null;
+    id?: string | null;
+  }[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'values';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "JourneyBlock".
+ */
+export interface JourneyBlock {
+  /**
+   * Two short lines: while scrolling, night turns to day from the first to the second.
+   */
+  from: string;
+  to: string;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'journey';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NightBandBlock".
+ */
+export interface NightBandBlock {
+  heading: string;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * The first button is the main one and is highlighted.
+   */
+  buttons?:
+    | {
+        label: string;
+        kind: 'route' | 'page' | 'url';
+        route?:
+          | (
+              | '/'
+              | '/about'
+              | '/projects'
+              | '/news'
+              | '/events'
+              | '/membership'
+              | '/support'
+              | '/contact'
+              | '/legal-notice'
+              | '/privacy'
+            )
+          | null;
+        page?: (number | null) | Page;
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'nightBand';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CallToActionBlock".
+ */
+export interface CallToActionBlock {
+  heading?: string | null;
+  /**
+   * The first button is the main one and is highlighted.
+   */
+  buttons?:
+    | {
+        label: string;
+        kind: 'route' | 'page' | 'url';
+        route?:
+          | (
+              | '/'
+              | '/about'
+              | '/projects'
+              | '/news'
+              | '/events'
+              | '/membership'
+              | '/support'
+              | '/contact'
+              | '/legal-notice'
+              | '/privacy'
+            )
+          | null;
+        page?: (number | null) | Page;
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'callToAction';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "DonationBlock".
+ */
+export interface DonationBlock {
+  heading?: string | null;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  accountHolder?: string | null;
+  bankName?: string | null;
+  iban?: string | null;
+  bic?: string | null;
+  reference?: string | null;
+  /**
+   * Fill in only with a status confirmed by the tax office. No statements on deductibility without a notice.
+   */
+  taxStatusNote?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'donation';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProjectsBlock".
+ */
+export interface ProjectsBlock {
+  /**
+   * Shows the latest published projects as images. Leave empty for "Projects".
+   */
+  heading?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'projects';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NewsBlock".
+ */
+export interface NewsBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  count: '3' | '6';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'news';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "EventsBlock".
+ */
+export interface EventsBlock {
+  /**
+   * Shows the next published events; without upcoming dates the section does not appear.
+   */
+  heading?: string | null;
+  count: '2' | '4';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'events';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FocusAreasBlock".
+ */
+export interface FocusAreasBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  variant: 'names' | 'details';
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'focusAreas';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "StatsBlock".
+ */
+export interface StatsBlock {
+  /**
+   * The section only appears when statistics exist.
+   */
+  heading?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'stats';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "BoardBlock".
+ */
+export interface BoardBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  intro?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'board';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PartnersBlock".
+ */
+export interface PartnersBlock {
+  /**
+   * Leave empty for the usual heading of this section.
+   */
+  heading?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'partners';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "MembershipFormBlock".
+ */
+export interface MembershipFormBlock {
+  /**
+   * The application form itself. The declarations in the form are under "Form texts".
+   */
+  heading?: string | null;
+  note?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'membershipForm';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ContactFormBlock".
+ */
+export interface ContactFormBlock {
+  /**
+   * E-mail, phone and address come from the site settings; the contact form is next to them.
+   */
+  intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  officeHours?: string | null;
+  showEmail?: boolean | null;
+  showPhone?: boolean | null;
+  showAddress?: boolean | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'contactForm';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "projects".
+ */
+export interface Project {
+  id: number;
+  title: string;
+  /**
+   * Generated from the title when left empty. Shared by all languages.
+   */
+  slug: string;
+  /**
+   * Shown in the project list and in search engines.
+   */
+  excerpt: string;
+  stage?: ('planned' | 'ongoing' | 'completed') | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  location?: string | null;
+  focusAreas?: (number | FocusArea)[] | null;
+  coverImage?: (number | null) | Media;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  gallery?: (number | Media)[] | null;
+  partners?: (number | Partner)[] | null;
+  publishedAt?: string | null;
+  /**
+   * Optional. When empty, the title and summary are used.
+   */
+  seo?: {
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+    /**
+     * Shown when the page is shared in messengers or social networks. If empty: the cover image.
+     */
+    ogImage?: (number | null) | Media;
+    /**
+     * The page stays reachable but is left out of search results and the sitemap.
+     */
+    noIndex?: boolean | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "focus-areas".
+ */
+export interface FocusArea {
+  id: number;
+  title: string;
+  summary: string;
+  icon: 'youth' | 'peace' | 'integration' | 'entrepreneurship' | 'education' | 'community';
+  order?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "partners".
  */
 export interface Partner {
@@ -376,11 +1061,111 @@ export interface News {
   seo?: {
     metaTitle?: string | null;
     metaDescription?: string | null;
+    /**
+     * Shown when the page is shared in messengers or social networks. If empty: the cover image.
+     */
     ogImage?: (number | null) | Media;
+    /**
+     * The page stays reachable but is left out of search results and the sitemap.
+     */
+    noIndex?: boolean | null;
   };
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events".
+ */
+export interface Event {
+  id: number;
+  title: string;
+  /**
+   * Generated from the title when left empty. Shared by all languages.
+   */
+  slug: string;
+  excerpt: string;
+  startsAt: string;
+  endsAt?: string | null;
+  /**
+   * E.g. "Community hall, Musterstraße 1, Kiel" or "Online".
+   */
+  location?: string | null;
+  registrationUrl?: string | null;
+  coverImage?: (number | null) | Media;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  publishedAt?: string | null;
+  /**
+   * Optional. When empty, the title and summary are used.
+   */
+  seo?: {
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+    /**
+     * Shown when the page is shared in messengers or social networks. If empty: the cover image.
+     */
+    ogImage?: (number | null) | Media;
+    /**
+     * The page stays reachable but is left out of search results and the sitemap.
+     */
+    noIndex?: boolean | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * Forwards old addresses, e.g. after a page was renamed. Applies only where there is no page otherwise.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "redirects".
+ */
+export interface Redirect {
+  id: number;
+  /**
+   * The path only, with the language if needed: /old-page, /en/old-page, /ar/old-page.
+   */
+  from: string;
+  to: {
+    kind: 'route' | 'page' | 'url';
+    route?:
+      | (
+          | '/'
+          | '/about'
+          | '/projects'
+          | '/news'
+          | '/events'
+          | '/membership'
+          | '/support'
+          | '/contact'
+          | '/legal-notice'
+          | '/privacy'
+        )
+      | null;
+    page?: (number | null) | Page;
+    url?: string | null;
+  };
+  /**
+   * Permanent: search engines take over the new address. Temporary: only for a while.
+   */
+  permanent?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -972,7 +1757,8 @@ export interface PayloadJob {
           | 'auth-cleanup'
           | 'audit-retention'
           | 'membership-reminders'
-          | 'notifications-retention';
+          | 'notifications-retention'
+          | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1006,7 +1792,15 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | ('inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders' | 'notifications-retention')
+    | (
+        | 'inline'
+        | 'retention'
+        | 'auth-cleanup'
+        | 'audit-retention'
+        | 'membership-reminders'
+        | 'notifications-retention'
+        | 'schedulePublish'
+      )
     | null;
   queue?: string | null;
   waitUntil?: string | null;
@@ -1031,12 +1825,24 @@ export interface PayloadLockedDocument {
   id: number;
   document?:
     | ({
+        relationTo: 'pages';
+        value: number | Page;
+      } | null)
+    | ({
         relationTo: 'projects';
         value: number | Project;
       } | null)
     | ({
         relationTo: 'news';
         value: number | News;
+      } | null)
+    | ({
+        relationTo: 'events';
+        value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'redirects';
+        value: number | Redirect;
       } | null)
     | ({
         relationTo: 'focus-areas';
@@ -1130,6 +1936,384 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  systemKey?: T;
+  layout?:
+    | T
+    | {
+        header?: T | HeaderBlockSelect<T>;
+        hero?: T | HeroBlockSelect<T>;
+        mediaHeader?: T | MediaHeaderBlockSelect<T>;
+        text?: T | TextBlockSelect<T>;
+        cards?: T | CardsBlockSelect<T>;
+        imageText?: T | ImageTextBlockSelect<T>;
+        statement?: T | StatementBlockSelect<T>;
+        quote?: T | QuoteBlockSelect<T>;
+        faq?: T | FaqBlockSelect<T>;
+        gallery?: T | GalleryBlockSelect<T>;
+        timeline?: T | TimelineBlockSelect<T>;
+        values?: T | ValuesBlockSelect<T>;
+        journey?: T | JourneyBlockSelect<T>;
+        nightBand?: T | NightBandBlockSelect<T>;
+        callToAction?: T | CallToActionBlockSelect<T>;
+        donation?: T | DonationBlockSelect<T>;
+        projects?: T | ProjectsBlockSelect<T>;
+        news?: T | NewsBlockSelect<T>;
+        events?: T | EventsBlockSelect<T>;
+        focusAreas?: T | FocusAreasBlockSelect<T>;
+        stats?: T | StatsBlockSelect<T>;
+        board?: T | BoardBlockSelect<T>;
+        partners?: T | PartnersBlockSelect<T>;
+        membershipForm?: T | MembershipFormBlockSelect<T>;
+        contactForm?: T | ContactFormBlockSelect<T>;
+      };
+  publishedAt?: T;
+  seo?:
+    | T
+    | {
+        metaTitle?: T;
+        metaDescription?: T;
+        ogImage?: T;
+        noIndex?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeaderBlock_select".
+ */
+export interface HeaderBlockSelect<T extends boolean = true> {
+  title?: T;
+  lead?: T;
+  showTagline?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock_select".
+ */
+export interface HeroBlockSelect<T extends boolean = true> {
+  headline?: T;
+  showTagline?: T;
+  buttons?:
+    | T
+    | {
+        label?: T;
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "MediaHeaderBlock_select".
+ */
+export interface MediaHeaderBlockSelect<T extends boolean = true> {
+  image?: T;
+  title?: T;
+  lead?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TextBlock_select".
+ */
+export interface TextBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  surface?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CardsBlock_select".
+ */
+export interface CardsBlockSelect<T extends boolean = true> {
+  heading?: T;
+  intro?: T;
+  numbered?: T;
+  items?:
+    | T
+    | {
+        heading?: T;
+        text?: T;
+        icon?: T;
+        buttons?:
+          | T
+          | {
+              label?: T;
+              kind?: T;
+              route?: T;
+              page?: T;
+              url?: T;
+              id?: T;
+            };
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ImageTextBlock_select".
+ */
+export interface ImageTextBlockSelect<T extends boolean = true> {
+  image?: T;
+  heading?: T;
+  body?: T;
+  imagePosition?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "StatementBlock_select".
+ */
+export interface StatementBlockSelect<T extends boolean = true> {
+  statement?: T;
+  body?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "QuoteBlock_select".
+ */
+export interface QuoteBlockSelect<T extends boolean = true> {
+  quote?: T;
+  attribution?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FaqBlock_select".
+ */
+export interface FaqBlockSelect<T extends boolean = true> {
+  heading?: T;
+  items?:
+    | T
+    | {
+        question?: T;
+        answer?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "GalleryBlock_select".
+ */
+export interface GalleryBlockSelect<T extends boolean = true> {
+  heading?: T;
+  images?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TimelineBlock_select".
+ */
+export interface TimelineBlockSelect<T extends boolean = true> {
+  heading?: T;
+  entries?:
+    | T
+    | {
+        year?: T;
+        title?: T;
+        text?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ValuesBlock_select".
+ */
+export interface ValuesBlockSelect<T extends boolean = true> {
+  heading?: T;
+  items?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "JourneyBlock_select".
+ */
+export interface JourneyBlockSelect<T extends boolean = true> {
+  from?: T;
+  to?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NightBandBlock_select".
+ */
+export interface NightBandBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  buttons?:
+    | T
+    | {
+        label?: T;
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CallToActionBlock_select".
+ */
+export interface CallToActionBlockSelect<T extends boolean = true> {
+  heading?: T;
+  buttons?:
+    | T
+    | {
+        label?: T;
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "DonationBlock_select".
+ */
+export interface DonationBlockSelect<T extends boolean = true> {
+  heading?: T;
+  body?: T;
+  accountHolder?: T;
+  bankName?: T;
+  iban?: T;
+  bic?: T;
+  reference?: T;
+  taxStatusNote?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProjectsBlock_select".
+ */
+export interface ProjectsBlockSelect<T extends boolean = true> {
+  heading?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "NewsBlock_select".
+ */
+export interface NewsBlockSelect<T extends boolean = true> {
+  heading?: T;
+  count?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "EventsBlock_select".
+ */
+export interface EventsBlockSelect<T extends boolean = true> {
+  heading?: T;
+  count?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "FocusAreasBlock_select".
+ */
+export interface FocusAreasBlockSelect<T extends boolean = true> {
+  heading?: T;
+  variant?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "StatsBlock_select".
+ */
+export interface StatsBlockSelect<T extends boolean = true> {
+  heading?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "BoardBlock_select".
+ */
+export interface BoardBlockSelect<T extends boolean = true> {
+  heading?: T;
+  intro?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PartnersBlock_select".
+ */
+export interface PartnersBlockSelect<T extends boolean = true> {
+  heading?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "MembershipFormBlock_select".
+ */
+export interface MembershipFormBlockSelect<T extends boolean = true> {
+  heading?: T;
+  note?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ContactFormBlock_select".
+ */
+export interface ContactFormBlockSelect<T extends boolean = true> {
+  intro?: T;
+  officeHours?: T;
+  showEmail?: T;
+  showPhone?: T;
+  showAddress?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "projects_select".
  */
 export interface ProjectsSelect<T extends boolean = true> {
@@ -1152,6 +2336,7 @@ export interface ProjectsSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        noIndex?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -1175,10 +2360,56 @@ export interface NewsSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        noIndex?: T;
       };
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events_select".
+ */
+export interface EventsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  excerpt?: T;
+  startsAt?: T;
+  endsAt?: T;
+  location?: T;
+  registrationUrl?: T;
+  coverImage?: T;
+  body?: T;
+  publishedAt?: T;
+  seo?:
+    | T
+    | {
+        metaTitle?: T;
+        metaDescription?: T;
+        ogImage?: T;
+        noIndex?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "redirects_select".
+ */
+export interface RedirectsSelect<T extends boolean = true> {
+  from?: T;
+  to?:
+    | T
+    | {
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+      };
+  permanent?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1990,6 +3221,80 @@ export interface ContactPage {
   createdAt?: string | null;
 }
 /**
+ * Menu at the top of every page and in the footer. Legal notice and privacy policy are always in the footer.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "navigation".
+ */
+export interface Navigation {
+  id: number;
+  main?:
+    | {
+        label: string;
+        kind: 'route' | 'page' | 'url';
+        route?:
+          | (
+              | '/'
+              | '/about'
+              | '/projects'
+              | '/news'
+              | '/events'
+              | '/membership'
+              | '/support'
+              | '/contact'
+              | '/legal-notice'
+              | '/privacy'
+            )
+          | null;
+        page?: (number | null) | Page;
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  cta: {
+    label: string;
+    kind: 'route' | 'page' | 'url';
+    route?:
+      | (
+          | '/'
+          | '/about'
+          | '/projects'
+          | '/news'
+          | '/events'
+          | '/membership'
+          | '/support'
+          | '/contact'
+          | '/legal-notice'
+          | '/privacy'
+        )
+      | null;
+    page?: (number | null) | Page;
+    url?: string | null;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * Wording of the declarations and consents in the forms. It is stored with every application and message. Please have changes legally reviewed; earlier wordings remain under "Versions".
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "form-texts".
+ */
+export interface FormText {
+  id: number;
+  membership?: {
+    principles?: string | null;
+    fees?: string | null;
+    guardian?: string | null;
+    consent?: string | null;
+  };
+  contact?: {
+    consent?: string | null;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * Mandatory information under § 5 DDG. The text is supplied by the association (have it legally reviewed).
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2250,6 +3555,56 @@ export interface ContactPageSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "navigation_select".
+ */
+export interface NavigationSelect<T extends boolean = true> {
+  main?:
+    | T
+    | {
+        label?: T;
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+        id?: T;
+      };
+  cta?:
+    | T
+    | {
+        label?: T;
+        kind?: T;
+        route?: T;
+        page?: T;
+        url?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "form-texts_select".
+ */
+export interface FormTextsSelect<T extends boolean = true> {
+  membership?:
+    | T
+    | {
+        principles?: T;
+        fees?: T;
+        guardian?: T;
+        consent?: T;
+      };
+  contact?:
+    | T
+    | {
+        consent?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "legal-notice_select".
  */
 export interface LegalNoticeSelect<T extends boolean = true> {
@@ -2385,6 +3740,39 @@ export interface TaskNotificationsRetention {
   output: {
     removed?: number | null;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSchedulePublish".
+ */
+export interface TaskSchedulePublish {
+  input: {
+    type?: ('publish' | 'unpublish') | null;
+    locale?: string | null;
+    doc?:
+      | ({
+          relationTo: 'pages';
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: 'projects';
+          value: number | Project;
+        } | null)
+      | ({
+          relationTo: 'news';
+          value: number | News;
+        } | null)
+      | ({
+          relationTo: 'events';
+          value: number | Event;
+        } | null);
+    global?: string | null;
+    user?: {
+      relationTo: 'users';
+      value: number | User;
+    } | null;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

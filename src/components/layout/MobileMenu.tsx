@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useLenis } from '@/components/motion/SmoothScroll'
-import { ButtonLink } from '@/components/ui/ButtonLink'
-import { membershipLink } from '@/lib/navigation'
+import { ButtonLink, buttonClass } from '@/components/ui/ButtonLink'
+import type { Href, MenuEntry } from '@/lib/links'
 import { gsap } from '@/lib/motion/gsap'
 import { MOTION_OK } from '@/lib/motion/media'
 
@@ -18,7 +18,15 @@ import { MainNav } from './MainNav'
  * arrive one after another (static with reduced motion). Smooth scrolling pauses while it is
  * open, it closes when a link is followed, and focus returns to the menu button.
  */
-export function MobileMenu({ className = '', ctaLabel }: { className?: string; ctaLabel: string }) {
+export function MobileMenu({
+  className = '',
+  items,
+  cta,
+}: {
+  className?: string
+  items: MenuEntry[]
+  cta: MenuEntry
+}) {
   const t = useTranslations('Header')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -147,11 +155,17 @@ export function MobileMenu({ className = '', ctaLabel }: { className?: string; c
           </button>
         </div>
         <div className="flex flex-1 flex-col justify-between overflow-y-auto px-6 pt-6 pb-10">
-          <MainNav orientation="vertical" />
+          <MainNav items={items} orientation="vertical" />
           <div data-menu-item="" className="mt-10">
-            <ButtonLink href={membershipLink.href} variant="light" arrow className="w-full">
-              {ctaLabel}
-            </ButtonLink>
+            {cta.external ? (
+              <a href={cta.href as string} className={buttonClass('light', 'w-full')}>
+                {cta.label}
+              </a>
+            ) : (
+              <ButtonLink href={cta.href as Href} variant="light" arrow className="w-full">
+                {cta.label}
+              </ButtonLink>
+            )}
           </div>
         </div>
       </dialog>

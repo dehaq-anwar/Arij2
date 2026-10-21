@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { MarkedText } from '@/components/ui/MarkedText'
 import { getPathname, Link } from '@/i18n/navigation'
 import type { Locale } from '@/i18n/routing'
-import { getGlobal } from '@/lib/cms/queries'
+import { getFormTexts } from '@/lib/cms/queries'
 import { issueFormToken } from '@/lib/forms/token'
 
 import { ContactFormClient } from './ContactFormClient'
@@ -40,9 +40,9 @@ async function shared(locale: Locale) {
 }
 
 export async function MembershipForm({ locale, anchor }: { locale: Locale; anchor: string }) {
-  const [{ text, privacyLink }, page] = await Promise.all([
+  const [{ text, privacyLink }, { membership }] = await Promise.all([
     shared(locale),
-    getGlobal('membership-page', locale),
+    getFormTexts(locale),
   ])
   return (
     <MembershipFormClient
@@ -50,10 +50,10 @@ export async function MembershipForm({ locale, anchor }: { locale: Locale; ancho
       token={issueFormToken('membership')}
       permalink={`${getPathname({ href: '/membership', locale })}#${anchor}`}
       texts={{
-        principles: text(page.form?.principles),
-        fees: text(page.form?.fees),
-        guardian: text(page.form?.guardian),
-        consent: text(page.form?.consent),
+        principles: text(membership.principles),
+        fees: text(membership.fees),
+        guardian: text(membership.guardian),
+        consent: text(membership.consent),
         privacyLink,
       }}
     />
@@ -61,16 +61,16 @@ export async function MembershipForm({ locale, anchor }: { locale: Locale; ancho
 }
 
 export async function ContactForm({ locale, anchor }: { locale: Locale; anchor: string }) {
-  const [{ text, privacyLink }, page] = await Promise.all([
+  const [{ text, privacyLink }, { contact }] = await Promise.all([
     shared(locale),
-    getGlobal('contact-page', locale),
+    getFormTexts(locale),
   ])
   return (
     <ContactFormClient
       locale={locale}
       token={issueFormToken('contact')}
       permalink={`${getPathname({ href: '/contact', locale })}#${anchor}`}
-      texts={{ consent: text(page.form?.consent), privacyLink }}
+      texts={{ consent: text(contact.consent), privacyLink }}
     />
   )
 }

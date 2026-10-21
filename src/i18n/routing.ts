@@ -19,11 +19,15 @@ export const routing = defineRouting({
     '/projects/[slug]': { de: '/projekte/[slug]', en: '/projects/[slug]', ar: '/projects/[slug]' },
     '/news': { de: '/aktuelles', en: '/news', ar: '/news' },
     '/news/[slug]': { de: '/aktuelles/[slug]', en: '/news/[slug]', ar: '/news/[slug]' },
+    '/events': { de: '/veranstaltungen', en: '/events', ar: '/events' },
+    '/events/[slug]': { de: '/veranstaltungen/[slug]', en: '/events/[slug]', ar: '/events/[slug]' },
     '/membership': { de: '/mitglied-werden', en: '/membership', ar: '/membership' },
     '/support': { de: '/unterstuetzen', en: '/support', ar: '/support' },
     '/contact': { de: '/kontakt', en: '/contact', ar: '/contact' },
     '/legal-notice': { de: '/impressum', en: '/legal-notice', ar: '/legal-notice' },
     '/privacy': { de: '/datenschutz', en: '/privacy', ar: '/privacy' },
+    // Pages of the page builder: one Latin slug for all languages (src/cms/collections/Pages.ts).
+    '/[slug]': '/[slug]',
   },
 })
 

@@ -17,6 +17,8 @@ const legalFields = [
 
 export const LegalNotice = pageGlobal({
   slug: 'legal-notice',
+  // Every saved wording stays as a version (who changed what, when; restorable).
+  versions: { max: 100 },
   label: label('Impressum', 'Legal notice', 'الإشعار القانوني'),
   admin: {
     description: label(
@@ -30,6 +32,8 @@ export const LegalNotice = pageGlobal({
 
 export const PrivacyPolicy = pageGlobal({
   slug: 'privacy-policy',
+  // Every saved wording stays as a version (who changed what, when; restorable).
+  versions: { max: 100 },
   label: label('Datenschutzerklärung', 'Privacy policy', 'سياسة الخصوصية'),
   admin: {
     description: label(

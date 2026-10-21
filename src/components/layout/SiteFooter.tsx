@@ -7,7 +7,9 @@ import { OrgName } from '@/components/ui/OrgName'
 import { Link } from '@/i18n/navigation'
 import type { Locale } from '@/i18n/routing'
 import { getGlobal } from '@/lib/cms/queries'
-import { legalNav, mainNav, membershipLink, prefetchFor } from '@/lib/navigation'
+import { getMenu } from '@/lib/cms/navigation'
+import type { Href } from '@/lib/links'
+import { legalNav, prefetchFor } from '@/lib/navigation'
 import type { SiteSetting } from '@/payload-types'
 
 import { Logo } from './Logo'
@@ -29,7 +31,8 @@ const platformNames: Record<Platform, string> = {
 export async function SiteFooter() {
   const t = await getTranslations('Footer')
   const nav = await getTranslations('Navigation')
-  const settings = await getGlobal('site-settings', (await getLocale()) as Locale)
+  const locale = (await getLocale()) as Locale
+  const [settings, menu] = await Promise.all([getGlobal('site-settings', locale), getMenu(locale)])
   const { email, address } = settings.contact ?? {}
   const social = settings.socialLinks ?? []
   const year = new Date().getFullYear()
@@ -66,15 +69,25 @@ export async function SiteFooter() {
           <nav aria-label={nav('footerLabel')}>
             <h2 className="eyebrow text-on-night-muted">{t('navHeading')}</h2>
             <ul className="mt-4 space-y-1">
-              {[...mainNav, membershipLink].map(({ href, key }) => (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    prefetch={prefetchFor(href)}
-                    className="inline-block py-1 text-on-night no-underline hover:text-glow"
-                  >
-                    {nav(key)}
-                  </Link>
+              {[...menu.main, menu.cta].map((item) => (
+                <li key={item.id}>
+                  {item.external ? (
+                    <a
+                      href={item.href as string}
+                      rel="noopener noreferrer"
+                      className="inline-block py-1 text-on-night no-underline hover:text-glow"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href as Href}
+                      prefetch={prefetchFor(item.href)}
+                      className="inline-block py-1 text-on-night no-underline hover:text-glow"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
