@@ -12,7 +12,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . && node scripts/check-logical-css.mjs && node scripts/check-motion-direction.mjs && node scripts/check-contrast.mjs",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p ops-agent/tsconfig.json",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "format": "prettier --write .",

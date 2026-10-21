@@ -1,0 +1,10 @@
+{
+  "//": "Only for checking: the agent runs with Node's type stripping, which allows erasable TypeScript syntax only (no parameter properties, enums or namespaces).",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "plugins": []
+  },
+  "include": ["src/**/*.ts"]
+}

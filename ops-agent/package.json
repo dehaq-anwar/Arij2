@@ -1,0 +1,16 @@
+{
+  "name": "yop-ops-agent",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Operations agent of the Youth of Peace Control Center (internal network only).",
+  "type": "module",
+  "engines": {
+    "node": "24.21.0"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "backup": "node src/cli.ts backup",
+    "drill": "node src/cli.ts drill",
+    "verify": "node src/cli.ts verify"
+  }
+}

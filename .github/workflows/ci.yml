@@ -52,7 +52,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Random Payload secret for this run
         run: echo "PAYLOAD_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Integration tests (migrations and data transfers on a real database)
+      # The operations agent's image: the backup and restore drill test runs it for real.
+      - name: Build the operations agent image
+        run: docker build -t yop-ops-agent:test ops-agent
+      - name: Integration tests (migrations, data transfers, backup and restore drill)
         run: npm run test:integration
       - name: End-to-end tests (CMS content, i18n, RTL, navigation, privacy, motion, axe)
         run: npm run test:e2e
