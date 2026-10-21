@@ -134,6 +134,38 @@ await payload.update({
   },
 })
 
+// An event a month ahead, in German and Arabic (accessibility checks of the event pages).
+const startsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+startsAt.setUTCHours(16, 0, 0, 0)
+const event = await payload.create({
+  collection: 'events',
+  locale: 'de',
+  context,
+  data: {
+    title: 'E2E Testveranstaltung',
+    slug: 'e2e-testveranstaltung',
+    excerpt: 'E2E Veranstaltung Kurzfassung',
+    startsAt: startsAt.toISOString(),
+    endsAt: new Date(startsAt.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    location: 'E2E Ort',
+    body: paragraphs('E2E Veranstaltungstext.'),
+    _status: 'published',
+  },
+})
+await payload.update({
+  collection: 'events',
+  id: event.id,
+  locale: 'ar',
+  context,
+  data: {
+    title: 'E2E فعالية اختبار',
+    excerpt: 'E2E ملخص الفعالية',
+    location: 'E2E المكان',
+    body: paragraphs('E2E نص الفعالية.'),
+    _status: 'published',
+  },
+})
+
 await payload.create({
   collection: 'statistics',
   locale: 'de',

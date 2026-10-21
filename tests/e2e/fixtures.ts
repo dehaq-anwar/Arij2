@@ -11,6 +11,7 @@ export const routes = [
   { key: 'about', de: '/ueber-uns', en: '/en/about', ar: '/ar/about' },
   { key: 'projects', de: '/projekte', en: '/en/projects', ar: '/ar/projects' },
   { key: 'news', de: '/aktuelles', en: '/en/news', ar: '/ar/news' },
+  { key: 'events', de: '/veranstaltungen', en: '/en/events', ar: '/ar/events' },
   { key: 'membership', de: '/mitglied-werden', en: '/en/membership', ar: '/ar/membership' },
   { key: 'support', de: '/unterstuetzen', en: '/en/support', ar: '/ar/support' },
   { key: 'contact', de: '/kontakt', en: '/en/contact', ar: '/ar/contact' },
@@ -40,6 +41,11 @@ export const testData = {
     en: '/en/news/e2e-testbeitrag',
     ar: '/ar/news/e2e-testbeitrag',
   },
+  event: {
+    de: '/veranstaltungen/e2e-testveranstaltung',
+    en: '/en/events/e2e-testveranstaltung',
+    ar: '/ar/events/e2e-testveranstaltung',
+  },
 } as const
 
 /** Detail pages checked by axe in addition to `routes`. */
@@ -49,6 +55,8 @@ export const detailPages = [
   testData.germanOnlyProject.ar,
   testData.post.de,
   testData.post.en,
+  testData.event.de,
+  testData.event.ar,
 ] as const
 
 /**

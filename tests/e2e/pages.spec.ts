@@ -464,7 +464,11 @@ test.describe('events', () => {
       ).status,
     ).toBe(400)
 
+    // Reduced motion: every element is in its final, visible state when axe checks contrast
+    // (as in a11y.spec.ts); mid-animation text can read as too faint on a slow machine.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/veranstaltungen')
+    await page.waitForFunction(() => document.documentElement.hasAttribute('data-motion-ready'))
     const upcomingSection = page.getByRole('region', { name: 'Kommende Veranstaltungen' })
     const pastSection = page.getByRole('region', { name: 'Vergangene Veranstaltungen' })
     await expect(
@@ -472,7 +476,9 @@ test.describe('events', () => {
     ).toBeVisible()
     await expect(pastSection.getByRole('link', { name: `E2E Rückblick ${worker()}` })).toBeVisible()
     const { violations } = await new AxeBuilder({ page }).withTags(tags).analyze()
-    expect(violations.map((v) => v.id)).toEqual([])
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`),
+    ).toEqual([])
 
     await upcomingSection.getByRole('link', { name: `E2E Sommerfest ${worker()}` }).click()
     await expect(page).toHaveURL(`/veranstaltungen/e2e-fest-${worker()}`)
