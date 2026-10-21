@@ -340,7 +340,8 @@ test.describe('the page builder', () => {
     await page.context().addCookies([{ name: 'payload-lng', value: 'ar', url: adminUrl('/') }])
     for (const path of ['/admin/collections/pages', '/admin/globals/legal-notice']) {
       await page.goto(adminUrl(path))
-      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+      // Payload writes it as "RTL".
+      await expect(page.locator('html')).toHaveAttribute('dir', /^rtl$/i)
       await fits(path)
     }
   })
