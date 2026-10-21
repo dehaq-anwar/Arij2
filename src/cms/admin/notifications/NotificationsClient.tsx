@@ -71,7 +71,7 @@ export function NotificationsClient() {
                 >
                   <span className="yop-list__title">
                     {!item.read && <span className="yop-visually-hidden">{t.unread}: </span>}
-                    {kindLabel(t, item.kind)}
+                    {kindLabel(t, item)}
                   </span>
                   <span className="yop-list__meta">
                     {subjectLabel(t, item)} · <bdi>{formatDateTime(item.createdAt, lang)}</bdi>

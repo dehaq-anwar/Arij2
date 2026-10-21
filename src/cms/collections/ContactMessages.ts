@@ -1,9 +1,41 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionAfterChangeHook, CollectionConfig } from 'payload'
 
 import { allow, nobody } from '../access/roles'
 import { groups, label } from '../lib/labels'
+import { assigneeEndpoints, assigneeField } from '../membership/assignees'
+import { adminHref, notify } from '../membership/notifications'
 import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
-import { MEMBERSHIP_ROLES } from './membership-fields'
+
+const assigneeOf = (value: unknown): number | null =>
+  value && typeof value === 'object'
+    ? Number((value as { id: number }).id)
+    : value == null
+      ? null
+      : Number(value)
+
+/** The person a message is assigned to is told in the Control Center (not when they took it). */
+const tellAssignee: CollectionAfterChangeHook = async ({ doc, operation, previousDoc, req }) => {
+  const assignee = assigneeOf(doc.assignedTo)
+  if (
+    operation === 'update' &&
+    assignee &&
+    assignee !== assigneeOf(previousDoc?.assignedTo) &&
+    assignee !== Number(req.user?.id)
+  ) {
+    await notify(
+      req.payload,
+      {
+        kind: 'assigned',
+        recipients: [assignee],
+        subjectType: 'contact-messages',
+        subjectId: doc.id,
+        href: adminHref('contact-messages', doc.id),
+      },
+      req,
+    )
+  }
+  return doc
+}
 
 /** Messages from the contact form. Deleted automatically six months after they arrived. */
 export const ContactMessages: CollectionConfig = {
@@ -24,6 +56,8 @@ export const ContactMessages: CollectionConfig = {
     ),
   },
   defaultSort: '-createdAt',
+  endpoints: assigneeEndpoints,
+  hooks: { afterChange: [tellAssignee] },
   access: {
     create: nobody,
     read: allow('inbox.read'),
@@ -89,15 +123,6 @@ export const ContactMessages: CollectionConfig = {
       ],
       admin: { position: 'sidebar' },
     },
-    {
-      name: 'assignedTo',
-      type: 'relationship',
-      relationTo: 'users',
-      label: label('Zuständig', 'Assigned to', 'المسؤول'),
-      filterOptions: {
-        and: [{ role: { in: [...MEMBERSHIP_ROLES] } }, { disabled: { not_equals: true } }],
-      },
-      admin: { position: 'sidebar' },
-    },
+    assigneeField(),
   ],
 }

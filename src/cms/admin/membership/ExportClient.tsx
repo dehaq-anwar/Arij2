@@ -9,24 +9,45 @@ import { fill, Notice, StepUpDialog, useAdminText } from '../client'
 import { Icon } from '../icons'
 
 type Column = { key: string; label: string }
+export type ExportPurpose = {
+  id: number
+  dataset: ExportDataset
+  name: string
+  description: string
+  justification: string
+  columns: string[]
+  decision: string
+  approvedOn: string
+  basis: { code: string; title: string; article: string; explanation: string }
+}
 type Props = {
   datasets: ExportDataset[]
   initial: { dataset: ExportDataset; stage: string; status: string; type: string; q: string }
   columns: Record<string, Column[]>
-  legalBases: { id: string; label: string }[]
-  recent: { id: number; when: string; dataset: ExportDataset; rows: number; purpose: string }[]
+  purposes: ExportPurpose[]
+  canManagePurposes: boolean
+  draftPurposes: number
+  recent: {
+    id: number
+    when: string
+    dataset: ExportDataset
+    rows: number
+    purpose: string
+    purposeName: string
+  }[]
   notAllowed: string | null
 }
 
 const STAGES = ['all', 'open', 'received', 'inReview', 'consentPending', 'accepted', 'rejected']
-const MEMBER_STATUSES = ['active', 'ended', 'all']
-const DEFAULT_COLUMNS = ['firstName', 'lastName']
+const MEMBER_STATUSES = ['active', 'ended', 'review', 'all']
 
 export function ExportClient({
   datasets,
   initial,
   columns,
-  legalBases,
+  purposes,
+  canManagePurposes,
+  draftPurposes,
   recent,
   notAllowed,
 }: Props) {
@@ -38,9 +59,11 @@ export function ExportClient({
   const [status, setStatus] = useState(initial.status)
   const [type, setType] = useState(initial.type)
   const [q, setQ] = useState(initial.q)
-  const [chosen, setChosen] = useState<string[]>(DEFAULT_COLUMNS)
-  const [purpose, setPurpose] = useState('')
-  const [basis, setBasis] = useState('')
+  const [purposeId, setPurposeId] = useState<number | null>(null)
+  const [chosen, setChosen] = useState<string[]>([])
+  const [occasion, setOccasion] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+  const [separator, setSeparator] = useState<';' | ','>(';')
   const [busy, setBusy] = useState(false)
   const [stepUp, setStepUp] = useState(false)
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
@@ -54,11 +77,26 @@ export function ExportClient({
     )
   }
 
-  const available = columns[dataset] ?? []
-  const purposeLength = purpose.replace(/\s+/g, ' ').trim().length
-  const ready = chosen.length > 0 && purposeLength >= 10 && purposeLength <= 300 && basis !== ''
+  const forDataset = purposes.filter((p) => p.dataset === dataset)
+  const purpose = forDataset.find((p) => p.id === purposeId) ?? null
+  const available = (columns[dataset] ?? []).filter((c) => purpose?.columns.includes(c.key))
+  const occasionLength = occasion.replace(/\s+/g, ' ').trim().length
+  const ready =
+    purpose !== null &&
+    chosen.length > 0 &&
+    occasionLength >= 10 &&
+    occasionLength <= 300 &&
+    confirmed
+
+  function choosePurpose(next: ExportPurpose) {
+    setPurposeId(next.id)
+    // The purpose already limits the columns to what it needs: all of them to start with.
+    setChosen(next.columns)
+    setConfirmed(false)
+  }
 
   async function run() {
+    if (!purpose) return
     setBusy(true)
     setMessage(null)
     const response = await fetch('/api/exports/run', {
@@ -67,10 +105,12 @@ export function ExportClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dataset,
+        purposeId: purpose.id,
         columns: chosen,
         filter: dataset === 'applications' ? { stage, type, q } : { status, type, q },
-        purpose,
-        legalBasis: basis,
+        purpose: occasion,
+        confirmed,
+        separator,
       }),
     })
     if (response.ok) {
@@ -87,7 +127,8 @@ export function ExportClient({
       link.remove()
       setTimeout(() => URL.revokeObjectURL(url), 10_000)
       setBusy(false)
-      setPurpose('')
+      setOccasion('')
+      setConfirmed(false)
       setMessage({
         tone: 'success',
         text: fill(t.exportDone, { rows: response.headers.get('X-Export-Rows') ?? '0' }),
@@ -128,7 +169,6 @@ export function ExportClient({
           <h2 id={`${id}-form`} className="yop-visually-hidden">
             {t.exportTitle}
           </h2>
-          {!legalBases.length && <Notice tone="warning">{t.noLegalBases}</Notice>}
           <div className="yop-form">
             {datasets.length > 1 && (
               <fieldset className="yop-fieldset">
@@ -143,7 +183,9 @@ export function ExportClient({
                         checked={dataset === d}
                         onChange={() => {
                           setDataset(d)
-                          setChosen(DEFAULT_COLUMNS)
+                          setPurposeId(null)
+                          setChosen([])
+                          setConfirmed(false)
                         }}
                       />
                       <span>{d === 'members' ? t.datasetMembers : t.datasetApplications}</span>
@@ -152,7 +194,82 @@ export function ExportClient({
                 </div>
               </fieldset>
             )}
+
             <fieldset className="yop-fieldset">
+              <legend className="yop-label">{t.exportPurposeChoice}</legend>
+              {forDataset.length ? (
+                <div className="yop-purposes">
+                  {forDataset.map((p) => (
+                    <label key={p.id} className="yop-purpose">
+                      <input
+                        type="radio"
+                        name="purpose"
+                        value={p.id}
+                        checked={purposeId === p.id}
+                        onChange={() => choosePurpose(p)}
+                      />
+                      <span className="yop-purpose__text">
+                        <span className="yop-purpose__name">{p.name}</span>
+                        {p.description && (
+                          <span className="yop-purpose__description">{p.description}</span>
+                        )}
+                        <span className="yop-purpose__basis">
+                          {p.basis.article} · {p.basis.title}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <Notice tone="warning">
+                  {t.exportNoPurpose}{' '}
+                  {canManagePurposes && (
+                    <Link
+                      className="yop-link"
+                      href="/admin/collections/processing-purposes"
+                      prefetch={false}
+                    >
+                      {draftPurposes
+                        ? fill(t.exportDraftPurposes, { count: draftPurposes })
+                        : t.exportManagePurposes}
+                    </Link>
+                  )}
+                </Notice>
+              )}
+            </fieldset>
+
+            {purpose && (
+              <section className="yop-basis" aria-labelledby={`${id}-basis`}>
+                <h3 id={`${id}-basis`} className="yop-basis__title">
+                  <Icon name="shield" />
+                  {t.exportLegalBasis}: {purpose.basis.article} – {purpose.basis.title}
+                </h3>
+                <details className="yop-basis__details">
+                  <summary>{t.exportBasisExplanation}</summary>
+                  <p>{purpose.basis.explanation}</p>
+                </details>
+                <dl className="yop-basis__facts">
+                  <div>
+                    <dt>{t.exportJustification}</dt>
+                    <dd>{purpose.justification}</dd>
+                  </div>
+                  <div>
+                    <dt>{t.exportDecision}</dt>
+                    <dd>
+                      {purpose.decision}
+                      {purpose.approvedOn && (
+                        <>
+                          {' '}
+                          · <bdi>{purpose.approvedOn}</bdi>
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            )}
+
+            <fieldset className="yop-fieldset" disabled={!purpose}>
               <legend className="yop-label">{t.exportSelection}</legend>
               <div className="yop-form__row">
                 <div>
@@ -218,59 +335,76 @@ export function ExportClient({
                 </div>
               </div>
             </fieldset>
-            <fieldset className="yop-fieldset">
+
+            <fieldset className="yop-fieldset" disabled={!purpose}>
               <legend className="yop-label">{t.exportColumns}</legend>
-              <div className="yop-checks">
-                {available.map((column) => (
-                  <label key={column.key} className="yop-check">
-                    <input
-                      type="checkbox"
-                      checked={chosen.includes(column.key)}
-                      onChange={() => toggle(column.key)}
-                    />
-                    <span>{column.label}</span>
-                  </label>
-                ))}
-              </div>
+              {purpose ? (
+                <>
+                  <p className="yop-hint">{t.exportColumnsOfPurpose}</p>
+                  <div className="yop-checks">
+                    {available.map((column) => (
+                      <label key={column.key} className="yop-check">
+                        <input
+                          type="checkbox"
+                          checked={chosen.includes(column.key)}
+                          onChange={() => toggle(column.key)}
+                        />
+                        <span>{column.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="yop-hint">{t.exportChoosePurposeFirst}</p>
+              )}
             </fieldset>
+
             <div>
-              <label className="yop-label" htmlFor={`${id}-purpose`}>
-                {t.exportPurpose}
+              <label className="yop-label" htmlFor={`${id}-occasion`}>
+                {t.exportOccasion}
               </label>
               <textarea
-                id={`${id}-purpose`}
+                id={`${id}-occasion`}
                 className="yop-input yop-textarea"
                 rows={3}
                 maxLength={300}
                 required
-                aria-describedby={`${id}-purpose-hint`}
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
+                disabled={!purpose}
+                aria-describedby={`${id}-occasion-hint`}
+                value={occasion}
+                onChange={(e) => setOccasion(e.target.value)}
               />
-              <p id={`${id}-purpose-hint`} className="yop-hint">
-                {t.exportPurposeHint} ({purposeLength}/300)
+              <p id={`${id}-occasion-hint`} className="yop-hint">
+                {t.exportOccasionHint} ({occasionLength}/300)
               </p>
             </div>
+
             <div>
-              <label className="yop-label" htmlFor={`${id}-basis`}>
-                {t.exportLegalBasis}
+              <label className="yop-label" htmlFor={`${id}-separator`}>
+                {t.exportSeparator}
               </label>
               <select
-                id={`${id}-basis`}
+                id={`${id}-separator`}
                 className="yop-input yop-select"
-                value={basis}
-                required
-                disabled={!legalBases.length}
-                onChange={(e) => setBasis(e.target.value)}
+                value={separator}
+                disabled={!purpose}
+                onChange={(e) => setSeparator(e.target.value === ',' ? ',' : ';')}
               >
-                <option value="">{t.chooseOne}</option>
-                {legalBases.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </option>
-                ))}
+                <option value=";">{t.exportSeparatorSemicolon}</option>
+                <option value=",">{t.exportSeparatorComma}</option>
               </select>
             </div>
+
+            <label className="yop-check yop-check--confirm">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                disabled={!purpose}
+                onChange={(e) => setConfirmed(e.target.checked)}
+              />
+              <span>{t.exportConfirm}</span>
+            </label>
+
             {message && (
               <Notice tone={message.tone} live>
                 {message.text}
@@ -308,8 +442,11 @@ export function ExportClient({
                   <Link href={`/admin/collections/exports/${entry.id}`} prefetch={false}>
                     <span className="yop-list__title">{entry.purpose}</span>
                     <span className="yop-list__meta">
-                      {entry.dataset === 'members' ? t.datasetMembers : t.datasetApplications} ·{' '}
-                      {fill(t.rowsLabel, { rows: entry.rows })} · <bdi>{entry.when}</bdi>
+                      {entry.purposeName ? `${entry.purposeName} · ` : ''}
+                      {entry.dataset === 'members'
+                        ? t.datasetMembers
+                        : t.datasetApplications} · {fill(t.rowsLabel, { rows: entry.rows })} ·{' '}
+                      <bdi>{entry.when}</bdi>
                     </span>
                   </Link>
                 </li>

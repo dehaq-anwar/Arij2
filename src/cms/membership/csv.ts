@@ -1,11 +1,13 @@
 /**
  * CSV for spreadsheet programs: UTF-8 with a byte-order mark (so Excel reads umlauts and Arabic
- * correctly), semicolons (the separator German Excel expects) and CRLF line ends. Every cell is
+ * correctly), CRLF line ends and, by default, semicolons (the separator German Excel and
+ * LibreOffice expect; commas for Excel in English). Every cell is
  * quoted. Cells that a spreadsheet would treat as a formula (= + - @, tab, carriage return) get a
  * leading apostrophe: exported names and addresses come from a public form, and a value such as
  * `=HYPERLINK(...)` must never run in the reader's spreadsheet (CSV injection).
  */
-export const CSV_SEPARATOR = ';'
+export const CSV_SEPARATORS = [';', ','] as const
+export type CsvSeparator = (typeof CSV_SEPARATORS)[number]
 const BOM = '﻿'
 
 export function csvCell(value: unknown): string {
@@ -15,7 +17,11 @@ export function csvCell(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`
 }
 
-export function toCsv(header: readonly string[], rows: readonly (readonly unknown[])[]): string {
-  const lines = [header, ...rows].map((cells) => cells.map(csvCell).join(CSV_SEPARATOR))
+export function toCsv(
+  header: readonly string[],
+  rows: readonly (readonly unknown[])[],
+  separator: CsvSeparator = ';',
+): string {
+  const lines = [header, ...rows].map((cells) => cells.map(csvCell).join(separator))
   return `${BOM}${lines.join('\r\n')}\r\n`
 }

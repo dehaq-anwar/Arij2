@@ -9,16 +9,23 @@ import {
 import { allow, nobody } from '../access/roles'
 import { refuse } from '../lib/errors'
 import { groups, label, localizedMessage } from '../lib/labels'
+import {
+  consolidateApplication,
+  consolidationEnabled,
+  MOVE_PERSONAL_DATA,
+} from '../membership/consolidate'
 import { deleteCaseEvents, recordCaseEvent } from '../membership/events'
+import { assigneeEndpoints, assigneeField } from '../membership/assignees'
 import { adminHref, notify } from '../membership/notifications'
 import { consentRecord, hiddenWithoutInbox, submitted, submittedLocale } from './inbox'
 import { FROM_APPLICATION } from './Members'
 import {
   addressGroup,
   DAY_PICKER,
+  displayTitle,
+  displayTitleField,
   emailField,
   guardianFields,
-  MEMBERSHIP_ROLES,
   membershipTypeField,
   nameRow,
 } from './membership-fields'
@@ -65,6 +72,28 @@ const lockAfterAdmission: CollectionBeforeChangeHook = async ({
 }
 
 /**
+ * Once the personal data have been moved to the register (src/cms/membership/consolidate.ts),
+ * they do not come back into the application, and the date of the move stays.
+ */
+const keepMoved: CollectionBeforeChangeHook = ({ context, data, originalDoc }) => {
+  if (context?.[MOVE_PERSONAL_DATA]) return data
+  if (!originalDoc?.personalDataMovedOn) return { ...data, personalDataMovedOn: null }
+  return {
+    ...data,
+    firstName: null,
+    lastName: null,
+    email: null,
+    address: { street: null, postalCode: null, city: null, country: null },
+    guardian: {
+      ...(data.guardian ?? originalDoc.guardian ?? {}),
+      name: null,
+      email: null,
+    },
+    personalDataMovedOn: originalDoc.personalDataMovedOn,
+  }
+}
+
+/**
  * A decision (accepted or rejected) records who made it and when; any open stage clears both.
  * Applicants under 18 can only be accepted once the guardian's consent is recorded (the rule
  * from Phase 5, unchanged; a collection hook so that partial API updates are covered too).
@@ -105,6 +134,11 @@ const recordDecision: CollectionBeforeChangeHook = ({ data, originalDoc, operati
     decidedBy: req.user?.id ?? null,
   }
 }
+
+const setTitle: CollectionBeforeChangeHook = ({ data, originalDoc }) => ({
+  ...data,
+  displayTitle: displayTitle({ ...originalDoc, ...data }),
+})
 
 /**
  * Case history, the register entry on acceptance, and a notification for whoever the application
@@ -201,6 +235,10 @@ const afterApplicationChange: CollectionAfterChangeHook = async ({
         depth: 0,
         req,
       })
+      // Off until the association approves the proposal (MEMBERSHIP_CONSOLIDATION=on).
+      if (consolidationEnabled()) {
+        await consolidateApplication(req.payload, application, { apply: true, req })
+      }
     }
   }
   return doc
@@ -223,7 +261,7 @@ export const MembershipApplications: CollectionConfig = {
     plural: label('Mitgliedsanträge', 'Membership applications', 'طلبات العضوية'),
   },
   admin: {
-    useAsTitle: 'lastName',
+    useAsTitle: 'displayTitle',
     defaultColumns: ['lastName', 'firstName', 'membershipType', 'status', 'createdAt'],
     group: groups.inbox,
     hidden: hiddenWithoutInbox,
@@ -237,6 +275,7 @@ export const MembershipApplications: CollectionConfig = {
     ),
   },
   defaultSort: '-createdAt',
+  endpoints: assigneeEndpoints,
   access: {
     create: nobody,
     read: allow('inbox.read'),
@@ -244,14 +283,15 @@ export const MembershipApplications: CollectionConfig = {
     delete: allow('applications.delete'),
   },
   hooks: {
-    beforeChange: [lockAfterAdmission, recordDecision],
+    beforeChange: [keepMoved, lockAfterAdmission, recordDecision, setTitle],
     afterChange: [afterApplicationChange],
     beforeDelete: [removeHistory],
   },
   fields: [
-    nameRow,
-    emailField,
-    addressGroup,
+    displayTitleField,
+    nameRow('personalDataMovedOn'),
+    emailField('personalDataMovedOn'),
+    addressGroup('personalDataMovedOn'),
     membershipTypeField,
     {
       name: 'declarations',
@@ -354,16 +394,7 @@ export const MembershipApplications: CollectionConfig = {
       label: label('Entschieden von', 'Decided by', 'صاحب القرار'),
       admin: { position: 'sidebar', readOnly: true },
     },
-    {
-      name: 'assignedTo',
-      type: 'relationship',
-      relationTo: 'users',
-      label: label('Zuständig', 'Assigned to', 'المسؤول'),
-      filterOptions: {
-        and: [{ role: { in: [...MEMBERSHIP_ROLES] } }, { disabled: { not_equals: true } }],
-      },
-      admin: { position: 'sidebar' },
-    },
+    assigneeField(),
     {
       name: 'followUpOn',
       type: 'date',
@@ -375,6 +406,26 @@ export const MembershipApplications: CollectionConfig = {
           'An diesem Tag erinnert das Control Center die zuständige Person.',
           'On this day the Control Center reminds the person assigned.',
           'في هذا اليوم يذكّر مركز التحكم الشخص المسؤول.',
+        ),
+      },
+    },
+    {
+      name: 'personalDataMovedOn',
+      type: 'date',
+      label: label(
+        'Personenbezogene Daten übertragen am',
+        'Personal data moved on',
+        'نُقلت البيانات الشخصية في',
+      ),
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        date: DAY_PICKER,
+        condition: (data) => Boolean(data?.personalDataMovedOn),
+        description: label(
+          'Name, E-Mail und Anschrift stehen nur noch im Mitgliederverzeichnis; hier bleibt der Nachweis von Entscheidung und Einwilligung.',
+          'Name, e-mail and address are only in the members register now; the proof of the decision and the consent stays here.',
+          'الاسم والبريد والعنوان موجودة الآن في سجل الأعضاء فقط؛ ويبقى هنا إثبات القرار والموافقة.',
         ),
       },
     },

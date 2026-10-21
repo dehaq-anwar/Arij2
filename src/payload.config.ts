@@ -18,12 +18,14 @@ import { CaseEvents } from './cms/collections/CaseEvents'
 import { ContactMessages } from './cms/collections/ContactMessages'
 import { Exports } from './cms/collections/Exports'
 import { FocusAreas } from './cms/collections/FocusAreas'
+import { LegalBases } from './cms/collections/LegalBases'
 import { Media } from './cms/collections/Media'
 import { Members } from './cms/collections/Members'
 import { MembershipApplications } from './cms/collections/MembershipApplications'
 import { News } from './cms/collections/News'
 import { Notifications } from './cms/collections/Notifications'
 import { Partners } from './cms/collections/Partners'
+import { ProcessingPurposes } from './cms/collections/ProcessingPurposes'
 import { Projects } from './cms/collections/Projects'
 import { RateLimitBuckets } from './cms/collections/RateLimitBuckets'
 import { Statistics } from './cms/collections/Statistics'
@@ -42,6 +44,7 @@ import { SupportPage } from './cms/globals/SupportPage'
 import { auditRetentionTask } from './cms/jobs/audit-retention'
 import { authCleanupTask } from './cms/jobs/auth-cleanup'
 import { membershipRemindersTask } from './cms/jobs/membership-reminders'
+import { notificationsRetentionTask } from './cms/jobs/notifications-retention'
 import { retentionTask } from './cms/jobs/retention'
 import { migrations } from './migrations'
 
@@ -113,7 +116,11 @@ export default buildConfig({
           exact: true,
         },
       },
-      actions: ['/cms/admin/notifications/Bell#Bell'],
+      // The interface language (separate from Payload's content language menu) and the bell.
+      actions: [
+        '/cms/admin/language/LanguageMenu#LanguageMenu',
+        '/cms/admin/notifications/Bell#Bell',
+      ],
     },
   },
   collections: [
@@ -127,6 +134,8 @@ export default buildConfig({
     audited(MembershipApplications, 'association', true),
     audited(ContactMessages, 'association', true),
     audited(Members, 'association', true),
+    audited(ProcessingPurposes, 'association'),
+    audited(LegalBases, 'association'),
     CaseEvents,
     Exports,
     Notifications,
@@ -178,7 +187,13 @@ export default buildConfig({
     },
   },
   jobs: {
-    tasks: [retentionTask, authCleanupTask, auditRetentionTask, membershipRemindersTask],
+    tasks: [
+      retentionTask,
+      authCleanupTask,
+      auditRetentionTask,
+      membershipRemindersTask,
+      notificationsRetentionTask,
+    ],
     // Checks the queue every 10 minutes; the tasks' own schedules decide when they are due.
     autoRun: [{ cron: '*/10 * * * *', queue: 'maintenance' }],
     access: { run: ({ req }) => allowed(req, 'jobs.run') },
@@ -195,6 +210,13 @@ export default buildConfig({
   i18n: {
     supportedLanguages: { de, en, ar },
     fallbackLanguage: 'de',
+    // Payload's menu in the header switches the language of the content being edited; the
+    // interface language has its own menu (src/cms/admin/language). Named so they differ.
+    translations: {
+      de: { general: { locale: 'Inhaltssprache' } },
+      en: { general: { locale: 'Content language' } },
+      ar: { general: { locale: 'لغة المحتوى' } },
+    },
   },
   cors: origins,
   csrf: origins,

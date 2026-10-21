@@ -61,13 +61,27 @@ export function stageWhere(filter: StageFilter): Where | null {
 export const isStageFilter = (value: unknown): value is StageFilter =>
   (STAGE_FILTERS as readonly string[]).includes(value as string)
 
-/** Members: active, ended, or all. */
+/** Members: active, ended, ended with the review due, or all. */
 export const MEMBER_STATUSES = ['active', 'ended'] as const
 export type MemberStatus = (typeof MEMBER_STATUSES)[number]
-export const MEMBER_FILTERS = ['active', 'ended', 'all'] as const
+export const MEMBER_FILTERS = ['active', 'ended', 'review', 'all'] as const
 export type MemberFilter = (typeof MEMBER_FILTERS)[number]
 export const isMemberFilter = (value: unknown): value is MemberFilter =>
   (MEMBER_FILTERS as readonly string[]).includes(value as string)
+
+/** The query for a members tab; "review" is ended entries whose review date has come. */
+export function memberWhere(filter: MemberFilter, now = new Date()): Where | null {
+  if (filter === 'all') return null
+  if (filter === 'review') {
+    return {
+      and: [
+        { status: { equals: 'ended' } },
+        { reviewDueOn: { less_than_equal: now.toISOString() } },
+      ],
+    }
+  }
+  return { status: { equals: filter } }
+}
 
 /** Free-text search over name and e-mail (case-insensitive, Payload's `like`). */
 export function searchWhere(query: string | null | undefined): Where | null {

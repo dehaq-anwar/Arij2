@@ -15,7 +15,7 @@ const readExports: Access = async ({ req }) => {
 
 /**
  * The export register: who exported which dataset, which columns, how many rows, for which
- * purpose and on which legal basis. It contains no personal data of members or applicants and
+ * approved processing purpose and specific occasion, and on which legal basis. It contains no personal data of members or applicants and
  * no file: the CSV is created on request and sent straight to the person. Written only by the
  * export endpoint; the database refuses changes and deletions (like the audit log), and entries
  * are kept as long as the audit log's.
@@ -28,7 +28,15 @@ export const Exports: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'purpose',
-    defaultColumns: ['createdAt', 'actorName', 'dataset', 'rows', 'legalBasis', 'purpose'],
+    defaultColumns: [
+      'createdAt',
+      'actorName',
+      'dataset',
+      'processingPurposeName',
+      'legalBasis',
+      'rows',
+      'purpose',
+    ],
     group: groups.inbox,
     hidden: ({ user }) =>
       !can(user as PermissionSubject, 'exports.review') &&
@@ -59,16 +67,34 @@ export const Exports: CollectionConfig = {
     },
     { name: 'rows', type: 'number', required: true, label: label('Zeilen', 'Rows', 'الصفوف') },
     {
+      name: 'processingPurpose',
+      type: 'relationship',
+      relationTo: 'processing-purposes',
+      label: label('Verarbeitungszweck', 'Processing purpose', 'غرض المعالجة'),
+    },
+    {
+      // The purpose's name at the time of the export (the purpose can be renamed later).
+      name: 'processingPurposeName',
+      type: 'text',
+      label: label('Verarbeitungszweck', 'Processing purpose', 'غرض المعالجة'),
+    },
+    {
       name: 'purpose',
       type: 'text',
       required: true,
-      label: label('Zweck', 'Purpose', 'الغرض'),
+      label: label('Konkreter Anlass', 'Specific occasion', 'المناسبة المحددة'),
     },
     {
       name: 'legalBasis',
       type: 'text',
       required: true,
       label: label('Rechtsgrundlage', 'Legal basis', 'الأساس القانوني'),
+    },
+    {
+      name: 'legalBasisCode',
+      type: 'text',
+      label: label('Buchstabe', 'Point', 'البند'),
+      admin: { hidden: true },
     },
     { name: 'columns', type: 'json', label: label('Spalten', 'Columns', 'الأعمدة') },
     { name: 'filter', type: 'json', label: label('Auswahl', 'Selection', 'معايير الاختيار') },

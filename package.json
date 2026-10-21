@@ -14,6 +14,7 @@
     "lint": "eslint . && node scripts/check-logical-css.mjs && node scripts/check-motion-direction.mjs && node scripts/check-contrast.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:deps": "node scripts/check-release-age.mjs",
@@ -29,7 +30,8 @@
     "check:placeholders": "node scripts/check-placeholders.mjs",
     "seed": "payload run scripts/seed.ts",
     "create-admin": "payload run scripts/create-admin.ts",
-    "reset-mfa": "payload run scripts/reset-mfa.ts"
+    "reset-mfa": "payload run scripts/reset-mfa.ts",
+    "membership:consolidate": "payload run scripts/consolidate-applications.ts"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

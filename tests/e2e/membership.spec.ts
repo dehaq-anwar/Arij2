@@ -121,8 +121,26 @@ test.describe('applications', () => {
         'application',
         'updatedAt',
         'createdAt',
+        // The review after the end of a membership (CC-2): empty while the membership lasts.
+        'reviewDueOn',
+        'reviewOutcome',
+        'retainUntil',
+        'retentionReason',
+        'retentionNote',
+        'reviewedOn',
+        'reviewedByName',
+        'contactDataRemovedOn',
+        // The title in the edit screen (CC-2), from the name.
+        'displayTitle',
       ].sort(),
     )
+    expect(member).toMatchObject({
+      displayTitle: `Ablauf ${worker()}, E2E`,
+      reviewDueOn: null,
+      reviewOutcome: null,
+      retainUntil: null,
+      contactDataRemovedOn: null,
+    })
 
     const history = await events(request, `where[application][equals]=${app.id}`)
     expect(history.map((e) => e.event)).toEqual([
@@ -228,6 +246,112 @@ test.describe('applications', () => {
   })
 })
 
+test.describe('assignment', () => {
+  test('whoever works on the inbox assigns a colleague; only people with access can be assigned', async ({
+    page,
+    request,
+  }) => {
+    const ids = {} as Record<AccountName, number>
+    const roles = [
+      'superAdmin',
+      'boardAdmin',
+      'membershipManager',
+      'contentEditor',
+      'technicalAdmin',
+      'auditor',
+    ] as const
+    for (const name of roles) {
+      ids[name] = ((await api(request, name, 'get', '/api/users/me')).body?.user as Doc).id
+    }
+
+    // The menu: id and name only, of everyone who can read and work on the inbox.
+    for (const collection of ['membership-applications', 'contact-messages']) {
+      const list = await api(request, 'membershipManager', 'get', `/api/${collection}/assignees`)
+      expect(list.status).toBe(200)
+      const people = list.body?.people as { id: number; name: string }[]
+      const listed = new Set(people.map((person) => person.id))
+      for (const name of ['superAdmin', 'boardAdmin', 'membershipManager'] as const) {
+        expect(listed.has(ids[name]), `${collection} ${name}`).toBe(true)
+      }
+      for (const name of ['contentEditor', 'technicalAdmin', 'auditor'] as const) {
+        expect(listed.has(ids[name]), `${collection} ${name}`).toBe(false)
+      }
+      expect(people.every((person) => Object.keys(person).sort().join() === 'id,name')).toBe(true)
+      for (const name of ['contentEditor', 'technicalAdmin', 'auditor'] as const) {
+        expect(
+          (await api(request, name, 'get', `/api/${collection}/assignees`)).status,
+          `${collection} ${name}`,
+        ).toBe(403)
+      }
+    }
+    // The membership manager may not read the accounts …
+    const accounts = await api(request, 'membershipManager', 'get', '/api/users?limit=100')
+    expect(accounts.body?.totalDocs).toBe(1)
+
+    // … and still assigns an application to the board, but not to people without inbox access.
+    const app = await application(request, `Zuweisung ${worker()}`)
+    const assign = (collection: string, id: number, to: number) =>
+      api(request, 'membershipManager', 'patch', `/api/${collection}/${id}`, { assignedTo: to })
+    expect((await assign('membership-applications', app.id, ids.boardAdmin)).status).toBe(200)
+    for (const name of ['contentEditor', 'technicalAdmin', 'auditor'] as const) {
+      const refused = await assign('membership-applications', app.id, ids[name])
+      expect(refused.status, name).toBe(400)
+      // The API names the field; the edit screen shows the full reason under it.
+      expect(JSON.stringify(refused.body), name).toContain('Zuständig')
+    }
+    expect((await application(request, `Zuweisung ${worker()}`)).assignedTo).toBe(ids.boardAdmin)
+    const history = await events(request, `where[application][equals]=${app.id}`)
+    expect(history.filter((e) => e.event === 'application.assigned').map((e) => e.to)).toEqual([
+      'E2E Vorstand',
+    ])
+
+    // The same for a contact message; the person assigned is told.
+    const found = await api(
+      request,
+      'boardAdmin',
+      'get',
+      `/api/contact-messages?where[name][equals]=${encodeURIComponent(`E2E Zuweisung ${worker()}`)}&depth=0`,
+    )
+    const message = (found.body?.docs as Doc[])[0]!
+    expect((await assign('contact-messages', message.id, ids.contentEditor)).status).toBe(400)
+    expect((await assign('contact-messages', message.id, ids.boardAdmin)).status).toBe(200)
+    const notices = (await feed(request, 'boardAdmin')).items as {
+      kind: string
+      subjectType?: string
+      subjectId: string | null
+    }[]
+    for (const [subjectType, id] of [
+      ['membership-applications', app.id],
+      ['contact-messages', message.id],
+    ] as const) {
+      expect(
+        notices.some(
+          (n) =>
+            n.kind === 'assigned' && n.subjectType === subjectType && n.subjectId === String(id),
+        ),
+        subjectType,
+      ).toBe(true)
+    }
+
+    // In the Control Center: the name in the list and in the menu, for someone without users.read.
+    await signInBrowser(page.context(), request, 'membershipManager')
+    await page.goto(
+      adminUrl(
+        `/admin/collections/contact-messages?where[name][equals]=${encodeURIComponent(`E2E Zuweisung ${worker()}`)}`,
+      ),
+    )
+    await expect(page.locator('.cell-assignedTo').last()).toHaveText('E2E Vorstand')
+    await page.goto(adminUrl(`/admin/collections/contact-messages/${message.id}`))
+    const field = page.locator('.field-type').filter({ hasText: 'Zuständig' })
+    await expect(field).toContainText('E2E Vorstand')
+    await field.locator('.rs__control').click()
+    await expect(
+      page.getByRole('option', { name: 'E2E Mitgliederverwaltung' }).first(),
+    ).toBeVisible()
+    await expect(page.getByRole('option', { name: 'E2E Redaktion' })).toHaveCount(0)
+  })
+})
+
 test.describe('members register', () => {
   test('entered by hand, ended, and deleted only by a super administrator with a code', async ({
     request,
@@ -272,6 +396,122 @@ test.describe('members register', () => {
     expect(await events(request, `where[member][equals]=${member.id}`)).toEqual([])
   })
 
+  test('after the end: review due; keep until a date for a reason; removing data needs a code', async ({
+    request,
+  }) => {
+    const created = await api(request, 'membershipManager', 'post', '/api/members', {
+      firstName: 'E2E',
+      lastName: `Prüfung ${worker()}`,
+      email: 'pruefung@example.org',
+      address: { street: 'E2E 4', postalCode: '00000', city: 'E2E', country: 'E2E' },
+      membershipType: 'ordinary',
+      memberSince: '2019-05-01T12:00:00.000Z',
+    })
+    const member = created.body?.doc as Doc
+    const path = `/api/members/${member.id}`
+    const review = (data: Record<string, unknown>, name: AccountName = 'membershipManager') =>
+      api(request, name, 'post', `${path}/review`, data)
+    const nextYear = `${new Date().getFullYear() + 1}-12-31`
+    expect((await review({ keep: 'all', until: nextYear, reason: 'proof' })).body).toEqual({
+      error: 'not_ended',
+    })
+
+    // Ending the membership makes it due for review (0 days by default); nothing is deleted.
+    await api(request, 'membershipManager', 'patch', path, { status: 'ended' })
+    const ended = (await api(request, 'membershipManager', 'get', `${path}?depth=0`)).body as Doc
+    expect(ended).toMatchObject({
+      status: 'ended',
+      reviewOutcome: 'pending',
+      email: 'pruefung@example.org',
+    })
+    expect(new Date(String(ended.reviewDueOn)).getTime()).toBeLessThanOrEqual(Date.now())
+    const due = await api(
+      request,
+      'membershipManager',
+      'get',
+      `/api/members?where[status][equals]=ended&where[reviewDueOn][less_than_equal]=${new Date().toISOString()}&limit=200&depth=0`,
+    )
+    expect((due.body?.docs as Doc[]).map((d) => d.id)).toContain(member.id)
+    // The review fields cannot be set through the ordinary API.
+    await api(request, 'membershipManager', 'patch', path, {
+      reviewOutcome: 'retainedAll',
+      retainUntil: '2099-01-01T00:00:00.000Z',
+    })
+    expect((await api(request, 'membershipManager', 'get', `${path}?depth=0`)).body).toMatchObject({
+      reviewOutcome: 'pending',
+      retainUntil: null,
+    })
+
+    // Only those who work on the register; a date in the future; "other" needs a note.
+    for (const name of ['technicalAdmin', 'contentEditor', 'auditor'] as const) {
+      expect(
+        (await review({ keep: 'all', until: nextYear, reason: 'proof' }, name)).status,
+        name,
+      ).toBe(403)
+    }
+    expect((await review({ keep: 'all', until: '2020-01-01', reason: 'proof' })).body).toEqual({
+      error: 'until',
+    })
+    expect((await review({ keep: 'all', until: nextYear, reason: 'other' })).body).toEqual({
+      error: 'note',
+    })
+    expect((await review({ keep: 'all', until: nextYear, reason: 'proof' })).status).toBe(200)
+    expect((await api(request, 'membershipManager', 'get', `${path}?depth=0`)).body).toMatchObject({
+      reviewOutcome: 'retainedAll',
+      retentionReason: 'proof',
+      reviewedByName: 'E2E Mitgliederverwaltung',
+      email: 'pruefung@example.org',
+    })
+
+    // Keeping only the minimal record removes the contact data: with a fresh code.
+    await signedInToken(request, 'membershipManager', true)
+    expect(
+      (await review({ keep: 'minimal', until: nextYear, reason: 'accounting', note: 'Belege' }))
+        .body,
+    ).toEqual({ error: 'step_up_required' })
+    await confirmStepUp(request, 'membershipManager')
+    expect(
+      (await review({ keep: 'minimal', until: nextYear, reason: 'accounting', note: 'Belege' }))
+        .status,
+    ).toBe(200)
+    const minimal = (await api(request, 'membershipManager', 'get', `${path}?depth=0`)).body as Doc
+    expect(minimal).toMatchObject({
+      firstName: 'E2E',
+      lastName: `Prüfung ${worker()}`,
+      email: null,
+      address: { street: null, postalCode: null, city: null, country: null },
+      reviewOutcome: 'retainedMinimal',
+      retentionReason: 'accounting',
+      retentionNote: 'Belege',
+    })
+    expect(minimal.contactDataRemovedOn).toBeTruthy()
+    expect((await review({ keep: 'all', until: nextYear, reason: 'proof' })).body).toEqual({
+      error: 'already_minimal',
+    })
+    // A reduced entry cannot simply become active again.
+    expect(
+      (await api(request, 'membershipManager', 'patch', path, { status: 'active' })).status,
+    ).toBe(400)
+
+    // Recorded: history, audit log (with the code), and the super administrators are told.
+    const history = await events(request, `where[member][equals]=${member.id}`)
+    expect(history.filter((e) => e.event === 'member.reviewed').map((e) => e.to)).toEqual([
+      'retainedAll',
+      'retainedMinimal',
+    ])
+    const audit = await api(
+      request,
+      'superAdmin',
+      'get',
+      `/api/audit-log?where[action][equals]=member.reviewed&where[targetId][equals]=${member.id}&sort=createdAt&depth=0`,
+    )
+    expect((audit.body?.docs as Doc[]).map((d) => d.stepUp)).toEqual([false, true])
+    const admins = await feed(request, 'superAdmin')
+    expect(
+      admins.items.some((n) => n.kind === 'memberReduced' && n.subjectId === String(member.id)),
+    ).toBe(true)
+  })
+
   test('the register list: tabs, search, add and export for the right roles', async ({
     page,
     request,
@@ -286,17 +526,33 @@ test.describe('members register', () => {
 })
 
 test.describe('export of personal data', () => {
-  const body = (overrides: Record<string, unknown> = {}) => ({
+  /** The approved purpose of the fixtures for a dataset (scripts/e2e-fixtures.ts). */
+  async function fixturePurpose(request: APIRequestContext, dataset: 'members' | 'applications') {
+    const { body } = await api(
+      request,
+      'membershipManager',
+      'get',
+      `/api/processing-purposes?where[dataset][equals]=${dataset}&where[status][equals]=approved&where[name][like]=E2E%20Zweck&depth=0`,
+    )
+    const doc = (body?.docs as Doc[])[0]
+    expect(doc, dataset).toBeTruthy()
+    return doc!.id
+  }
+  const body = (purposeId: number, overrides: Record<string, unknown> = {}) => ({
     dataset: 'members',
+    purposeId,
     columns: ['firstName', 'lastName', 'email'],
     filter: { status: 'all', q: `Formel ${worker()}` },
     purpose: 'Einladung zur Mitgliederversammlung 2026',
+    confirmed: true,
     ...overrides,
   })
 
-  test('needs the permission, a fresh code, a purpose and a legal basis; CSV is safe', async ({
+  test('needs the permission, a fresh code and an approved purpose with its columns; CSV is safe', async ({
     request,
   }) => {
+    // Up to three new one-time codes (sign-ins and the confirmation) wait for the next 30 s step.
+    test.setTimeout(180_000)
     // A name a spreadsheet would run as a formula.
     expect(
       (
@@ -310,75 +566,41 @@ test.describe('export of personal data', () => {
         })
       ).status,
     ).toBe(201)
-    const settings = await api(
-      request,
-      'membershipManager',
-      'get',
-      '/api/globals/control-center-settings?depth=0',
-    )
-    const basis = (settings.body?.exportLegalBases as { id: string }[])[0]!.id
+    const members = await fixturePurpose(request, 'members')
+    const applications = await fixturePurpose(request, 'applications')
+    const run = (overrides: Record<string, unknown> = {}) =>
+      api(request, 'membershipManager', 'post', '/api/exports/run', body(members, overrides))
 
     for (const name of ['technicalAdmin', 'contentEditor', 'auditor'] as const) {
-      const refused = await api(
-        request,
-        name,
-        'post',
-        '/api/exports/run',
-        body({ legalBasis: basis }),
-      )
+      const refused = await api(request, name, 'post', '/api/exports/run', body(members))
       expect(refused.status, name).toBe(403)
     }
     // A new session: one this worker used before may still hold a recent code confirmation.
     await signedInToken(request, 'membershipManager', true)
-    const noCode = await api(
-      request,
-      'membershipManager',
-      'post',
-      '/api/exports/run',
-      body({ legalBasis: basis }),
-    )
-    expect(noCode).toMatchObject({ status: 403, body: { error: 'step_up_required' } })
+    expect(await run()).toMatchObject({ status: 403, body: { error: 'step_up_required' } })
     await confirmStepUp(request, 'membershipManager')
-    expect(
-      (
-        await api(
-          request,
-          'membershipManager',
-          'post',
-          '/api/exports/run',
-          body({ legalBasis: basis, purpose: 'kurz' }),
-        )
-      ).body,
-    ).toEqual({ error: 'purpose' })
-    expect(
-      (
-        await api(
-          request,
-          'membershipManager',
-          'post',
-          '/api/exports/run',
-          body({ legalBasis: 'unknown' }),
-        )
-      ).body,
-    ).toEqual({ error: 'legal_basis' })
-    expect(
-      (
-        await api(
-          request,
-          'membershipManager',
-          'post',
-          '/api/exports/run',
-          body({ legalBasis: basis, columns: ['internalNotes'] }),
-        )
-      ).body,
-    ).toEqual({ error: 'columns' })
+    expect((await run({ purpose: 'kurz' })).body).toEqual({ error: 'occasion' })
+    expect((await run({ confirmed: undefined })).body).toEqual({ error: 'confirm' })
+    // A purpose for another dataset, one that does not exist: no export.
+    for (const purposeId of [applications, 999_999, 'x']) {
+      expect((await run({ purposeId })).body, String(purposeId)).toEqual({
+        error: 'purpose_not_approved',
+      })
+    }
+    // Only the purpose's columns (it allows first and last name, e-mail, city, member since).
+    for (const columns of [['street'], ['email', 'postalCode'], ['internalNotes'], []]) {
+      expect((await run({ columns })).body, String(columns)).toEqual({ error: 'columns' })
+    }
 
+    const download = (separator: string) =>
+      request.post(adminUrl('/api/exports/run'), {
+        headers: { 'X-Forwarded-For': freshAddress() },
+        data: body(members, { separator }),
+      })
+    const headers = await authHeaders(request, 'membershipManager')
     const response = await request.post(adminUrl('/api/exports/run'), {
-      headers: {
-        ...(await authHeaders(request, 'membershipManager')),
-        'X-Forwarded-For': freshAddress(),
-      },
-      data: body({ legalBasis: basis }),
+      headers: { ...headers, 'X-Forwarded-For': freshAddress() },
+      data: body(members),
     })
     expect(response.status()).toBe(200)
     expect(response.headers()['content-type']).toContain('text/csv')
@@ -392,8 +614,17 @@ test.describe('export of personal data', () => {
       `"'=HYPERLINK(""http://example.org"")";"Formel ${worker()}";"formel@example.org"`,
     )
     const exportId = Number(response.headers()['x-export-id'])
+    // Without a session the endpoint refuses; with commas for Excel in English it works.
+    expect((await download(',')).status()).toBe(401)
+    const comma = await request.post(adminUrl('/api/exports/run'), {
+      headers: { ...headers, 'X-Forwarded-For': freshAddress() },
+      data: body(members, { separator: ',' }),
+    })
+    expect((await comma.body()).toString('utf8').slice(1).split('\r\n')[0]).toBe(
+      '"Vorname","Nachname","E-Mail"',
+    )
 
-    // The register: own entries for the person who exported, all for reviewers, none otherwise.
+    // The register: purpose, legal basis, occasion, columns, who and when; no personal data.
     const own = await api(request, 'membershipManager', 'get', '/api/exports?limit=100&depth=0')
     const ownEntries = own.body?.docs as Doc[]
     expect(ownEntries.map((d) => d.id)).toContain(exportId)
@@ -402,11 +633,16 @@ test.describe('export of personal data', () => {
     expect(entry).toMatchObject({
       dataset: 'members',
       rows: 1,
+      processingPurpose: members,
+      processingPurposeName: 'E2E Zweck Mitglieder (Test)',
       purpose: 'Einladung zur Mitgliederversammlung 2026',
-      legalBasis: 'E2E Rechtsgrundlage (Test)',
+      legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO – Vertrag oder vorvertragliche Maßnahmen',
+      legalBasisCode: 'b',
       columns: ['firstName', 'lastName', 'email'],
       filter: { status: 'all', search: 'yes' },
+      actorRole: 'membershipManager',
     })
+    expect(entry.createdAt).toBeTruthy()
     expect(JSON.stringify(entry)).not.toContain('Formel')
     for (const name of ['auditor', 'boardAdmin', 'superAdmin'] as const) {
       const review = await api(request, name, 'get', `/api/exports/${exportId}?depth=0`)
@@ -437,24 +673,162 @@ test.describe('export of personal data', () => {
     )
   })
 
-  test('the export screen asks for a code and downloads the file', async ({ page, request }) => {
+  test('purposes: approved only by a super administrator with a code; changes take it back', async ({
+    request,
+  }) => {
+    // The six legal bases of Art. 6(1) GDPR: read by those who export or review, fixed list.
+    const bases = await api(request, 'superAdmin', 'get', '/api/legal-bases?depth=0&locale=de')
+    const docs = bases.body?.docs as (Doc & { code: string; title: string })[]
+    expect(docs.map((d) => d.code)).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
+    const basisF = docs.find((d) => d.code === 'f')!
+    expect((await api(request, 'membershipManager', 'get', '/api/legal-bases')).status).toBe(200)
+    expect((await api(request, 'auditor', 'get', '/api/legal-bases')).status).toBe(200)
+    for (const name of ['technicalAdmin', 'contentEditor'] as const) {
+      expect((await api(request, name, 'get', '/api/legal-bases')).status, name).toBe(403)
+      expect((await api(request, name, 'get', '/api/processing-purposes')).status, name).toBe(403)
+    }
+    expect(
+      (await api(request, 'superAdmin', 'post', '/api/legal-bases', { code: 'a' })).status,
+    ).toBe(403)
+    expect(
+      (await api(request, 'superAdmin', 'delete', `/api/legal-bases/${basisF.id}`)).status,
+    ).toBe(403)
+
+    // A new purpose is a draft, whatever is sent; only super administrators create it.
+    const data = {
+      name: `E2E Prüfzweck ${worker()}`,
+      dataset: 'members',
+      legalBasis: basisF.id,
+      justification: 'Abwägung: interne Planung einer Vereinsveranstaltung.',
+      columns: ['firstName', 'lastName'],
+      status: 'approved',
+      decisionReference: 'erfunden',
+    }
+    expect(
+      (await api(request, 'membershipManager', 'post', '/api/processing-purposes', data)).status,
+    ).toBe(403)
+    const created = await api(request, 'superAdmin', 'post', '/api/processing-purposes', data)
+    expect(created.status).toBe(201)
+    const purpose = created.body?.doc as Doc
+    expect(purpose).toMatchObject({ status: 'draft', decisionReference: null })
+    const purposePath = `/api/processing-purposes/${purpose.id}`
+    const exportWith = () =>
+      api(request, 'membershipManager', 'post', '/api/exports/run', {
+        dataset: 'members',
+        purposeId: purpose.id,
+        columns: ['lastName'],
+        filter: { status: 'all', q: `Mitglied ${worker()}` },
+        purpose: 'Planung des Sommerfests im Verein',
+        confirmed: true,
+      })
+    await confirmStepUp(request, 'membershipManager')
+    expect((await exportWith()).body).toEqual({ error: 'purpose_not_approved' })
+
+    // Approval: settings.manage only, with a code and the association's decision.
+    expect((await api(request, 'boardAdmin', 'post', `${purposePath}/approve`, {})).status).toBe(
+      403,
+    )
+    await signedInToken(request, 'superAdmin', true)
+    expect(
+      (
+        await api(request, 'superAdmin', 'post', `${purposePath}/approve`, {
+          decisionReference: 'Beschluss',
+        })
+      ).body,
+    ).toEqual({ error: 'step_up_required' })
+    await confirmStepUp(request, 'superAdmin')
+    expect((await api(request, 'superAdmin', 'post', `${purposePath}/approve`, {})).body).toEqual({
+      error: 'incomplete',
+      problems: ['decision'],
+    })
+    const approve = () =>
+      api(request, 'superAdmin', 'post', `${purposePath}/approve`, {
+        decisionReference: 'Vorstandsbeschluss vom 20.10.2026 (Test)',
+      })
+    expect((await approve()).status).toBe(200)
+    expect((await api(request, 'superAdmin', 'get', `${purposePath}?depth=0`)).body).toMatchObject({
+      status: 'approved',
+      decisionReference: 'Vorstandsbeschluss vom 20.10.2026 (Test)',
+      approvedByName: 'E2E Super-Admin',
+    })
+    const exported = await exportWith()
+    expect(exported.status).toBe(200)
+
+    // A legal basis switched off blocks exports for purposes resting on it.
+    expect(
+      (
+        await api(request, 'superAdmin', 'patch', `/api/legal-bases/${basisF.id}`, {
+          available: false,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await exportWith()).body).toEqual({ error: 'legal_basis' })
+    await api(request, 'superAdmin', 'patch', `/api/legal-bases/${basisF.id}`, { available: true })
+
+    // Setting the status directly does nothing; changing what was approved makes it a draft.
+    await api(request, 'superAdmin', 'patch', purposePath, { status: 'retired' })
+    expect((await api(request, 'superAdmin', 'get', `${purposePath}?depth=0`)).body?.status).toBe(
+      'approved',
+    )
+    await api(request, 'superAdmin', 'patch', purposePath, { columns: ['lastName', 'email'] })
+    expect((await api(request, 'superAdmin', 'get', `${purposePath}?depth=0`)).body).toMatchObject({
+      status: 'draft',
+      decisionReference: null,
+      approvedOn: null,
+    })
+    expect((await exportWith()).body).toEqual({ error: 'purpose_not_approved' })
+
+    // Retired: no exports; used once, it can no longer be deleted.
+    expect((await approve()).status).toBe(200)
+    expect((await api(request, 'superAdmin', 'post', `${purposePath}/retire`, {})).status).toBe(200)
+    expect((await exportWith()).body).toEqual({ error: 'purpose_not_approved' })
+    expect((await api(request, 'superAdmin', 'post', `${purposePath}/reopen`, {})).status).toBe(200)
+    expect((await api(request, 'superAdmin', 'delete', purposePath)).status).toBe(409)
+
+    const log = await api(
+      request,
+      'superAdmin',
+      'get',
+      `/api/audit-log?where[action][equals]=purpose.approve&where[targetId][equals]=${purpose.id}&depth=0`,
+    )
+    expect((log.body?.docs as Doc[])[0]).toMatchObject({ stepUp: true, area: 'association' })
+  })
+
+  test('the export screen: purpose, legal basis, its columns, occasion, confirmation, code', async ({
+    page,
+    request,
+  }) => {
     // A new session: one this worker used before may still hold a recent code confirmation.
     await signInBrowser(page.context(), request, 'boardAdmin', true)
     await page.goto(adminUrl(`/admin/export?dataset=members&status=all&q=Mitglied+${worker()}`))
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
       'Export personenbezogener Daten',
     )
-    await page.getByLabel('Zweck').fill('Prüfung der Mitgliederliste durch den Vorstand')
-    await page.getByLabel('Rechtsgrundlage').selectOption({ label: 'E2E Rechtsgrundlage (Test)' })
-    await page.getByRole('button', { name: 'CSV herunterladen' }).click()
+    const download = page.getByRole('button', { name: 'CSV herunterladen' })
+    await expect(download).toBeDisabled()
+    await page.getByRole('radio', { name: /E2E Zweck Mitglieder \(Test\)/ }).check()
+    await expect(
+      page.getByRole('heading', {
+        name: 'Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO – Vertrag oder vorvertragliche Maßnahmen',
+      }),
+    ).toBeVisible()
+    await expect(page.getByText('E2E Begründung für den Test der Exporte.')).toBeVisible()
+    // Only the purpose's columns, all chosen to start with.
+    const columns = page.getByRole('group', { name: 'Spalten' }).getByRole('checkbox')
+    await expect(columns).toHaveCount(5)
+    await expect(page.getByRole('checkbox', { name: 'Straße und Hausnummer' })).toHaveCount(0)
+    await page.getByRole('checkbox', { name: 'E-Mail', exact: true }).uncheck()
+    await page.getByLabel('Konkreter Anlass').fill('Prüfung der Mitgliederliste durch den Vorstand')
+    await expect(download).toBeDisabled()
+    await page.getByRole('checkbox', { name: /Ich bestätige/ }).check()
+    await download.click()
     const dialog = page.getByRole('dialog', { name: 'Mit Code bestätigen' })
     await expect(dialog).toBeVisible()
     const { nextCode } = await import('./auth')
     await dialog.getByLabel('Code aus der App').fill(await nextCode('boardAdmin'))
-    const download = page.waitForEvent('download')
+    const file = page.waitForEvent('download')
     await dialog.getByRole('button', { name: 'Bestätigen' }).click()
-    const file = await download
-    expect(file.suggestedFilename()).toMatch(/^mitglieder-\d{4}-\d{2}-\d{2}\.csv$/)
+    expect((await file).suggestedFilename()).toMatch(/^mitglieder-\d{4}-\d{2}-\d{2}\.csv$/)
     await expect(
       page.getByRole('status').filter({ hasText: 'Export erstellt: 1 Zeilen' }),
     ).toBeVisible()
@@ -512,6 +886,40 @@ test.describe('notifications', () => {
     )
     const tech = await feed(request, 'technicalAdmin')
     expect(tech.items.filter((n) => n.kind !== 'newDevice')).toEqual([])
+  })
+
+  test('reviews due are reported; old notifications go: read after 30 days, unread after 90', async ({
+    request,
+  }) => {
+    expect(
+      (await api(request, 'superAdmin', 'get', '/api/payload-jobs/run?queue=maintenance')).status,
+    ).toBe(200)
+    const ended = (
+      await api(
+        request,
+        'membershipManager',
+        'get',
+        `/api/members?where[lastName][equals]=${encodeURIComponent(`Beendet ${worker()}`)}&depth=0`,
+      )
+    ).body?.docs as Doc[]
+    const mm = await feed(request, 'membershipManager')
+    expect(
+      mm.items.some((n) => n.kind === 'memberReviewDue' && n.subjectId === String(ended[0]!.id)),
+    ).toBe(true)
+
+    const auditor = await feed(request, 'auditor')
+    const kept = auditor.items.map((n) => n.subjectId)
+    expect(kept).toEqual(expect.arrayContaining([`9000${worker()}2`, `9000${worker()}4`]))
+    expect(kept).not.toContain(`9000${worker()}1`)
+    expect(kept).not.toContain(`9000${worker()}3`)
+    // Security events are in the audit log, which keeps its own period.
+    const log = await api(
+      request,
+      'superAdmin',
+      'get',
+      '/api/audit-log?where[action][equals]=auth.new_device&limit=1&depth=0',
+    )
+    expect((log.body?.totalDocs as number) > 0).toBe(true)
   })
 
   test('the bell shows unread notifications and links to them', async ({ page, request }) => {

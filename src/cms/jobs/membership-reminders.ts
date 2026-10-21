@@ -35,7 +35,9 @@ const assigneeOf = (doc: Application) =>
  * Daily reminders in the Control Center (no e-mail, no personal data):
  * - follow-up date reached: to the person assigned, or to everyone working on applications;
  * - application received and untouched for the configured number of days;
- * - applicant under 18 without a recorded consent for the configured number of days.
+ * - applicant under 18 without a recorded consent for the configured number of days;
+ * - a former member whose review is due (after the end, or at the "keep until" date): to everyone
+ *   who works on the members register.
  * A reminder is not repeated while the previous one is unread.
  */
 export async function sendMembershipReminders(payload: Payload, now = new Date()) {
@@ -98,10 +100,36 @@ export async function sendMembershipReminders(payload: Payload, now = new Date()
   await remind('followUpDue', due.docs as Application[])
   await remind('applicationWaiting', waiting.docs as Application[])
   await remind('consentPending', consent.docs as Application[])
+
+  const reviews = await payload.find({
+    collection: 'members',
+    where: {
+      and: [
+        { status: { equals: 'ended' } },
+        { reviewDueOn: { less_than: startOfTomorrowBerlin(now).toISOString() } },
+      ],
+    },
+    limit: 500,
+    depth: 0,
+    overrideAccess: true,
+    select: { status: true },
+  })
+  const registerTeam = await recipientsWith(payload, 'members.write')
+  for (const doc of reviews.docs) {
+    sent += await notify(payload, {
+      kind: 'memberReviewDue',
+      recipients: registerTeam,
+      subjectType: 'members',
+      subjectId: doc.id,
+      href: adminHref('members', doc.id),
+      dedupe: 'unread',
+    })
+  }
   return {
     followUps: due.docs.length,
     waiting: waiting.docs.length,
     consent: consent.docs.length,
+    reviews: reviews.docs.length,
     sent,
   }
 }

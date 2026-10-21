@@ -18,6 +18,8 @@ export const NOTIFICATION_KINDS = [
   'exportCreated',
   'memberDeleted',
   'newDevice',
+  'memberReviewDue',
+  'memberReduced',
 ] as const
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 

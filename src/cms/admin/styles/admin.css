@@ -1556,6 +1556,183 @@ html[data-theme='dark'] .yop-nav {
 .yop-choice input {
   accent-color: var(--yop-accent);
 }
+/* CC-2: interface language (header), separate from Payload's content language menu. */
+html[data-yop-content-language='off'] .app-header__localizer-spacing,
+html[data-yop-content-language='off'] .app-header__localizer {
+  display: none;
+}
+.yop-language {
+  position: relative;
+  display: inline-flex;
+  margin-inline-end: 8px;
+}
+.yop-language__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 40px;
+  padding-inline: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--yop-line);
+  background: var(--yop-surface);
+  color: var(--yop-ink-2);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.yop-language__button:hover {
+  border-color: var(--yop-line-strong);
+  color: var(--yop-ink);
+}
+.yop-language__label {
+  color: var(--yop-muted);
+}
+.yop-language__menu {
+  position: absolute;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-end: 0;
+  z-index: 60;
+  min-inline-size: 160px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--yop-line);
+  border-radius: 12px;
+  background: var(--yop-surface);
+  box-shadow: var(--yop-shadow);
+}
+.yop-language__menu button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding-inline: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--yop-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.yop-language__menu button:hover,
+.yop-language__menu button[aria-current='true'] {
+  background: var(--yop-accent-soft);
+}
+@media (max-width: 768px) {
+  .yop-language__label {
+    display: none;
+  }
+}
+
+/* CC-2: the review after a membership ends (member panel). */
+.yop-review {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 16px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--yop-line);
+}
+.yop-review__form {
+  display: grid;
+  gap: 6px;
+}
+.yop-review__form .yop-fieldset {
+  display: grid;
+  gap: 4px;
+}
+
+/* CC-2: export purposes and the legal basis they rest on. */
+.yop-purposes {
+  display: grid;
+  gap: 8px;
+}
+.yop-purpose {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-block: 12px;
+  padding-inline: 14px;
+  border: 1px solid var(--yop-line);
+  border-radius: 12px;
+  background: var(--yop-surface);
+  cursor: pointer;
+}
+.yop-purpose:hover {
+  border-color: var(--yop-line-strong);
+}
+.yop-purpose:has(input:checked) {
+  border-color: var(--yop-accent);
+  background: var(--yop-accent-soft);
+}
+.yop-purpose input {
+  margin-block-start: 3px;
+  accent-color: var(--yop-accent);
+}
+.yop-purpose__text {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.yop-purpose__name {
+  font-weight: 600;
+}
+.yop-purpose__description {
+  color: var(--yop-ink-2);
+  font-size: 13.5px;
+}
+.yop-purpose__basis {
+  color: var(--yop-muted);
+  font-size: 12.5px;
+}
+.yop-basis {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--yop-surface-2);
+}
+.yop-basis__title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.yop-basis__details summary {
+  cursor: pointer;
+  color: var(--yop-ink);
+  font-size: 13.5px;
+  font-weight: 550;
+}
+.yop-basis__details p {
+  margin-block: 8px 0;
+  color: var(--yop-ink-2);
+  font-size: 13.5px;
+}
+.yop-basis__facts {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.yop-basis__facts dt {
+  color: var(--yop-muted);
+  font-size: 12.5px;
+}
+.yop-basis__facts dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  white-space: pre-line;
+}
+.yop-check--confirm {
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--yop-line);
+  border-radius: 12px;
+}
+.yop-plain-list {
+  margin: 0;
+  padding-inline-start: 18px;
+}
 .yop-bell {
   position: relative;
   display: inline-flex;

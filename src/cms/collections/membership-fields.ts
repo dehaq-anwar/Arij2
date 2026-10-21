@@ -1,4 +1,5 @@
-import type { Field } from 'payload'
+import type { EmailField, Field, TextField } from 'payload'
+import { email, text } from 'payload/shared'
 
 import { label } from '../lib/labels'
 
@@ -6,38 +7,60 @@ import { label } from '../lib/labels'
 export const DAY_PICKER = { pickerAppearance: 'dayOnly', displayFormat: 'dd.MM.yyyy' } as const
 
 /**
+ * A required field, unless the document's `waiver` field is set: the date on which the data
+ * were moved to the members register (applications) or removed after the review (members).
+ * Without a waiver the field is simply required (NOT NULL in the database).
+ */
+type Waiver = 'personalDataMovedOn' | 'contactDataRemovedOn'
+const waived = (data: unknown, waiver?: Waiver) =>
+  Boolean(waiver && (data as Record<string, unknown> | undefined)?.[waiver])
+
+function requiredText(field: Omit<TextField, 'type'>, waiver?: Waiver): TextField {
+  if (!waiver) return { ...field, type: 'text', required: true } as TextField
+  return {
+    ...field,
+    type: 'text',
+    validate: (value, args) =>
+      waived(args.data, waiver) ? true : text(value, { ...args, required: true }),
+  } as TextField
+}
+
+/**
  * The person's fields as the membership application collects them (Satzung § 3). The members
  * register uses exactly these and nothing more: no field here may be added without the
  * association's decision (docs/CONTROL-CENTER.md §5, decision 12).
  */
-export const nameRow: Field = {
+export const nameRow = (waiver?: Waiver): Field => ({
   type: 'row',
   fields: [
-    {
-      name: 'firstName',
-      type: 'text',
-      required: true,
-      maxLength: 100,
-      label: label('Vorname', 'First name', 'الاسم الأول'),
-    },
-    {
-      name: 'lastName',
-      type: 'text',
-      required: true,
-      maxLength: 100,
-      label: label('Nachname', 'Last name', 'اسم العائلة'),
-    },
+    requiredText(
+      { name: 'firstName', maxLength: 100, label: label('Vorname', 'First name', 'الاسم الأول') },
+      waiver,
+    ),
+    requiredText(
+      { name: 'lastName', maxLength: 100, label: label('Nachname', 'Last name', 'اسم العائلة') },
+      waiver,
+    ),
   ],
-}
+})
 
-export const emailField: Field = {
-  name: 'email',
-  type: 'email',
-  required: true,
-  label: label('E-Mail', 'E-mail', 'البريد الإلكتروني'),
-}
+export const emailField = (waiver?: Waiver): EmailField =>
+  waiver
+    ? {
+        name: 'email',
+        type: 'email',
+        label: label('E-Mail', 'E-mail', 'البريد الإلكتروني'),
+        validate: (value, args) =>
+          waived(args.data, waiver) ? true : email(value, { ...args, required: true }),
+      }
+    : {
+        name: 'email',
+        type: 'email',
+        required: true,
+        label: label('E-Mail', 'E-mail', 'البريد الإلكتروني'),
+      }
 
-export const addressGroup: Field = {
+export const addressGroup = (waiver?: Waiver): Field => ({
   name: 'address',
   type: 'group',
   label: label('Anschrift', 'Address', 'العنوان'),
@@ -49,41 +72,33 @@ export const addressGroup: Field = {
     ),
   },
   fields: [
-    {
-      name: 'street',
-      type: 'text',
-      required: true,
-      maxLength: 150,
-      label: label('Straße und Hausnummer', 'Street and number', 'الشارع ورقم المنزل'),
-    },
+    requiredText(
+      {
+        name: 'street',
+        maxLength: 150,
+        label: label('Straße und Hausnummer', 'Street and number', 'الشارع ورقم المنزل'),
+      },
+      waiver,
+    ),
     {
       type: 'row',
       fields: [
-        {
-          name: 'postalCode',
-          type: 'text',
-          required: true,
-          maxLength: 12,
-          label: label('PLZ', 'Postcode', 'الرمز البريدي'),
-        },
-        {
-          name: 'city',
-          type: 'text',
-          required: true,
-          maxLength: 100,
-          label: label('Ort', 'City', 'المدينة'),
-        },
-        {
-          name: 'country',
-          type: 'text',
-          required: true,
-          maxLength: 100,
-          label: label('Land', 'Country', 'البلد'),
-        },
+        requiredText(
+          { name: 'postalCode', maxLength: 12, label: label('PLZ', 'Postcode', 'الرمز البريدي') },
+          waiver,
+        ),
+        requiredText(
+          { name: 'city', maxLength: 100, label: label('Ort', 'City', 'المدينة') },
+          waiver,
+        ),
+        requiredText(
+          { name: 'country', maxLength: 100, label: label('Land', 'Country', 'البلد') },
+          waiver,
+        ),
       ],
     },
   ],
-}
+})
 
 export const MEMBERSHIP_TYPES = ['ordinary', 'supporting'] as const
 
@@ -124,5 +139,28 @@ export const guardianFields: Field[] = [
   },
 ]
 
-/** Roles that work on applications and members (for assignment lists). */
-export const MEMBERSHIP_ROLES = ['superAdmin', 'boardAdmin', 'membershipManager'] as const
+/**
+ * The title of an application or a register entry in the edit screen, in relationship fields and
+ * in the history: "Last name, first name". Kept up to date by the collections' hooks; once an
+ * application's personal data were moved to the register it holds only the number ("#12"), so
+ * no name stays behind in the application.
+ */
+export const displayTitleField: TextField = {
+  name: 'displayTitle',
+  type: 'text',
+  label: label('Titel', 'Title', 'العنوان'),
+  admin: { hidden: true },
+}
+
+type Named = {
+  id?: number | string
+  firstName?: string | null
+  lastName?: string | null
+  personalDataMovedOn?: string | null
+}
+
+export function displayTitle(doc: Named): string | null {
+  if (doc.personalDataMovedOn) return doc.id == null ? null : `#${doc.id}`
+  const name = [doc.lastName, doc.firstName].filter((part) => part?.trim()).join(', ')
+  return name || (doc.id == null ? null : `#${doc.id}`)
+}

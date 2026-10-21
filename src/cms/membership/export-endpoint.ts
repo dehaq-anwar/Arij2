@@ -5,18 +5,14 @@ import { audit } from '../audit/log'
 import { hasFreshStepUp, isVerifiedSession } from '../auth/session-state'
 import { adminLanguage } from '../admin/i18n'
 import { toCsv } from './csv'
-import {
-  cleanPurpose,
-  exportTable,
-  isExportDataset,
-  pickColumns,
-  type ExportDataset,
-} from './export'
+import { cleanPurpose, exportTable, isExportDataset, type ExportDataset } from './export'
 import { adminHref, notify, recipientsWith } from './notifications'
+import { checkExport, type LegalBasisLike, type PurposeLike } from './purposes'
 import {
   and,
   isMemberFilter,
   isStageFilter,
+  memberWhere,
   MEMBERSHIP_TYPE_VALUES,
   searchWhere,
   stageWhere,
@@ -46,11 +42,7 @@ export function exportWhere(dataset: ExportDataset, filter: Filter): Where {
   if (dataset === 'applications') {
     return and(stageWhere(isStageFilter(filter.stage) ? filter.stage : 'all'), type, search)
   }
-  const status =
-    isMemberFilter(filter.status) && filter.status !== 'all'
-      ? { status: { equals: filter.status } }
-      : null
-  return and(status, type, search)
+  return and(isMemberFilter(filter.status) ? memberWhere(filter.status) : null, type, search)
 }
 
 /** Only the known filter keys and values go into the export register. */
@@ -71,10 +63,12 @@ async function runExport(req: PayloadRequest): Promise<Response> {
   const person = req.user as PermissionSubject & { id: number; name?: string; role?: string }
   const body = ((await req.json?.().catch(() => null)) ?? {}) as {
     dataset?: unknown
+    purposeId?: unknown
     columns?: unknown
     filter?: Filter
     purpose?: unknown
-    legalBasis?: unknown
+    confirmed?: unknown
+    separator?: unknown
   }
   if (!isExportDataset(body.dataset)) return json({ error: 'dataset' }, 400)
   const dataset = body.dataset
@@ -83,20 +77,38 @@ async function runExport(req: PayloadRequest): Promise<Response> {
   }
   if (!(await hasFreshStepUp(req))) return json({ error: 'step_up_required' }, 403)
 
-  const columns = pickColumns(dataset, body.columns)
-  if (!columns.length) return json({ error: 'columns' }, 400)
-  const purpose = cleanPurpose(body.purpose)
-  if (!purpose) return json({ error: 'purpose' }, 400)
-  const settings = (await req.payload.findGlobal({
-    slug: 'control-center-settings',
+  // Exports exist only for purposes the association has approved (none: exports are off).
+  const approved = await req.payload.count({
+    collection: 'processing-purposes',
+    where: { and: [{ status: { equals: 'approved' } }, { dataset: { equals: dataset } }] },
     overrideAccess: true,
-    depth: 0,
     req,
-  })) as { exportLegalBases?: { id?: string; de: string; en?: string; ar?: string }[] }
-  const bases = settings.exportLegalBases ?? []
-  if (!bases.length) return json({ error: 'no_legal_bases' }, 409)
-  const basis = bases.find((entry) => entry.id && entry.id === body.legalBasis)
-  if (!basis) return json({ error: 'legal_basis' }, 400)
+  })
+  if (!approved.totalDocs) return json({ error: 'no_purposes' }, 409)
+  const purposeId = Number(body.purposeId)
+  const purpose = Number.isInteger(purposeId)
+    ? ((await req.payload
+        .findByID({
+          collection: 'processing-purposes',
+          id: purposeId,
+          depth: 1,
+          locale: 'de',
+          overrideAccess: true,
+          req,
+        })
+        .catch(() => null)) as (PurposeLike & { name?: string }) | null)
+    : null
+  const basis =
+    purpose?.legalBasis && typeof purpose.legalBasis === 'object'
+      ? (purpose.legalBasis as LegalBasisLike & { title?: string; article?: string })
+      : null
+  const check = checkExport(purpose, basis, dataset, body.columns)
+  if (!check.ok) return json({ error: check.error }, 400)
+  const columns = check.columns
+  const occasion = cleanPurpose(body.purpose)
+  if (!occasion) return json({ error: 'occasion' }, 400)
+  if (body.confirmed !== true) return json({ error: 'confirm' }, 400)
+  const separator = body.separator === ',' ? ',' : ';'
 
   const filter = body.filter ?? {}
   // With the person's own access rules (not overrideAccess): restrictions apply here too.
@@ -116,15 +128,18 @@ async function runExport(req: PayloadRequest): Promise<Response> {
     docs as unknown as Record<string, unknown>[],
     language,
   )
-  const csv = toCsv(table.header, table.rows)
+  const csv = toCsv(table.header, table.rows, separator)
 
   const record = await req.payload.create({
     collection: 'exports',
     data: {
       dataset,
       rows: docs.length,
-      purpose,
-      legalBasis: basis.de,
+      processingPurpose: purposeId,
+      processingPurposeName: purpose?.name ?? null,
+      purpose: occasion,
+      legalBasis: `${basis?.article ?? ''} – ${basis?.title ?? ''}`,
+      legalBasisCode: basis?.code ?? null,
       columns: columns.map((column) => column.key),
       filter: cleanFilter(dataset, filter),
       actorId: Number(person.id),
@@ -142,7 +157,13 @@ async function runExport(req: PayloadRequest): Promise<Response> {
       area: 'association',
       stepUp: true,
       target: { type: 'exports', id: record.id },
-      detail: { dataset, rows: docs.length, columns: columns.map((column) => column.key) },
+      detail: {
+        dataset,
+        rows: docs.length,
+        columns: columns.map((column) => column.key),
+        purposeId,
+        legalBasis: basis?.code ?? null,
+      },
     },
     req,
   )
@@ -176,7 +197,9 @@ async function runExport(req: PayloadRequest): Promise<Response> {
 }
 
 /**
- * POST /api/exports/run  { dataset, columns, filter, purpose, legalBasis }
- * Needs `personalData.export`, read access to the dataset and a code from the last five minutes.
+ * POST /api/exports/run  { dataset, purposeId, columns, filter, purpose, confirmed, separator }
+ * Needs `personalData.export`, read access to the dataset, a code from the last five minutes and
+ * an approved processing purpose for the dataset whose columns cover the request; `purpose` is
+ * the specific occasion (10–300 characters), `confirmed` the person's confirmation.
  */
 export const exportEndpoints: Endpoint[] = [{ path: '/run', method: 'post', handler: runExport }]

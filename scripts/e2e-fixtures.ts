@@ -275,15 +275,45 @@ for (const [lastName, status, decisionDate] of [
 }
 await payload.jobs.queue({ task: 'retention', queue: 'maintenance', input: {} })
 
-// CC-1: one legal basis for exports (the association enters the real ones), and per worker an
+// CC-2: approved processing purposes for exports (the association decides on the real ones; the
+// legal bases of Art. 6(1) GDPR come from the migration), and one draft. CC-1: per worker an
 // application in each situation the tests need, plus a member entered by hand.
 await payload.updateGlobal({
   slug: 'control-center-settings',
+  data: { reminders: { waitingDays: 7, consentDays: 14 } },
+})
+const basisB = (
+  await payload.find({ collection: 'legal-bases', where: { code: { equals: 'b' } }, limit: 1 })
+).docs[0]!
+const approval = {
+  status: 'approved' as const,
+  decisionReference: 'E2E Beschluss (Test)',
+  approvedOn: new Date().toISOString(),
+  approvedByName: 'E2E',
+}
+await payload.create({
+  collection: 'processing-purposes',
+  context: { purposeApproval: true },
   data: {
-    exportLegalBases: [
-      { de: 'E2E Rechtsgrundlage (Test)', en: 'E2E legal basis (test)', ar: 'E2E أساس قانوني' },
-    ],
-    reminders: { waitingDays: 7, consentDays: 14 },
+    name: 'E2E Zweck Mitglieder (Test)',
+    description: 'E2E',
+    dataset: 'members',
+    legalBasis: basisB.id,
+    justification: 'E2E Begründung für den Test der Exporte.',
+    columns: ['firstName', 'lastName', 'email', 'city', 'memberSince'],
+    ...approval,
+  },
+})
+await payload.create({
+  collection: 'processing-purposes',
+  context: { purposeApproval: true },
+  data: {
+    name: 'E2E Zweck Anträge (Test)',
+    dataset: 'applications',
+    legalBasis: basisB.id,
+    justification: 'E2E Begründung für den Test der Exporte.',
+    columns: ['firstName', 'lastName', 'status'],
+    ...approval,
   },
 })
 const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -323,12 +353,64 @@ for (let worker = 0; worker < 8; worker++) {
       followUpOn: yesterday,
     },
   })
+  // CC-2: the assignment of an application and of a contact message.
+  await payload.create({
+    collection: 'membership-applications',
+    data: { ...person(`Zuweisung ${worker}`), ...base },
+  })
+  await payload.create({
+    collection: 'contact-messages',
+    data: {
+      name: `E2E Zuweisung ${worker}`,
+      email: 'e2e@example.org',
+      topic: 'general',
+      message: 'E2E',
+      locale: 'de',
+      status: 'new',
+      consent,
+    },
+  })
   await payload.create({
     collection: 'members',
     data: { ...person(`Mitglied ${worker}`), memberSince: monthsAgo(24), status: 'active' },
   })
+  // CC-2: a membership that ended: due for review at once (the default of 0 days).
+  await payload.create({
+    collection: 'members',
+    data: {
+      ...person(`Beendet ${worker}`),
+      memberSince: monthsAgo(36),
+      status: 'ended',
+      endedOn: monthsAgo(1),
+    },
+  })
+
+  // CC-2: notifications of the auditor of this worker, read and unread, old and recent; the
+  // queued retention job deletes read ones after 30 days and unread ones after 90 days.
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  const auditor = accountIds.get(`auditor-${worker}`)!
+  for (const [subjectId, createdAt, readAt] of [
+    [`9000${worker}1`, daysAgo(40), daysAgo(31)], // read more than 30 days ago: deleted
+    [`9000${worker}2`, daysAgo(40), daysAgo(5)], // read recently: kept
+    [`9000${worker}3`, daysAgo(91), null], // unread for more than 90 days: deleted
+    [`9000${worker}4`, daysAgo(60), null], // unread for 60 days: kept
+  ] as const) {
+    await payload.create({
+      collection: 'notifications',
+      data: {
+        recipient: auditor,
+        kind: 'exportCreated',
+        subjectType: 'exports',
+        subjectId,
+        href: '/admin/collections/exports',
+        readAt,
+        createdAt,
+      },
+    })
+  }
 }
 await payload.jobs.queue({ task: 'membership-reminders', queue: 'maintenance', input: {} })
+await payload.jobs.queue({ task: 'notifications-retention', queue: 'maintenance', input: {} })
 
 // Audit retention (12 months): an old entry in the audit log and in the export register, which
 // the queued purge removes, while everything newer stays.

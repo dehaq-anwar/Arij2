@@ -52,6 +52,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Random Payload secret for this run
         run: echo "PAYLOAD_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Integration tests (migrations and data transfers on a real database)
+        run: npm run test:integration
       - name: End-to-end tests (CMS content, i18n, RTL, navigation, privacy, motion, axe)
         run: npm run test:e2e
       - name: Keep the Playwright report when a test fails

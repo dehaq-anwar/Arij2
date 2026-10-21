@@ -5,14 +5,16 @@ import type { AdminViewServerProps } from 'payload'
 import { can, type PermissionSubject } from '../../access/permissions'
 import { currentSession } from '../../auth/session-state'
 import { EXPORT_COLUMNS, type ExportDataset } from '../../membership/export'
+import { purposeColumnKeys, type PurposeLike } from '../../membership/purposes'
 import { isMemberFilter, isStageFilter, MEMBERSHIP_TYPE_VALUES } from '../../membership/stage'
-import { adminLanguage, adminTexts, formatDateTime } from '../i18n'
+import { adminLanguage, adminTexts, formatDate, formatDateTime } from '../i18n'
 import { ExportClient } from './ExportClient'
 
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
 
 /**
- * Export of personal data (CC-1): dataset, columns, selection, purpose, legal basis, then a code.
+ * Export of personal data: dataset, an approved processing purpose (with its legal basis), the
+ * purpose's columns, selection, the specific occasion and a confirmation, then a code.
  * Payload renders custom views without checking the sign-in, so this view checks it itself; the
  * endpoint checks everything again.
  */
@@ -32,16 +34,19 @@ export async function ExportView(props: AdminViewServerProps) {
       ].filter(Boolean) as ExportDataset[])
     : []
 
-  const [settings, recent] = datasets.length
+  const [purposes, recent, drafts] = datasets.length
     ? await Promise.all([
-        req.payload.findGlobal({
-          slug: 'control-center-settings',
+        req.payload.find({
+          collection: 'processing-purposes',
+          where: { and: [{ status: { equals: 'approved' } }, { dataset: { in: datasets } }] },
+          sort: 'name',
+          limit: 100,
+          depth: 1,
+          locale: language,
+          fallbackLocale: 'de',
           overrideAccess: true,
-          depth: 0,
           req,
-        }) as Promise<{
-          exportLegalBases?: { id?: string; de: string; en?: string; ar?: string }[]
-        }>,
+        }),
         req.payload.find({
           collection: 'exports',
           where: { actorId: { equals: person.id } },
@@ -51,8 +56,16 @@ export async function ExportView(props: AdminViewServerProps) {
           overrideAccess: true,
           req,
         }),
+        can(person, 'settings.manage')
+          ? req.payload.count({
+              collection: 'processing-purposes',
+              where: { status: { equals: 'draft' } },
+              overrideAccess: true,
+              req,
+            })
+          : Promise.resolve({ totalDocs: 0 }),
       ])
-    : [null, null]
+    : [null, null, { totalDocs: 0 }]
 
   const sp = (searchParams ?? {}) as Record<string, string | string[] | undefined>
   const requested = one(sp.dataset)
@@ -90,16 +103,36 @@ export async function ExportView(props: AdminViewServerProps) {
             EXPORT_COLUMNS[d].map((column) => ({ key: column.key, label: column.label[language] })),
           ]),
         )}
-        legalBases={(settings?.exportLegalBases ?? []).map((basis) => ({
-          id: basis.id ?? '',
-          label: (language !== 'de' && basis[language]) || basis.de,
-        }))}
+        purposes={(purposes?.docs ?? []).map((doc) => {
+          const basis = (
+            doc.legalBasis && typeof doc.legalBasis === 'object' ? doc.legalBasis : {}
+          ) as { code?: string; title?: string; article?: string; explanation?: string }
+          return {
+            id: doc.id as number,
+            dataset: doc.dataset as ExportDataset,
+            name: String(doc.name ?? ''),
+            description: (doc.description as string | null) ?? '',
+            justification: String(doc.justification ?? ''),
+            columns: purposeColumnKeys(doc as PurposeLike),
+            decision: String(doc.decisionReference ?? ''),
+            approvedOn: doc.approvedOn ? formatDate(doc.approvedOn as string, language) : '',
+            basis: {
+              code: basis.code ?? '',
+              title: basis.title ?? '',
+              article: basis.article ?? '',
+              explanation: basis.explanation ?? '',
+            },
+          }
+        })}
+        canManagePurposes={can(person, 'settings.manage')}
+        draftPurposes={drafts.totalDocs}
         recent={(recent?.docs ?? []).map((doc) => ({
           id: doc.id as number,
           when: formatDateTime(doc.createdAt as string, language),
           dataset: doc.dataset as ExportDataset,
           rows: doc.rows as number,
           purpose: doc.purpose as string,
+          purposeName: (doc.processingPurposeName as string | null) ?? '',
         }))}
         notAllowed={datasets.length === 0 ? t.exportNotAllowed : null}
       />

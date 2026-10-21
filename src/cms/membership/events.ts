@@ -16,6 +16,8 @@ export const CASE_EVENTS = [
   'member.updated',
   'member.ended',
   'member.reactivated',
+  'member.reviewed',
+  'application.moved',
 ] as const
 export type CaseEventKind = (typeof CASE_EVENTS)[number]
 

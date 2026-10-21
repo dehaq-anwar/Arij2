@@ -14,8 +14,11 @@ export type NotificationItem = {
   read: boolean
 }
 
-export const kindLabel = (t: Texts, kind: string) =>
-  (t[`n_${kind}` as keyof Texts] as string | undefined) ?? kind
+/** The text of a notice; some kinds have their own text per type of record. */
+export const kindLabel = (t: Texts, item: Pick<NotificationItem, 'kind' | 'subjectType'>) =>
+  (t[`n_${item.kind}_${item.subjectType}` as keyof Texts] as string | undefined) ??
+  (t[`n_${item.kind}` as keyof Texts] as string | undefined) ??
+  item.kind
 
 export const subjectLabel = (t: Texts, item: NotificationItem) => {
   const template = t[`subject_${item.subjectType}` as keyof Texts] as string | undefined

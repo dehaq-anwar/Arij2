@@ -4,15 +4,13 @@ import { can, type PermissionSubject } from '../access/permissions'
 import { allow, allowed } from '../access/roles'
 import { groups, label } from '../lib/labels'
 
-/** Those who export need the list of legal bases; only `settings.manage` changes anything. */
-const readSettings: Access = async ({ req }) =>
-  (await allowed(req, 'settings.manage')) || (await allowed(req, 'personalData.export'))
+/** Only `settings.manage` reads and changes these settings. */
+const readSettings: Access = ({ req }) => allowed(req, 'settings.manage')
 
 /**
  * Settings of the Control Center that the association manages without code: reminder periods
- * for open applications, and the legal bases a person can choose from when exporting personal
- * data. The list of legal bases starts empty on purpose: which bases apply is for the
- * association to decide (docs/CONTROL-CENTER.md §5); until it is filled in, exports are refused.
+ * for open applications. (What personal data may be exported for, and on which legal basis, is
+ * managed in the collections processing-purposes and legal-bases.)
  */
 export const ControlCenterSettings: GlobalConfig = {
   slug: 'control-center-settings',
@@ -21,9 +19,9 @@ export const ControlCenterSettings: GlobalConfig = {
     group: groups.admin,
     hidden: ({ user }) => !can(user as PermissionSubject, 'settings.manage'),
     description: label(
-      'Erinnerungen und Export. Änderungen werden im Audit-Log festgehalten.',
-      'Reminders and exports. Changes are recorded in the audit log.',
-      'التذكيرات والتصدير. تُسجَّل التغييرات في سجل العمليات.',
+      'Erinnerungen. Änderungen werden im Audit-Log festgehalten.',
+      'Reminders. Changes are recorded in the audit log.',
+      'التذكيرات. تُسجَّل التغييرات في سجل العمليات.',
     ),
   },
   access: { read: readSettings, update: allow('settings.manage') },
@@ -76,52 +74,25 @@ export const ControlCenterSettings: GlobalConfig = {
                 ),
               },
             },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'exportLegalBases',
-      type: 'array',
-      label: label(
-        'Rechtsgrundlagen für Exporte',
-        'Legal bases for exports',
-        'الأسس القانونية للتصدير',
-      ),
-      labels: {
-        singular: label('Rechtsgrundlage', 'Legal basis', 'أساس قانوني'),
-        plural: label('Rechtsgrundlagen', 'Legal bases', 'الأسس القانونية'),
-      },
-      admin: {
-        description: label(
-          'Vom Verein festzulegen. Beim Export wählt die Person eine davon aus; ohne Eintrag ist kein Export möglich.',
-          'To be set by the association. Whoever exports chooses one of them; without an entry, exporting is not possible.',
-          'تحددها الجمعية. يختار من يصدّر البيانات واحدًا منها؛ ولا يمكن التصدير دون إدخال.',
-        ),
-      },
-      fields: [
-        {
-          name: 'de',
-          type: 'text',
-          required: true,
-          maxLength: 200,
-          label: label('Deutsch', 'German', 'الألمانية'),
-        },
-        {
-          type: 'row',
-          fields: [
             {
-              name: 'en',
-              type: 'text',
-              maxLength: 200,
-              label: label('Englisch', 'English', 'الإنجليزية'),
-            },
-            {
-              name: 'ar',
-              type: 'text',
-              maxLength: 200,
-              label: label('Arabisch', 'Arabic', 'العربية'),
-              admin: { rtl: true },
+              name: 'memberReviewDays',
+              type: 'number',
+              required: true,
+              defaultValue: 0,
+              min: 0,
+              max: 365,
+              label: label(
+                'Prüfung nach Ende der Mitgliedschaft (Tage)',
+                'Review after a membership ends (days)',
+                'المراجعة بعد انتهاء العضوية (أيام)',
+              ),
+              admin: {
+                description: label(
+                  'So viele Tage nach dem Ende ist der Eintrag zur Prüfung fällig (0 = sofort): was gelöscht wird und was aus welchem Grund wie lange bleibt.',
+                  'This many days after the end the entry is due for review (0 = at once): what is deleted and what is kept, why and how long.',
+                  'بعد هذا العدد من الأيام من الانتهاء يحين موعد مراجعة الإدخال (0 = فورًا): ما يُحذف وما يُحفظ ولماذا وإلى متى.',
+                ),
+              },
             },
           ],
         },

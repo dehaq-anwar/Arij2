@@ -44,6 +44,21 @@ const ACTIONS: Record<string, Three> = {
     'Personal data exported',
     'تصدير بيانات شخصية',
   ],
+  'purpose.approve': [
+    'Verarbeitungszweck freigegeben',
+    'Processing purpose approved',
+    'اعتماد غرض معالجة',
+  ],
+  'purpose.retire': [
+    'Verarbeitungszweck zurückgezogen',
+    'Processing purpose retired',
+    'سحب غرض معالجة',
+  ],
+  'purpose.reopen': [
+    'Verarbeitungszweck wieder als Entwurf',
+    'Processing purpose reopened as draft',
+    'إعادة غرض معالجة إلى مسودة',
+  ],
   'audit.purged': [
     'Alte Protokolleinträge gelöscht (Aufbewahrungsfrist)',
     'Old log entries deleted (retention period)',
@@ -69,6 +84,8 @@ const SUBJECTS: Record<string, Three> = {
   'membership-applications': ['Mitgliedsantrag', 'Membership application', 'طلب عضوية'],
   'contact-messages': ['Kontaktnachricht', 'Contact message', 'رسالة تواصل'],
   members: ['Mitglied', 'Member', 'عضو'],
+  'processing-purposes': ['Verarbeitungszweck', 'Processing purpose', 'غرض معالجة'],
+  'legal-bases': ['Rechtsgrundlage', 'Legal basis', 'أساس قانوني'],
   'control-center-settings': ['Einstellungen', 'Settings', 'الإعدادات'],
   'home-page': ['Startseite', 'Home page', 'الصفحة الرئيسية'],
   'about-page': ['Seite „Über uns“', 'About page', 'صفحة من نحن'],

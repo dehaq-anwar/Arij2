@@ -19,6 +19,8 @@ const COLLECTION_ICONS: Record<string, IconName> = {
   members: 'members',
   'contact-messages': 'inbox',
   exports: 'register',
+  'processing-purposes': 'check',
+  'legal-bases': 'info',
   users: 'users',
   'audit-log': 'audit',
 }
@@ -39,7 +41,14 @@ const GROUPS = [
   { key: 'pages', globals: true },
   {
     key: 'association',
-    collections: ['membership-applications', 'members', 'contact-messages', 'exports'],
+    collections: [
+      'membership-applications',
+      'members',
+      'contact-messages',
+      'exports',
+      'processing-purposes',
+      'legal-bases',
+    ],
   },
   { key: 'security', collections: ['users', 'audit-log'] },
 ] as const

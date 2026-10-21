@@ -77,6 +77,8 @@ export interface Config {
     'membership-applications': MembershipApplication;
     'contact-messages': ContactMessage;
     members: Member;
+    'processing-purposes': ProcessingPurpose;
+    'legal-bases': LegalBase;
     'case-events': CaseEvent;
     exports: Export;
     notifications: Notification;
@@ -104,6 +106,8 @@ export interface Config {
     'membership-applications': MembershipApplicationsSelect<false> | MembershipApplicationsSelect<true>;
     'contact-messages': ContactMessagesSelect<false> | ContactMessagesSelect<true>;
     members: MembersSelect<false> | MembersSelect<true>;
+    'processing-purposes': ProcessingPurposesSelect<false> | ProcessingPurposesSelect<true>;
+    'legal-bases': LegalBasesSelect<false> | LegalBasesSelect<true>;
     'case-events': CaseEventsSelect<false> | CaseEventsSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
@@ -158,6 +162,7 @@ export interface Config {
       'auth-cleanup': TaskAuthCleanup;
       'audit-retention': TaskAuditRetention;
       'membership-reminders': TaskMembershipReminders;
+      'notifications-retention': TaskNotificationsRetention;
       inline: {
         input: unknown;
         output: unknown;
@@ -425,17 +430,18 @@ export interface Statistic {
  */
 export interface MembershipApplication {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
+  displayTitle?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
   /**
    * For written invitations to the general meeting (Satzung § 7).
    */
-  address: {
-    street: string;
-    postalCode: string;
-    city: string;
-    country: string;
+  address?: {
+    street?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    country?: string | null;
   };
   membershipType: 'ordinary' | 'supporting';
   declarations: {
@@ -462,11 +468,18 @@ export interface MembershipApplication {
   status: 'received' | 'inReview' | 'accepted' | 'rejected';
   decisionDate?: string | null;
   decidedBy?: (number | null) | User;
+  /**
+   * A to-do only: who may see applications and messages is decided by the role alone.
+   */
   assignedTo?: (number | null) | User;
   /**
    * On this day the Control Center reminds the person assigned.
    */
   followUpOn?: string | null;
+  /**
+   * Name, e-mail and address are only in the members register now; the proof of the decision and the consent stays here.
+   */
+  personalDataMovedOn?: string | null;
   /**
    * Write down only what is necessary.
    */
@@ -557,29 +570,33 @@ export interface ContactMessage {
   };
   locale: 'de' | 'en' | 'ar';
   status: 'new' | 'answered' | 'closed';
+  /**
+   * A to-do only: who may see applications and messages is decided by the role alone.
+   */
   assignedTo?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
 }
 /**
- * Members register. Entries are created when an application is accepted, or entered by hand. There is no automatic deletion (the association’s decision 12 is pending).
+ * Members register. Entries are created when an application is accepted, or entered by hand. The data are kept during the membership; when it ends, the entry is reviewed. Nothing is deleted automatically.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "members".
  */
 export interface Member {
   id: number;
+  displayTitle?: string | null;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string | null;
   /**
    * For written invitations to the general meeting (Satzung § 7).
    */
-  address: {
-    street: string;
-    postalCode: string;
-    city: string;
-    country: string;
+  address?: {
+    street?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    country?: string | null;
   };
   membershipType: 'ordinary' | 'supporting';
   minorAtAdmission?: boolean | null;
@@ -593,6 +610,86 @@ export interface Member {
   endedOn?: string | null;
   source?: ('application' | 'manual') | null;
   application?: (number | null) | MembershipApplication;
+  reviewDueOn?: string | null;
+  reviewOutcome?: ('pending' | 'retainedAll' | 'retainedMinimal') | null;
+  retainUntil?: string | null;
+  retentionReason?: ('legal' | 'accounting' | 'proof' | 'other') | null;
+  retentionNote?: string | null;
+  reviewedOn?: string | null;
+  reviewedByName?: string | null;
+  contactDataRemovedOn?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * What personal data may be exported for. Each purpose names its legal basis and the columns it needs, and must be decided by the association and approved here. Without an approved purpose there are no exports.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processing-purposes".
+ */
+export interface ProcessingPurpose {
+  id: number;
+  name: string;
+  /**
+   * What are the data needed for, by whom, for how long?
+   */
+  description?: string | null;
+  dataset: 'applications' | 'members';
+  legalBasis: number | LegalBase;
+  /**
+   * The association’s reasons, e.g. the provision of the statutes, the legal obligation or the balancing test. At least 20 characters.
+   */
+  justification: string;
+  /**
+   * Only what the purpose really needs. Exports can only contain these columns.
+   */
+  columns: (
+    | 'firstName'
+    | 'lastName'
+    | 'email'
+    | 'street'
+    | 'postalCode'
+    | 'city'
+    | 'country'
+    | 'membershipType'
+    | 'status'
+    | 'receivedOn'
+    | 'decisionDate'
+    | 'under18'
+    | 'guardianName'
+    | 'guardianEmail'
+    | 'guardianConsent'
+    | 'memberSince'
+    | 'endedOn'
+    | 'minorAtAdmission'
+  )[];
+  status: 'draft' | 'approved' | 'retired';
+  decisionReference?: string | null;
+  approvedOn?: string | null;
+  approvedByName?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Explanations without guarantee, not legal advice. Which legal basis fits a purpose is decided by the association when it approves the purpose.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-bases".
+ */
+export interface LegalBase {
+  id: number;
+  code: 'a' | 'b' | 'c' | 'd' | 'e' | 'f';
+  title: string;
+  article: string;
+  /**
+   * Wording of the GDPR. Compare with the official text (eur-lex.europa.eu) before going live. The Arabic version is an unofficial translation.
+   */
+  wording: string;
+  explanation: string;
+  /**
+   * Switched off: no new purposes on this basis, and exports for existing purposes on it are refused.
+   */
+  available?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -611,7 +708,9 @@ export interface CaseEvent {
     | 'member.created'
     | 'member.updated'
     | 'member.ended'
-    | 'member.reactivated';
+    | 'member.reactivated'
+    | 'member.reviewed'
+    | 'application.moved';
   application?: (number | null) | MembershipApplication;
   member?: (number | null) | Member;
   from?: string | null;
@@ -640,8 +739,11 @@ export interface Export {
   id: number;
   dataset: 'applications' | 'members';
   rows: number;
+  processingPurpose?: (number | null) | ProcessingPurpose;
+  processingPurposeName?: string | null;
   purpose: string;
   legalBasis: string;
+  legalBasisCode?: string | null;
   columns?:
     | {
         [k: string]: unknown;
@@ -682,7 +784,9 @@ export interface Notification {
     | 'consentPending'
     | 'exportCreated'
     | 'memberDeleted'
-    | 'newDevice';
+    | 'newDevice'
+    | 'memberReviewDue'
+    | 'memberReduced';
   subjectType: 'membership-applications' | 'members' | 'contact-messages' | 'exports' | 'security';
   subjectId?: string | null;
   href: string;
@@ -862,7 +966,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders';
+        taskSlug:
+          | 'inline'
+          | 'retention'
+          | 'auth-cleanup'
+          | 'audit-retention'
+          | 'membership-reminders'
+          | 'notifications-retention';
         taskID: string;
         input?:
           | {
@@ -895,7 +1005,9 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders') | null;
+  taskSlug?:
+    | ('inline' | 'retention' | 'auth-cleanup' | 'audit-retention' | 'membership-reminders' | 'notifications-retention')
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -957,6 +1069,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'members';
         value: number | Member;
+      } | null)
+    | ({
+        relationTo: 'processing-purposes';
+        value: number | ProcessingPurpose;
+      } | null)
+    | ({
+        relationTo: 'legal-bases';
+        value: number | LegalBase;
       } | null)
     | ({
         relationTo: 'users';
@@ -1200,6 +1320,7 @@ export interface MediaSelect<T extends boolean = true> {
  * via the `definition` "membership-applications_select".
  */
 export interface MembershipApplicationsSelect<T extends boolean = true> {
+  displayTitle?: T;
   firstName?: T;
   lastName?: T;
   email?: T;
@@ -1241,6 +1362,7 @@ export interface MembershipApplicationsSelect<T extends boolean = true> {
   decidedBy?: T;
   assignedTo?: T;
   followUpOn?: T;
+  personalDataMovedOn?: T;
   internalNotes?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1273,6 +1395,7 @@ export interface ContactMessagesSelect<T extends boolean = true> {
  * via the `definition` "members_select".
  */
 export interface MembersSelect<T extends boolean = true> {
+  displayTitle?: T;
   firstName?: T;
   lastName?: T;
   email?: T;
@@ -1298,6 +1421,46 @@ export interface MembersSelect<T extends boolean = true> {
   endedOn?: T;
   source?: T;
   application?: T;
+  reviewDueOn?: T;
+  reviewOutcome?: T;
+  retainUntil?: T;
+  retentionReason?: T;
+  retentionNote?: T;
+  reviewedOn?: T;
+  reviewedByName?: T;
+  contactDataRemovedOn?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processing-purposes_select".
+ */
+export interface ProcessingPurposesSelect<T extends boolean = true> {
+  name?: T;
+  description?: T;
+  dataset?: T;
+  legalBasis?: T;
+  justification?: T;
+  columns?: T;
+  status?: T;
+  decisionReference?: T;
+  approvedOn?: T;
+  approvedByName?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-bases_select".
+ */
+export interface LegalBasesSelect<T extends boolean = true> {
+  code?: T;
+  title?: T;
+  article?: T;
+  wording?: T;
+  explanation?: T;
+  available?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1324,8 +1487,11 @@ export interface CaseEventsSelect<T extends boolean = true> {
 export interface ExportsSelect<T extends boolean = true> {
   dataset?: T;
   rows?: T;
+  processingPurpose?: T;
+  processingPurposeName?: T;
   purpose?: T;
   legalBasis?: T;
+  legalBasisCode?: T;
   columns?: T;
   filter?: T;
   actorId?: T;
@@ -1912,7 +2078,7 @@ export interface SiteSetting {
   createdAt?: string | null;
 }
 /**
- * Reminders and exports. Changes are recorded in the audit log.
+ * Reminders. Changes are recorded in the audit log.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "control-center-settings".
@@ -1928,18 +2094,11 @@ export interface ControlCenterSetting {
      * Applications of people under 18 without a recorded consent for this long trigger a reminder.
      */
     consentDays: number;
+    /**
+     * This many days after the end the entry is due for review (0 = at once): what is deleted and what is kept, why and how long.
+     */
+    memberReviewDays: number;
   };
-  /**
-   * To be set by the association. Whoever exports chooses one of them; without an entry, exporting is not possible.
-   */
-  exportLegalBases?:
-    | {
-        de: string;
-        en?: string | null;
-        ar?: string | null;
-        id?: string | null;
-      }[]
-    | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2147,14 +2306,7 @@ export interface ControlCenterSettingsSelect<T extends boolean = true> {
     | {
         waitingDays?: T;
         consentDays?: T;
-      };
-  exportLegalBases?:
-    | T
-    | {
-        de?: T;
-        en?: T;
-        ar?: T;
-        id?: T;
+        memberReviewDays?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -2222,6 +2374,16 @@ export interface TaskMembershipReminders {
   input?: unknown;
   output: {
     sent?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskNotifications-retention".
+ */
+export interface TaskNotificationsRetention {
+  input?: unknown;
+  output: {
+    removed?: number | null;
   };
 }
 /**

@@ -6,6 +6,15 @@ import { monthsBefore } from '@/cms/jobs/retention'
 import { csvCell, toCsv } from '@/cms/membership/csv'
 import { cleanPurpose, EXPORT_COLUMNS, exportTable, pickColumns } from '@/cms/membership/export'
 import { cleanFilter, exportWhere } from '@/cms/membership/export-endpoint'
+import { LEGAL_BASES, LEGAL_BASIS_CODES } from '@/cms/membership/legal-bases'
+import {
+  approvalProblems,
+  changesSubstance,
+  checkExport,
+  columnOptions,
+  foreignColumns,
+  purposeColumnKeys,
+} from '@/cms/membership/purposes'
 import { searchWhere, stageOf, stageWhere } from '@/cms/membership/stage'
 
 describe('stages of an application', () => {
@@ -48,9 +57,10 @@ describe('CSV export', () => {
     expect(csvCell('a;b')).toBe('"a;b"')
   })
 
-  it('writes UTF-8 with a byte-order mark, semicolons and CRLF', () => {
+  it('writes UTF-8 with a byte-order mark, semicolons (or commas) and CRLF', () => {
     const csv = toCsv(['A', 'B'], [['1', 'سلام']])
     expect(csv).toBe('﻿"A";"B"\r\n"1";"سلام"\r\n')
+    expect(toCsv(['A', 'B'], [['1', 'a,b']], ',')).toBe('﻿"A","B"\r\n"1","a,b"\r\n')
   })
 
   it('exports only known columns, in a fixed order, translated', () => {
@@ -99,6 +109,98 @@ describe('CSV export', () => {
     expect(cleanFilter('applications', { stage: 'nonsense', type: 'x' })).toEqual({})
     expect(exportWhere('members', { status: 'active' })).toEqual({ status: { equals: 'active' } })
     expect(exportWhere('members', { status: 'all' })).toEqual({})
+  })
+})
+
+describe('processing purposes and legal bases', () => {
+  const basis = { id: 2, code: 'b', available: true }
+  const approved = {
+    id: 7,
+    dataset: 'members',
+    legalBasis: basis,
+    justification: 'Einladung zur Mitgliederversammlung nach § 9 der Satzung.',
+    columns: ['firstName', 'lastName', 'email'],
+    status: 'approved',
+  }
+
+  it('has the six bases of Art. 6(1) GDPR in three languages, each with an explanation', () => {
+    expect(LEGAL_BASES.map((b) => b.code)).toEqual([...LEGAL_BASIS_CODES])
+    expect(LEGAL_BASIS_CODES).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
+    for (const entry of LEGAL_BASES) {
+      for (const language of ['de', 'en', 'ar'] as const) {
+        for (const text of [entry.title, entry.article, entry.wording, entry.explanation]) {
+          expect(text[language].trim().length, `${entry.code} ${language}`).toBeGreaterThan(3)
+        }
+      }
+      expect(entry.article.de).toBe(`Art. 6 Abs. 1 lit. ${entry.code} DSGVO`)
+      // No official Arabic GDPR exists: the translation says it is unofficial.
+      expect(entry.wording.ar).toContain('ترجمة غير رسمية')
+    }
+  })
+
+  it('exports only for an approved purpose of the dataset, only with its columns', () => {
+    expect(checkExport(approved, basis, 'members', ['email', 'firstName'])).toMatchObject({
+      ok: true,
+    })
+    const ok = checkExport(approved, basis, 'members', ['email', 'firstName'])
+    expect(ok.ok && ok.columns.map((c) => c.key)).toEqual(['firstName', 'email'])
+    expect(checkExport({ ...approved, status: 'draft' }, basis, 'members', ['email'])).toEqual({
+      ok: false,
+      error: 'purpose_not_approved',
+    })
+    expect(checkExport({ ...approved, status: 'retired' }, basis, 'members', ['email']).ok).toBe(
+      false,
+    )
+    expect(checkExport(approved, basis, 'applications', ['email'])).toEqual({
+      ok: false,
+      error: 'purpose_not_approved',
+    })
+    expect(checkExport(null, basis, 'members', ['email']).ok).toBe(false)
+    expect(checkExport(approved, { ...basis, available: false }, 'members', ['email'])).toEqual({
+      ok: false,
+      error: 'legal_basis',
+    })
+    for (const columns of [['street'], ['email', 'street'], [], 'email', [42]]) {
+      expect(checkExport(approved, basis, 'members', columns), String(columns)).toEqual({
+        ok: false,
+        error: 'columns',
+      })
+    }
+  })
+
+  it('needs a basis, reasons, columns of the dataset and the decision before approval', () => {
+    expect(approvalProblems(approved, basis, 'Vorstandsbeschluss 12.11.2026')).toEqual([])
+    expect(
+      approvalProblems(
+        { ...approved, justification: 'kurz', columns: ['email', 'receivedOn'] },
+        { ...basis, available: false },
+        '',
+      ),
+    ).toEqual(['legalBasis', 'justification', 'columns', 'decision'])
+    expect(foreignColumns('members', ['email', 'receivedOn', 'under18'])).toEqual([
+      'receivedOn',
+      'under18',
+    ])
+    expect(purposeColumnKeys({ dataset: 'members', columns: ['email', 'firstName', 'x'] })).toEqual(
+      ['firstName', 'email'],
+    )
+    const keys = columnOptions().map((o) => o.value)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(keys).toEqual(expect.arrayContaining(['receivedOn', 'memberSince', 'guardianEmail']))
+  })
+
+  it('takes an approval back when what it covered changes', () => {
+    expect(changesSubstance(approved, { ...approved })).toBe(false)
+    expect(changesSubstance(approved, { ...approved, legalBasis: 3 })).toBe(true)
+    expect(changesSubstance(approved, { ...approved, legalBasis: 2 })).toBe(false)
+    expect(
+      changesSubstance(approved, { ...approved, columns: ['email', 'lastName', 'firstName'] }),
+    ).toBe(false)
+    expect(changesSubstance(approved, { ...approved, columns: ['email'] })).toBe(true)
+    expect(changesSubstance(approved, { ...approved, dataset: 'applications' })).toBe(true)
+    expect(changesSubstance(approved, { ...approved, justification: 'Andere Begründung …' })).toBe(
+      true,
+    )
   })
 })
 

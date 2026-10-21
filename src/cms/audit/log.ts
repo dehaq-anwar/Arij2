@@ -63,7 +63,8 @@ export async function audit(payload: Payload, entry: AuditEntry, req?: PayloadRe
   }
 }
 
-const IGNORED_FIELDS = new Set(['updatedAt', 'createdAt', 'id', 'sessions'])
+// displayTitle repeats other fields (membership-fields.ts).
+const IGNORED_FIELDS = new Set(['updatedAt', 'createdAt', 'id', 'sessions', 'displayTitle'])
 
 /** Names of the top-level fields that differ, and the old/new value of status fields only. */
 export function describeChange(

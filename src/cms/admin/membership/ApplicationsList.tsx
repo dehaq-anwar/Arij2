@@ -49,6 +49,7 @@ type Application = {
   decisionDate?: string | null
   followUpOn?: string | null
   assignedTo?: unknown
+  personalDataMovedOn?: string | null
 }
 
 /**
@@ -131,6 +132,7 @@ export async function ApplicationsList(props: ListViewServerProps) {
         followUpOn: true,
         assignedTo: true,
         createdAt: true,
+        personalDataMovedOn: true,
       },
     }),
     ...tabs.map((key) =>
@@ -140,6 +142,24 @@ export async function ApplicationsList(props: ListViewServerProps) {
     ),
   ])
   const docs = result.docs as unknown as Application[]
+  // Applications whose personal data were moved to the register show the name from there
+  // (only for those who may read the register).
+  const moved = docs.filter((doc) => doc.personalDataMovedOn).map((doc) => doc.id)
+  const registered = new Map<number, { firstName?: string | null; lastName?: string | null }>()
+  if (moved.length && can(person, 'members.read')) {
+    const { docs: members } = await payload.find({
+      collection: 'members',
+      where: { application: { in: moved } },
+      limit: moved.length,
+      depth: 0,
+      ...access,
+      select: { firstName: true, lastName: true, email: true, application: true },
+    })
+    for (const member of members) {
+      const application = relationId(member.application)
+      if (application) registered.set(Number(application), member)
+    }
+  }
   const names = await accountNames(
     payload,
     docs.map((doc) => relationId(doc.assignedTo)),
@@ -275,11 +295,15 @@ export async function ApplicationsList(props: ListViewServerProps) {
                           className="yop-records__name"
                         >
                           <bdi>
-                            {doc.lastName}, {doc.firstName}
+                            {doc.personalDataMovedOn
+                              ? registered.has(doc.id)
+                                ? `${registered.get(doc.id)!.lastName}, ${registered.get(doc.id)!.firstName}`
+                                : fill(t.applicationNumber, { id: doc.id })
+                              : `${doc.lastName}, ${doc.firstName}`}
                           </bdi>
                         </Link>
                         <span className="yop-records__sub">
-                          <bdi>{doc.email}</bdi>
+                          {doc.personalDataMovedOn ? t.dataInRegister : <bdi>{doc.email}</bdi>}
                         </span>
                       </th>
                       <td data-label={t.colType}>

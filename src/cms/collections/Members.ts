@@ -16,8 +16,18 @@ import { groups, label, localizedMessage } from '../lib/labels'
 import { deleteCaseEvents, recordCaseEvent } from '../membership/events'
 import { notify, recipientsWith } from '../membership/notifications'
 import {
+  MEMBER_REVIEW,
+  memberEndpoints,
+  RETENTION_REASONS,
+  REVIEW_FIELDS,
+  REVIEW_OUTCOMES,
+  reviewDueOn,
+} from '../membership/review'
+import {
   addressGroup,
   DAY_PICKER,
+  displayTitle,
+  displayTitleField,
   emailField,
   guardianFields,
   membershipTypeField,
@@ -34,8 +44,43 @@ const today = () => new Date().toISOString()
  * details exist only for people admitted under 18; where the entry came from is set by the
  * server, never by the form or the API.
  */
-const normalize: CollectionBeforeChangeHook = ({ context, data, operation, originalDoc, req }) => {
+const normalize: CollectionBeforeChangeHook = async ({
+  context,
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
   const status = data.status ?? originalDoc?.status ?? 'active'
+  // The review fields change only through the review endpoint.
+  if (!context?.[MEMBER_REVIEW]) {
+    for (const field of REVIEW_FIELDS) data[field] = originalDoc?.[field] ?? null
+  }
+  if (operation === 'update' && originalDoc?.status === 'ended' && status === 'active') {
+    if (originalDoc.contactDataRemovedOn) {
+      throw refuse(
+        req,
+        label(
+          'Die Kontaktdaten dieses Eintrags wurden nach dem Ende der Mitgliedschaft entfernt. Bitte die Person als neues Mitglied erfassen.',
+          'The contact data of this entry were removed after the membership ended. Please enter the person as a new member.',
+          'أُزيلت بيانات التواصل لهذا الإدخال بعد انتهاء العضوية. يرجى تسجيل الشخص كعضو جديد.',
+        ),
+        400,
+      )
+    }
+    for (const field of REVIEW_FIELDS) data[field] = null
+  }
+  if (status === 'ended' && originalDoc?.status !== 'ended' && !context?.[MEMBER_REVIEW]) {
+    const settings = (await req.payload.findGlobal({
+      slug: 'control-center-settings',
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })) as { reminders?: { memberReviewDays?: number | null } }
+    const endedOn = String(data.endedOn ?? originalDoc?.endedOn ?? today())
+    data.reviewDueOn = reviewDueOn(endedOn, settings.reminders?.memberReviewDays ?? 0)
+    data.reviewOutcome = 'pending'
+  }
   if (status === 'ended') {
     data.endedOn = data.endedOn ?? originalDoc?.endedOn ?? today()
     const since = new Date(String(data.memberSince ?? originalDoc?.memberSince ?? '')).getTime()
@@ -72,6 +117,7 @@ const normalize: CollectionBeforeChangeHook = ({ context, data, operation, origi
     data.source = originalDoc?.source
     data.application = originalDoc?.application
   }
+  data.displayTitle = displayTitle({ ...originalDoc, ...data, personalDataMovedOn: null })
   return data
 }
 
@@ -105,8 +151,11 @@ const history: CollectionAfterChangeHook = async ({ doc, operation, previousDoc,
       req,
     )
   }
+  // The review (and what it removes) is recorded as its own entry by the review endpoint.
+  if (req.context?.[MEMBER_REVIEW]) return doc
   const changed = (describeChange(doc, previousDoc)?.fields as string[] | undefined)?.filter(
-    (field) => !['status', 'endedOn', 'casePanel'].includes(field),
+    (field) =>
+      !['status', 'endedOn', 'casePanel', 'displayTitle', ...REVIEW_FIELDS].includes(field),
   )
   if (changed?.length) {
     await recordCaseEvent(
@@ -141,8 +190,9 @@ const reportDelete: CollectionAfterDeleteHook = async ({ doc, req }) => {
  * The members register (CC-1): the people the association has admitted, separate from the
  * applications and with its own permissions. An entry is created when an application is
  * accepted, or entered by hand for people who joined before the website existed. It holds the
- * same personal fields as the application and nothing more. No automatic deletion: how long
- * entries are kept after a membership ends is the association's decision (decision 12).
+ * same personal fields as the application and nothing more. Kept while the membership lasts;
+ * when it ends, the entry is due for review (src/cms/membership/review.ts). Nothing is deleted
+ * automatically.
  */
 export const Members: CollectionConfig = {
   slug: 'members',
@@ -151,14 +201,14 @@ export const Members: CollectionConfig = {
     plural: label('Mitglieder', 'Members', 'الأعضاء'),
   },
   admin: {
-    useAsTitle: 'lastName',
+    useAsTitle: 'displayTitle',
     defaultColumns: ['lastName', 'firstName', 'membershipType', 'status', 'memberSince'],
     group: groups.inbox,
     hidden: ({ user }) => !can(user as PermissionSubject, 'members.read'),
     description: label(
-      'Mitgliederverzeichnis. Einträge entstehen bei der Aufnahme eines Antrags oder werden von Hand erfasst. Es gibt keine automatische Löschung (Entscheidung 12 des Vereins steht aus).',
-      'Members register. Entries are created when an application is accepted, or entered by hand. There is no automatic deletion (the association’s decision 12 is pending).',
-      'سجل الأعضاء. تُنشأ الإدخالات عند قبول طلب أو تُدخل يدويًا. لا يوجد حذف تلقائي (قرار الجمعية رقم 12 قيد الانتظار).',
+      'Mitgliederverzeichnis. Einträge entstehen bei der Aufnahme eines Antrags oder werden von Hand erfasst. Die Daten bleiben während der Mitgliedschaft; nach dem Ende wird der Eintrag geprüft. Nichts wird automatisch gelöscht.',
+      'Members register. Entries are created when an application is accepted, or entered by hand. The data are kept during the membership; when it ends, the entry is reviewed. Nothing is deleted automatically.',
+      'سجل الأعضاء. تُنشأ الإدخالات عند قبول طلب أو تُدخل يدويًا. تبقى البيانات طوال العضوية، وبعد انتهائها يُراجَع الإدخال. لا يُحذف شيء تلقائيًا.',
     ),
     components: {
       views: { list: { Component: '/cms/admin/membership/MembersList#MembersList' } },
@@ -171,6 +221,7 @@ export const Members: CollectionConfig = {
     update: allow('members.write'),
     delete: allow('members.delete'),
   },
+  endpoints: memberEndpoints,
   hooks: {
     beforeChange: [normalize],
     beforeDelete: [guardDelete],
@@ -178,9 +229,10 @@ export const Members: CollectionConfig = {
     afterDelete: [reportDelete],
   },
   fields: [
-    nameRow,
-    emailField,
-    addressGroup,
+    displayTitleField,
+    nameRow(),
+    emailField('contactDataRemovedOn'),
+    addressGroup('contactDataRemovedOn'),
     membershipTypeField,
     {
       name: 'minorAtAdmission',
@@ -258,5 +310,61 @@ export const Members: CollectionConfig = {
         condition: (data) => Boolean(data?.application),
       },
     },
+    // The review after the end of the membership (src/cms/membership/review.ts): shown and
+    // decided in the member panel, written only by its endpoint.
+    {
+      name: 'reviewDueOn',
+      type: 'date',
+      index: true,
+      label: label('Prüfung fällig am', 'Review due on', 'موعد المراجعة'),
+      admin: { hidden: true },
+    },
+    {
+      name: 'reviewOutcome',
+      type: 'select',
+      label: label('Ergebnis der Prüfung', 'Outcome of the review', 'نتيجة المراجعة'),
+      options: REVIEW_OUTCOMES.map((value) => ({
+        value,
+        label: {
+          pending: label('Offen', 'Open', 'مفتوحة'),
+          retainedAll: label('Vollständig aufbewahrt', 'Kept in full', 'محفوظ بالكامل'),
+          retainedMinimal: label(
+            'Nur Mindestangaben aufbewahrt',
+            'Minimal record kept',
+            'الحد الأدنى فقط محفوظ',
+          ),
+        }[value],
+      })),
+      admin: { hidden: true },
+    },
+    {
+      name: 'retainUntil',
+      type: 'date',
+      label: label('Aufbewahren bis', 'Keep until', 'الحفظ حتى'),
+      admin: { hidden: true },
+    },
+    {
+      name: 'retentionReason',
+      type: 'select',
+      label: label('Grund der Aufbewahrung', 'Reason for keeping', 'سبب الحفظ'),
+      options: RETENTION_REASONS.map((value) => ({
+        value,
+        label: {
+          legal: label('Gesetzliche Pflicht', 'Legal obligation', 'التزام قانوني'),
+          accounting: label('Buchhaltung', 'Accounting', 'المحاسبة'),
+          proof: label(
+            'Nachweis von Beschlüssen des Vereins',
+            'Evidence of the association’s decisions',
+            'إثبات قرارات الجمعية',
+          ),
+          other: label('Anderer Grund', 'Other reason', 'سبب آخر'),
+        }[value],
+      })),
+      admin: { hidden: true },
+    },
+    { name: 'retentionNote', type: 'text', maxLength: 300, admin: { hidden: true } },
+    { name: 'reviewedOn', type: 'date', admin: { hidden: true } },
+    { name: 'reviewedByName', type: 'text', admin: { hidden: true } },
+    { name: 'contactDataRemovedOn', type: 'date', admin: { hidden: true } },
   ],
 }

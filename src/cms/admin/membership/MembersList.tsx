@@ -1,10 +1,16 @@
 import { getTranslation } from '@payloadcms/translations'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import type { ListViewServerProps, Where } from 'payload'
+import type { ListViewServerProps } from 'payload'
 
 import { can, type PermissionSubject } from '../../access/permissions'
-import { and, MEMBER_FILTERS, MEMBERSHIP_TYPE_VALUES, searchWhere } from '../../membership/stage'
+import {
+  and,
+  MEMBER_FILTERS,
+  memberWhere,
+  MEMBERSHIP_TYPE_VALUES,
+  searchWhere,
+} from '../../membership/stage'
 import { adminLanguage, adminTexts, formatDate } from '../i18n'
 import { Icon } from '../icons'
 import { FilterForm, FilterTabs, PageHead, Pager, SelectFilter } from './list-ui'
@@ -28,9 +34,6 @@ type Member = {
   minorAtAdmission?: boolean
   address?: { city?: string } | null
 }
-
-const statusWhere = (filter: (typeof MEMBER_FILTERS)[number]): Where | null =>
-  filter === 'all' ? null : { status: { equals: filter } }
 
 /**
  * The members register as a list (replaces Payload's list view): active/ended tabs with counts,
@@ -60,7 +63,7 @@ export async function MembersList(props: ListViewServerProps) {
   }
   const access = { overrideAccess: false, req } as const
   const where = and(
-    statusWhere(status),
+    memberWhere(status),
     type === 'all' ? null : { membershipType: { equals: type } },
     minor === 'yes' ? { minorAtAdmission: { equals: true } } : null,
     searchWhere(q),
@@ -90,7 +93,7 @@ export async function MembersList(props: ListViewServerProps) {
     }),
     ...tabs.map((key) =>
       payload
-        .count({ collection: 'members', where: and(statusWhere(key)), ...access })
+        .count({ collection: 'members', where: and(memberWhere(key)), ...access })
         .then((r) => r.totalDocs),
     ),
   ])
