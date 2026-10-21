@@ -71,11 +71,24 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 |---|---|
 | Members register | Separate from the applications, with its own permissions (super administrators, board administrators, membership managers; technical administrators, content editors and auditors have no access, checked by end-to-end tests). Fields: first and last name, e-mail, address, type of membership, under 18 when admitted (yes/no) and, only then, the guardian's name, e-mail and consent date — exactly the application's fields — plus membership status (active/ended), member since, ended on, and whether the entry came from an online application or was entered by hand. **No new personal fields.** |
 | How entries are created | Automatically when an application is accepted, or by hand for people who joined before the website existed |
-| Retention | **No automatic deletion.** How long entries are kept after a membership ends is the association's decision (decision 12). Deleting an entry needs a super administrator and a fresh code; other super administrators are notified |
+| Retention | **No automatic deletion.** The data are kept while the membership lasts. When it ends, the entry is due for review (CC-2): a person decides to keep everything or only a minimal record (name, type, dates, link to the application; the e-mail, address and the guardian's contact data are removed, the guardian's consent date stays as proof) until a date, for a stated reason (legal, accounting, proof, other); at that date it is due again. Removing data needs a fresh code. Deleting an entry needs a super administrator and a fresh code; other super administrators are notified |
 | Case history | Per application and member: who changed what and when (stage from → to, consent date recorded, assignment, follow-up date, register entry created, membership ended). Values are stages, dates and account names, never the person's data. Written by the server only; deleted together with the application or member |
 | Assignment and follow-up | Applications and contact messages can be assigned to a person of the association; applications can get a follow-up date |
-| Exports | Only the columns chosen, with a purpose and a legal basis chosen from a list the association maintains (empty until filled in; without it no export is possible), confirmed with a code. The file is created on request and sent to the person; it is **not stored** on the server. Every export is recorded in the **export register**: person, time, dataset, column names, number of rows, purpose, legal basis — no personal data of members or applicants (a search text, which could be a name, is recorded only as "search: yes"). The register cannot be changed or deleted (database trigger) and is kept as long as the audit log. Super administrators, board administrators and auditors see all exports and are notified of each; everyone else who may export sees their own |
-| In-app notifications | Per account: kind (e.g. "new membership application"), a reference (type and number of the record), a link, time, read yes/no. **No names or other personal data.** Not deleted automatically yet (no rule decided) |
+| Exports | Only with a **processing purpose approved by the association** (dataset, a legal basis of Art. 6(1) GDPR that fits it, a justification, the columns it may export, the reference of the decision), only those columns, with the concrete occasion, an explicit confirmation and a fresh code. None is approved yet, so no export is possible. The file is created on request and sent to the person; it is **not stored** on the server. Every export is recorded in the **export register**: person, time, dataset, purpose, legal basis as worded at that moment, column names, number of rows, occasion — no personal data of members or applicants (a search text, which could be a name, is recorded only as "search: yes"). The register cannot be changed or deleted (database trigger) and is kept as long as the audit log. Super administrators, board administrators and auditors see all exports and are notified of each; everyone else who may export sees their own |
+| In-app notifications | Per account: kind (e.g. "new membership application"), a reference (type and number of the record), a link, time, read yes/no. **No names or other personal data.** Read ones are deleted after 30 days, unread ones after 90 days (nightly job); security events are also in the audit log, kept for its period |
+
+| Accepted applications | Today the application keeps its data next to the register entry. **Proposed, switched off:** move the personal data into the register and keep only the proof of the decision and consent in the application (migration plan in CONTROL-CENTER.md §16; nothing runs without the association's decision) |
+| Assignment | Assigning an application or a message to a person grants no access; only the role decides who sees them. The list of people offered shows names only |
+
+## Website content (CC-2)
+
+| Topic | Fact |
+|---|---|
+| Pages, events, menu | Edited in the Control Center; only texts and images entered by the association. No free HTML, embeds or third-party widgets; links only to the website, its pages or checked addresses (https, mailto, tel) |
+| Events | Date, time, place, text, image and an optional registration link chosen by the association. The calendar file (`.ics`) is generated by the website itself; no calendar, map or ticket service is contacted. A registration link leads to the site the association names (only when the visitor follows it) |
+| Live preview | Drafts are shown only on the Control Center's host, to people signed in with both factors who may read content; never cached or indexed |
+| Search engines and sharing | Title, description and sharing image per page; pages can be hidden from search engines and the sitemap. Open Graph data are part of the page; nothing is sent to social networks. Until launch no page is indexed |
+| Redirects | Old addresses forward to new ones; no data about visitors is stored |
 
 ## Control Center (people with an account only)
 
@@ -102,7 +115,7 @@ Sent on every response (pages, API, CMS, files):
 |---|---|
 | Content-Security-Policy | `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'` |
 | Strict-Transport-Security | `max-age=31536000; includeSubDomains` (no `preload` yet: hard to undo) |
-| X-Frame-Options | `DENY` |
+| X-Frame-Options | `DENY` (the live preview of drafts: `SAMEORIGIN`, framed only by the Control Center on its own host) |
 | X-Content-Type-Options | `nosniff` |
 | Referrer-Policy | `strict-origin-when-cross-origin` |
 | Permissions-Policy | `camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()` |

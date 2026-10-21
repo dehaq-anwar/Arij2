@@ -41,12 +41,19 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: browser, testIgnore: /last-super-admin\.spec\.ts/ },
+    { name: 'chromium', use: browser, testIgnore: /(last-super-admin|site-menu)\.spec\.ts/ },
     // Disables the super administrators of every worker: runs alone, after all other tests.
     {
       name: 'last-super-admin',
       use: browser,
       testMatch: /last-super-admin\.spec\.ts/,
+      dependencies: ['chromium'],
+    },
+    // Changes the website's menu for every page: also after all other tests.
+    {
+      name: 'site-menu',
+      use: browser,
+      testMatch: /site-menu\.spec\.ts/,
       dependencies: ['chromium'],
     },
   ],

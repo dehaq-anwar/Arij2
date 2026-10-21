@@ -24,10 +24,15 @@ export async function SiteHeader() {
         <LanguageSwitcher />
       </Container>
       <Container className="flex h-16 items-center gap-4 lg:h-[4.75rem]">
-        <Logo />
-        <MainNav items={main} className="ms-auto hidden lg:block" />
+        <Logo className="shrink-0" />
+        {/* Below 1024 px, and wherever the menu does not fit (HeaderShell measures it), the
+            menu button replaces the menu and the highlighted button. */}
+        <MainNav
+          items={main}
+          className="ms-auto hidden min-w-0 lg:block lg:group-data-[menu=compact]/header:hidden"
+        />
         {/* Own wrapper: ButtonLink sets display itself, so "hidden" on it would not win. */}
-        <div className="hidden lg:block">
+        <div className="hidden shrink-0 lg:block lg:group-data-[menu=compact]/header:hidden">
           {cta.external ? (
             <a href={cta.href as string} className={buttonClass('primary', ctaClass)}>
               {cta.label}
@@ -38,7 +43,11 @@ export async function SiteHeader() {
             </ButtonLink>
           )}
         </div>
-        <MobileMenu className="ms-auto lg:hidden" items={main} cta={cta} />
+        <MobileMenu
+          className="ms-auto lg:hidden lg:group-data-[menu=compact]/header:block"
+          items={main}
+          cta={cta}
+        />
       </Container>
     </HeaderShell>
   )

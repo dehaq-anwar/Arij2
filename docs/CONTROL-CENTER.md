@@ -703,6 +703,169 @@ permissions as well.
 
 ---
 
+## 16. CC-2 implementation notes (2026-10-21)
+
+### Decisions by the association (2026-10-20)
+
+- CC-1 accepted; CC-2 approved. CC-3 only after explicit approval.
+- **Exports:** a managed list of the legal bases of Art. 6(1) GDPR with explanations; choosing a
+  basis is not enough — the concrete purpose must be stated and the basis must fit it; only
+  authorised roles, after a fresh code, recording purpose, basis, columns, time and person.
+  **Exports stay switched off in production until the association has approved its processing
+  purposes and their legal bases.**
+- **Members register:** separate from the applications; data are kept during the membership; when
+  it ends, the entry is reviewed (what goes, what must be kept for legal, accounting or evidence
+  reasons); no indefinite retention of all data. For accepted applications: a safe way to avoid
+  the duplicate personal data — **proposed, not switched on** (below); no new automatic deletion
+  before a migration plan and tests.
+- **Notifications:** read ones deleted after 30 days, unread ones after 90 days; important
+  security events stay in the audit log under its own retention.
+- **CC-1 improvements:** interface language vs. content language; understandable edit screens;
+  review of the assignment; CSV tested in Excel and LibreOffice before exports are used.
+- **Content:** a visual block-based page builder without code, live preview, drafts and
+  versions, scheduled publishing, news, projects and events, menus, SEO, sharing data and
+  redirects, in German, Arabic and English, within the visual identity and responsive design.
+- Statutes, legal texts and the privacy policy are not changed without approval.
+
+### Exports: purposes and legal bases
+
+| Part | Implementation |
+|---|---|
+| Legal bases | The six bases of Art. 6(1)(a)–(f) GDPR as records (title, article, wording, explanation in de/en/ar; the Arabic wording is marked as an unofficial translation). Super administrators can switch a basis off; they cannot be deleted. **The wording was written without access to EUR-Lex** (blocked in the development environment) and must be compared with the official text (https://eur-lex.europa.eu/eli/reg/2016/679/oj) before production |
+| Processing purposes | Per purpose: name, description, dataset (applications or members), legal basis, justification (why the basis fits), the columns it may export. A purpose is a draft until a super administrator approves it **with a fresh code and the reference of the association's decision** (e.g. a board resolution); any change to dataset, basis, justification or columns takes the approval back. A purpose can be retired and reopened; one that was used cannot be deleted |
+| Export | Only with an approved purpose, only its columns, a concrete occasion (10–300 characters), an explicit confirmation and a fresh code. The register records purpose, legal basis (as it read at that moment), columns, rows, time and person. **Without an approved purpose nothing can be exported**; the screen says so and links the purposes for super administrators. None is approved yet |
+| CSV | UTF-8 with byte-order mark, separator `;` (German Excel) or `,` (choice on the screen), CRLF line ends, formula characters neutralised. Opened automatically in LibreOffice 24.2 in the tests (umlauts, Arabic names, `=` values stay text). **Excel could not be tested here** (see "Tests not yet done") |
+
+### Members register: review after the end of a membership
+
+| Part | Implementation |
+|---|---|
+| While the membership lasts | Everything is kept, as before |
+| When it ends | The entry becomes "review due" (immediately, or after a number of days set in the Control Center settings, 0–365). Those who may edit the register are reminded once a day while it is due |
+| Review | A person decides, recorded in the history and the audit log: **keep everything** until a date, or **keep only a minimal record** until a date (name, type, dates, the link to the application — the e-mail, address and guardian's contact data are removed; the guardian's consent date stays as proof of a valid admission). Always with a reason (legal, accounting, proof, other with a note) and a date at most 30 years ahead; at that date the entry is due for review again. Removing data needs a fresh code; super administrators are notified. An entry reduced this way cannot be reactivated (the person is entered anew) |
+| Automatic deletion | **None.** Nothing is deleted without a person's decision |
+
+### Accepted applications: proposal to avoid duplicate data (switched off)
+
+The proposal: when an application is accepted, the register entry holds the person's data; the
+application keeps only the proof of the decision and the consent (status, decision date and
+person, type, declarations, under 18, the guardian's consent date, the consent record with its
+wording, language, received on) and its number. Name, e-mail, address and the guardian's name and
+e-mail are removed from the application. The history and the audit log are not touched; the
+register entry keeps its link to the application.
+
+**Safeguards:** applications with internal notes, without a register entry, or with more than one
+are skipped and listed; each application is moved in its own database transaction and checked
+afterwards (proof unchanged, register entry unchanged, nothing left) — on any difference the
+transaction is rolled back; a moved application cannot get personal data back through the API;
+the database refuses empty personal fields unless the application is marked as moved
+(`membership_applications_person_present`, `members_contact_present`).
+
+**Migration plan (for the association's decision):**
+
+1. Back up the database (CC-3 backups; until then `pg_dump`).
+2. Run `npm run membership:consolidate` — a report only: which applications would be moved,
+   which are skipped and why, and where the application and register entry differ.
+3. The board reviews the report (differences are corrected by hand in the register first).
+4. Decision by the association; then set `MEMBERSHIP_CONSOLIDATION=on`.
+5. Run `npm run membership:consolidate -- --apply`; each application is logged
+   (`application.consolidated`) and gets the history entry "personal data moved".
+6. Check the report of the run; if needed, restore the backup.
+7. From then on, accepted applications are moved at the moment of acceptance.
+
+**Tests (integration, real database):** the report changes nothing; after moving, proof fields,
+register entry, history and audit log are identical and only grew; applications with notes are
+skipped; a second run does nothing; data cannot come back through the API; the database refuses
+empty fields otherwise; a rolled-back transaction leaves the application as it was.
+
+### Notifications
+
+A nightly job deletes read notifications after 30 days and unread ones after 90 days. They never
+contained personal data; security events (e.g. a sign-in from a new device) are independently in
+the audit log, kept for its 12 months (tested: the notification goes, the audit entry stays).
+
+### CC-1 improvements
+
+| Point | What was done |
+|---|---|
+| Language menus | Two menus: "Interface: Deutsch/English/العربية" (the Control Center's language) and Payload's menu, now labelled "Content language", shown only where content has languages (not on applications, members, messages, accounts, the audit log or the Control Center's own screens) |
+| Edit screens | Applications and members are titled "Last name, first name" (the number only, once an application's data were moved) instead of the last name alone; all field labels exist in three languages (checked by a script over every collection and global); the page builder shows a preview image per block; consistent styles for the new panels |
+| Assignment | Reviewed and changed: the list of people comes from the server with id and name only, so membership managers (who may not read the accounts) can assign colleagues — before, they could only assign themselves. Only people whose role, minus restrictions, can read and work on the inbox can be assigned; the server refuses anyone else for every way in. **An assignment grants no access**: who sees an application is decided by the role alone. Contact messages notify the person assigned too; the lists show names, also to roles without `users.read` |
+| CSV in Excel and LibreOffice | LibreOffice: tested automatically. Excel: a sample file is supplied for a manual check (below) |
+
+### Page builder
+
+| Part | Implementation |
+|---|---|
+| Pages | A collection "Pages": title, address (`/<slug>`, the same in all languages; addresses of existing pages and of the Control Center are reserved), the blocks, search-engine and sharing settings. Drafts with autosave, versions, scheduled publishing |
+| Blocks | 24 sections of the design system: page header, header with image, home stage; text, cards, image and text, guiding statement, quote, questions and answers, gallery, timeline, values, journey; night band, call to action, donations; projects, news, upcoming events, focus areas, statistics, board, partners (from the CMS); membership form, contact and form. Each with a preview image in the block menu and grouped |
+| Controls | Every field has a maximum length or number of entries; choices are fixed values of the design (background light/sky blue, image at the start/end, number of entries); **no free HTML, colours, sizes or embeds**; links only to pages of the website, pages of the builder or checked addresses (https, mailto, tel — no javascript:, data: or similar, also in rich text, refused on save and not rendered); images through the media library with required alt text. Layout rules on every save: one page opening at the top, the home stage only on the home page, the forms only on their own page and exactly once there |
+| Fixed pages | Home, About us, Membership, Support us, Contact are pages of the builder with fixed addresses; they cannot be deleted, their address cannot change, and their form stays. **Built once from the former page texts** on the first start of the new version (all three languages, every text unchanged — tested on a real database); the former page globals stay unchanged, hidden and read-only. The texts inside the forms (declarations, consents) moved unchanged into "Form texts", with versions |
+| Unchanged website | Screenshots of the five fixed pages in three languages on desktop and phone, old build against new build on the same data: **identical** (26 of 30 without any differing pixel, the home page with 0.004–0.015 %, a sub-pixel difference at one button) |
+
+### Publishing
+
+| Part | Implementation |
+|---|---|
+| Drafts and versions | Pages, projects, news and events: drafts with autosave (every 2 s), up to 50 versions each, restorable. Legal notice, privacy policy, site settings, menu and form texts: versions (who changed what, when) |
+| Scheduled publishing | Payload's "schedule publish" for pages, projects, news and events; the queue is checked every minute. **Added safeguard:** Payload does not check permissions when a publication is scheduled; here the publication runs only if the person who scheduled it still exists, is active and may edit content at that moment — otherwise it is not carried out and the refusal is logged. Each scheduled publication is in the audit log with the person who scheduled it |
+| Live preview | Next to the editor, in phone, tablet and desktop sizes; it renders the latest draft exactly as the website would and follows every saved change (also autosave). Served **only on the Control Center's host**, only to people signed in with both factors who may read content; never indexed or cached; only this page may be framed, and only by the Control Center itself |
+
+### Events, menu, search engines, redirects
+
+| Part | Implementation |
+|---|---|
+| Events | Title, address, summary, start and end (Berlin time; the end cannot be before the start), place, optional registration link (checked), image, text. `/veranstaltungen` (`/en/events`, `/ar/events`): upcoming first, then past ones; event pages; a calendar file (`.ics`) per event, generated by the website — no calendar or map service. A block "Upcoming events" for any page |
+| Menu | "Navigation" in the Control Center: the menu entries (to fixed pages, builder pages or addresses) and the highlighted button, per language; it starts as the usual menu. **So that it fits on one line:** at most six entries, at most 20 characters each and 60 in all; with ordinary words that fits from 1280 px wide (tested at 1440 px with the longest allowed menu). Where the menu does not fit (narrower windows from 1024 px, unusually wide words), the header shows the menu button instead of a broken line (tested at 1024 px); this also fixes the German and English menus, whose labels wrapped onto two lines at exactly 1024 px before CC-2. Legal notice and privacy policy are always in the footer and cannot be removed |
+| Search engines and sharing | Per page, project, post and event: title and description for search engines, sharing image, "hide from search engines"; a live preview of the search result with character counts. The website sends Open Graph data (title, description, image 1200 × 630) and leaves hidden pages out of the sitemap. Until launch nothing is indexed (`ALLOW_INDEXING`) |
+| Redirects | Old address → fixed page, builder page or another site, permanent (308) or temporary (307). Applied only where the website would otherwise answer "not found", so no existing page can be hidden; addresses of existing pages and the Control Center are refused; no loops (checked through up to ten steps). Visitors cannot list them |
+
+### Permissions
+
+No new permissions: pages, events, menu, form texts and redirects use `content.read` and
+`content.write` (super administrators and content editors write; board administrators and auditors
+read). Tested: auditor, technical administrator and membership manager cannot create pages;
+membership managers get no preview; visitors cannot list redirects.
+
+### Development notes
+
+- A migration of CC-2 had used Payload's Local API to insert the legal bases; on a fresh database
+  that breaks once later collections exist. It now uses plain SQL (same content).
+- New dependency (exact, older than 14 days): `@payloadcms/live-preview-react` 3.90.2 (with
+  `@payloadcms/live-preview` 3.90.2), from Payload itself.
+- `scripts/block-thumbnails.mjs` draws the block previews (`public/admin/blocks`).
+
+### Tests not yet done
+
+| What | Why not yet | How |
+|---|---|---|
+| CSV in Microsoft Excel | No Excel in the test environment | Open the sample files (`;` and `,`) in Excel (Windows and Mac): umlauts and Arabic names readable, one column per field, values starting with `=`, `+`, `-`, `@` shown as text, not run |
+| Wording of the legal bases | EUR-Lex not reachable from the development environment | Compare the six texts with the official German and English wording; the Arabic one is marked unofficial |
+| Approved processing purposes | The association's decision | Enter the purposes, have them approved by a super administrator with the decision reference; until then exports are impossible |
+| Scheduled publishing through the admin's date picker | Covered on the server (integration tests run the job queue); the picker itself is Payload's | Schedule one page in the Control Center and check it appears at the time |
+| Security and notification e-mails, admin host protection, backups | As in CC-1 (SMTP, CC-3) | As in §15 |
+
+### Known limitations
+
+- Redirects apply to addresses without a file ending (e.g. not `/alt.html`); those answer 404.
+  On the first, uncached answer of a redirect Next.js sends its `Location` header twice (the same
+  address); browsers and search engines follow it, later answers have it once.
+- Links inside the live preview lead to the website's host, which may not be framed; the preview
+  is for looking, not for clicking through.
+- Drafts are saved without the layout rules (Payload checks drafts only on publishing); the rules
+  apply when a page is published.
+- A language without its own text shows the German one (as before), without a notice on builder
+  pages.
+- The default menu does not contain "Events"; editors add it when the first events exist.
+- Whether the menu fits is measured in the browser after the page has loaded. Without
+  JavaScript the full menu stays; in a narrow desktop window a long menu then reaches into the
+  highlighted button. With JavaScript, such a window switches to the menu button right after
+  loading (a short visible change, only where the menu does not fit).
+- The former page globals stay in the database as the record of the old texts; removing them is
+  a later decision.
+
+---
+
 ## Sources
 
 Payload: installed package `payload` 3.90.2 (types and source in `node_modules`), documentation

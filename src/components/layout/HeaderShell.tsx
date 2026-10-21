@@ -7,6 +7,9 @@ import { useEffect, useRef, type ReactNode } from 'react'
  * The fixed header follows the section beneath it: light text over night sections
  * (data-surface="night"), dark text on frosted glass over day sections. Every page starts with
  * a night section, so the server renders tone="night" and nothing flips on load.
+ *
+ * The menu comes from the CMS: where its entries do not fit between the logo and the button
+ * (a narrow window, long labels), data-menu="compact" shows the menu button instead.
  */
 export function HeaderShell({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLElement>(null)
@@ -38,6 +41,32 @@ export function HeaderShell({ children }: { children: ReactNode }) {
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    const header = ref.current
+    if (!header) return
+    let frame = 0
+    const fit = () => {
+      frame = 0
+      const nav = header.querySelector<HTMLElement>('[data-main-nav]')
+      const list = nav?.firstElementChild
+      if (!nav || !list) return
+      // Measured with the full menu in place; both changes land in the same frame.
+      header.dataset.menu = 'full'
+      const overflows = nav.offsetWidth > 0 && list.scrollWidth > nav.clientWidth + 1
+      header.dataset.menu = overflows ? 'compact' : 'full'
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(fit)
+    }
+    fit()
+    void document.fonts?.ready.then(schedule)
+    window.addEventListener('resize', schedule)
+    return () => {
+      cancelAnimationFrame(frame)
       window.removeEventListener('resize', schedule)
     }
   }, [pathname])

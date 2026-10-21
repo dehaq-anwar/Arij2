@@ -14,13 +14,14 @@ import { groups, label, localizedMessage } from '../lib/labels'
 import { withRowIds } from '../pages/system-pages'
 
 /**
- * The menu has to fit one line next to the logo and the button from 1024 px wide (below that it
- * is behind the menu button): at most six entries, short labels, and not too many letters in all
- * (checked per language; tests/e2e/pages.spec.ts measures the longest allowed menu).
+ * The menu has to fit one line next to the logo and the button: at most six entries, short
+ * labels, and not too many letters in all (checked per language). With ordinary words that fits
+ * from 1280 px wide; where it does not (a narrower window, unusually wide words), the header
+ * shows the menu button instead (HeaderShell). tests/e2e/site-menu.spec.ts measures both.
  */
 const MAX_LABEL = 20
 const MAX_ENTRIES = 6
-export const MAX_MENU_LETTERS = 56
+export const MAX_MENU_LETTERS = 60
 
 const menuFits: ArrayFieldValidation = (value, { req }) => {
   const rows = (Array.isArray(value) ? value : []) as { label?: string | null }[]

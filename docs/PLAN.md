@@ -748,3 +748,24 @@ Approved on 2026-10-20 together with the acceptance of CC-0. Details in
   register; in-app notifications and daily reminders; settings without code; dashboard figures.
 - New dev dependencies (exact, older than 14 days): `pg` 8.20.0 and `@types/pg` 8.20.0 (already
   installed through Payload; now declared for the database-level tests).
+
+## 27. Control Center CC-2: exports, members review, page builder (2026-10-21)
+
+Approved on 2026-10-20 together with the acceptance of CC-1. Details in
+[CONTROL-CENTER.md §16](CONTROL-CENTER.md#16-cc-2-implementation-notes-2026-10-21).
+
+- Exports only with a processing purpose approved by the association (legal basis of
+  Art. 6(1) GDPR that fits it, its columns, a decision reference) and a fresh code; switched off
+  in practice until purposes are approved. CSV tested in LibreOffice; Excel to be checked by hand.
+- Members register: review when a membership ends (keep everything or a minimal record until a
+  date, for a reason); no automatic deletion. Moving the personal data of accepted applications
+  into the register is proposed with a migration plan and tests, and switched off.
+- Notifications: read ones deleted after 30 days, unread ones after 90.
+- CC-1 improvements: interface and content language menus, titles in edit screens, assignment
+  that works for every role allowed to work on the inbox.
+- Page builder: pages from 24 blocks of the design system with layout rules and checked links;
+  the five fixed pages built from their former texts (pixel-identical); drafts, autosave,
+  versions, scheduled publishing (checked against the scheduling person's rights), live preview
+  on the Control Center's host; events with calendar files; an editable menu that stays on one
+  line; search-engine and sharing settings; redirects; sitemap.
+- New dependency (exact, older than 14 days): `@payloadcms/live-preview-react` 3.90.2.
