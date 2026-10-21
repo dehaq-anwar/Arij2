@@ -324,12 +324,30 @@ test.describe('the page builder', () => {
     await expect(contentMenu).toBeHidden()
 
     await page.setViewportSize({ width: 390, height: 844 })
-    const fits = (path: string) =>
-      expect
+    const fits = async (path: string) => {
+      await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), {
           message: path,
         })
         .toBe(true)
+      // The content language menu covers none of the breadcrumbs that are shown.
+      const covered = await page.evaluate(() => {
+        const menu = document.querySelector('.app-header__localizer')!.getBoundingClientRect()
+        const shown = document
+          .querySelector('.app-header__step-nav-wrapper')!
+          .getBoundingClientRect()
+        return [...document.querySelectorAll('.app-header__step-nav *')]
+          .filter((item) => item.children.length === 0)
+          .map((item) => item.getBoundingClientRect())
+          .filter((b) => b.width > 0)
+          .some((b) => {
+            const start = Math.max(b.left, shown.left)
+            const end = Math.min(b.right, shown.right)
+            return end > start && start < menu.right && end > menu.left
+          })
+      })
+      expect(covered, path).toBe(false)
+    }
     for (const path of ['/admin/collections/pages', `/admin/collections/pages/${id}`]) {
       await page.goto(adminUrl(path))
       await expect(interfaceMenu).toBeVisible()

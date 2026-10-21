@@ -1649,6 +1649,14 @@ html[data-yop-content-language='off'] .app-header__localizer {
     padding-right: var(--gutter-h); /* logical-css-ok: RTL mirror of Payload's padding */
   }
 }
+/* In RTL on phones, Payload places the content language menu 40 px from the right, on top of the
+   breadcrumbs; it belongs 40 px from the left, before the account. */
+@media (max-width: 768px) {
+  html[dir='rtl'] .app-header__localizer.localizer {
+    right: auto; /* logical-css-ok: undoes Payload's physical offset in RTL */
+    left: 40px; /* logical-css-ok: RTL mirror of Payload's offset */
+  }
+}
 /* In RTL, the rich-text editor parks its hidden pop-ups 10,000 px off screen, on the side
    an Arabic page scrolls to. The page is cut at the screen's edge instead. */
 html[dir='rtl'] .template-default {
