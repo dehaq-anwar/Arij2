@@ -789,7 +789,7 @@ the audit log, kept for its 12 months (tested: the notification goes, the audit 
 | Point | What was done |
 |---|---|
 | Language menus | Two menus: "Interface: Deutsch/English/العربية" (the Control Center's language) and Payload's menu, now labelled "Content language", shown only where content has languages (not on applications, members, messages, accounts, the audit log or the Control Center's own screens) |
-| Edit screens | Applications and members are titled "Last name, first name" (the number only, once an application's data were moved) instead of the last name alone; all field labels exist in three languages (checked by a script over every collection and global); the page builder shows a preview image per block; consistent styles for the new panels |
+| Edit screens | Applications and members are titled "Last name, first name" (the number only, once an application's data were moved) instead of the last name alone; all field labels exist in three languages (checked by a script over every collection and global); the page builder shows a preview image per block, and its rows carry the block's name and number only (Payload's optional free name per block showed "Untitled" and was mistaken for a missing heading); dates in every edit screen as 21.10.2026 (Payload's picker showed 10/21/2026); consistent styles for the new panels |
 | Assignment | Reviewed and changed: the list of people comes from the server with id and name only, so membership managers (who may not read the accounts) can assign colleagues — before, they could only assign themselves. Only people whose role, minus restrictions, can read and work on the inbox can be assigned; the server refuses anyone else for every way in. **An assignment grants no access**: who sees an application is decided by the role alone. Contact messages notify the person assigned too; the lists show names, also to roles without `users.read` |
 | CSV in Excel and LibreOffice | LibreOffice: tested automatically. Excel: a sample file is supplied for a manual check (below) |
 
@@ -808,7 +808,7 @@ the audit log, kept for its 12 months (tested: the notification goes, the audit 
 | Part | Implementation |
 |---|---|
 | Drafts and versions | Pages, projects, news and events: drafts with autosave (every 2 s), up to 50 versions each, restorable. Legal notice, privacy policy, site settings, menu and form texts: versions (who changed what, when) |
-| Scheduled publishing | Payload's "schedule publish" for pages, projects, news and events; the queue is checked every minute. **Added safeguard:** Payload does not check permissions when a publication is scheduled; here the publication runs only if the person who scheduled it still exists, is active and may edit content at that moment — otherwise it is not carried out and the refusal is logged. Each scheduled publication is in the audit log with the person who scheduled it |
+| Scheduled publishing | Payload's "schedule publish" for pages, projects, news and events; the queue is checked every minute. **Added safeguard:** Payload does not check permissions when a publication is scheduled; here the publication runs only if the person who scheduled it still exists, is active and may edit content at that moment — otherwise it is not carried out and the refusal is logged. Each scheduled publication is in the audit log with the person who scheduled it. The dialog starts in the time zone Europe/Berlin |
 | Live preview | Next to the editor, in phone, tablet and desktop sizes; it renders the latest draft exactly as the website would and follows every saved change (also autosave). Served **only on the Control Center's host**, only to people signed in with both factors who may read content; never indexed or cached; only this page may be framed, and only by the Control Center itself |
 
 ### Events, menu, search engines, redirects
@@ -857,6 +857,8 @@ membership managers get no preview; visitors cannot list redirects.
 - A language without its own text shows the German one (as before), without a notice on builder
   pages.
 - The default menu does not contain "Events"; editors add it when the first events exist.
+- Payload's scheduling dialog names the choice of languages "All" in every interface language
+  (fixed text in Payload 3.90.2).
 - Whether the menu fits is measured in the browser after the page has loaded. Without
   JavaScript the full menu stays; in a narrow desktop window a long menu then reaches into the
   highlighted button. With JavaScript, such a window switches to the menu button right after

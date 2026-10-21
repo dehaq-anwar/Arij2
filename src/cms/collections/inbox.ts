@@ -1,6 +1,7 @@
 import type { Field } from 'payload'
 
 import { can, type PermissionSubject } from '../access/permissions'
+import { DAY_TIME_PICKER } from '../fields/date'
 import { label } from '../lib/labels'
 
 /**
@@ -37,7 +38,7 @@ export const consentRecord: Field = {
           type: 'date',
           required: true,
           label: label('Zeitpunkt', 'Date and time', 'التاريخ والوقت'),
-          admin: { date: { pickerAppearance: 'dayAndTime' } },
+          admin: { date: DAY_TIME_PICKER },
         },
         {
           name: 'privacyPolicyVersion',

@@ -4,6 +4,7 @@ import { allow, publishedOrContentReader } from '../access/roles'
 import { hiddenWithoutContent } from './content-access'
 import { seoField } from '../fields/seo'
 import { slugField } from '../fields/slug'
+import { DAY_PICKER } from '../fields/date'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { livePreview, previewUrl } from '../preview/live-preview'
 import { groups, label } from '../lib/labels'
@@ -71,7 +72,7 @@ export const News: CollectionConfig = {
       name: 'publishedAt',
       type: 'date',
       label: label('Veröffentlicht am', 'Published on', 'تاريخ النشر'),
-      admin: { position: 'sidebar' },
+      admin: { position: 'sidebar', date: DAY_PICKER },
     },
     seoField,
   ],

@@ -2,6 +2,7 @@ import type { CheckboxField, CollectionConfig } from 'payload'
 
 import { allow, allowed } from '../access/roles'
 import { hiddenWithoutContent } from './content-access'
+import { DAY_PICKER } from '../fields/date'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { groups, label } from '../lib/labels'
 
@@ -95,7 +96,11 @@ export const TeamMembers: CollectionConfig = {
       name: 'consentDate',
       type: 'date',
       label: label('Datum der Einwilligung', 'Date of consent', 'تاريخ الموافقة'),
-      admin: { position: 'sidebar', condition: (_, sibling) => Boolean(sibling?.publishConsent) },
+      admin: {
+        position: 'sidebar',
+        condition: (_, sibling) => Boolean(sibling?.publishConsent),
+        date: DAY_PICKER,
+      },
     },
   ],
 }

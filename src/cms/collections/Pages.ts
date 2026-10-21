@@ -15,6 +15,7 @@ import { MAX_BLOCKS, validateLayout } from '../blocks/layout-rules'
 import { seoField } from '../fields/seo'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { refuse } from '../lib/errors'
+import { DAY_PICKER } from '../fields/date'
 import { livePreview, previewUrl } from '../preview/live-preview'
 import { groups, label, localizedMessage } from '../lib/labels'
 import { hiddenWithoutContent } from './content-access'
@@ -236,7 +237,7 @@ export const Pages: CollectionConfig = {
       name: 'publishedAt',
       type: 'date',
       label: label('Veröffentlicht am', 'Published on', 'تاريخ النشر'),
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { position: 'sidebar', readOnly: true, date: DAY_PICKER },
     },
     seoField,
   ],

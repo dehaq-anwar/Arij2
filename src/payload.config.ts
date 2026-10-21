@@ -109,6 +109,8 @@ const config = buildConfig({
     meta: { titleSuffix: ' – Youth of Peace Control Center' },
     // Day.month.year and 24-hour time in every admin language (Latin digits in Arabic too).
     dateFormat: 'dd.MM.yyyy, HH:mm',
+    // Scheduled publication starts in the association's time zone (no time zones on fields).
+    timezones: { defaultTimezone: 'Europe/Berlin' },
     // Payload's default avatar is Gravatar, which sends a hash of each editor's e-mail address
     // to a third party (and is blocked by the CSP). A neutral icon instead.
     avatar: 'default',

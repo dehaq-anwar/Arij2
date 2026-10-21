@@ -6,6 +6,7 @@ import { useId, useState } from 'react'
 
 import type { ExportDataset } from '../../membership/export'
 import { fill, Notice, StepUpDialog, useAdminText } from '../client'
+import { rowsText } from '../i18n'
 import { Icon } from '../icons'
 
 type Column = { key: string; label: string }
@@ -51,7 +52,7 @@ export function ExportClient({
   recent,
   notAllowed,
 }: Props) {
-  const { t } = useAdminText()
+  const { lang, t } = useAdminText()
   const router = useRouter()
   const id = useId()
   const [dataset, setDataset] = useState<ExportDataset>(initial.dataset)
@@ -131,7 +132,9 @@ export function ExportClient({
       setConfirmed(false)
       setMessage({
         tone: 'success',
-        text: fill(t.exportDone, { rows: response.headers.get('X-Export-Rows') ?? '0' }),
+        text: fill(t.exportDone, {
+          rows: rowsText(lang, Number(response.headers.get('X-Export-Rows') ?? 0)),
+        }),
       })
       router.refresh()
       return
@@ -445,7 +448,7 @@ export function ExportClient({
                       {entry.purposeName ? `${entry.purposeName} · ` : ''}
                       {entry.dataset === 'members'
                         ? t.datasetMembers
-                        : t.datasetApplications} · {fill(t.rowsLabel, { rows: entry.rows })} ·{' '}
+                        : t.datasetApplications} · {rowsText(lang, entry.rows)} ·{' '}
                       <bdi>{entry.when}</bdi>
                     </span>
                   </Link>

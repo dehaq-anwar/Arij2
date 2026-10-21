@@ -6,6 +6,7 @@ import { allow, publishedOrContentReader } from '../access/roles'
 import { seoField } from '../fields/seo'
 import { slugField } from '../fields/slug'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
+import { DAY_PICKER, DAY_TIME_PICKER } from '../fields/date'
 import { groups, label, localizedMessage } from '../lib/labels'
 import { livePreview, previewUrl } from '../preview/live-preview'
 import { hiddenWithoutContent } from './content-access'
@@ -94,7 +95,7 @@ export const Events: CollectionConfig = {
           index: true,
           label: label('Beginn', 'Starts', 'البداية'),
           admin: {
-            date: { pickerAppearance: 'dayAndTime', displayFormat: 'dd.MM.yyyy, HH:mm' },
+            date: DAY_TIME_PICKER,
           },
         },
         {
@@ -102,7 +103,7 @@ export const Events: CollectionConfig = {
           type: 'date',
           label: label('Ende', 'Ends', 'النهاية'),
           admin: {
-            date: { pickerAppearance: 'dayAndTime', displayFormat: 'dd.MM.yyyy, HH:mm' },
+            date: DAY_TIME_PICKER,
           },
           validate: endsAfterStart,
         },
@@ -141,7 +142,7 @@ export const Events: CollectionConfig = {
       name: 'publishedAt',
       type: 'date',
       label: label('Veröffentlicht am', 'Published on', 'تاريخ النشر'),
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { position: 'sidebar', readOnly: true, date: DAY_PICKER },
     },
     seoField,
   ],

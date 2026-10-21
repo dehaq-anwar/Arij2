@@ -3,6 +3,7 @@ import type { CollectionBeforeChangeHook, CollectionConfig } from 'payload'
 import { allow, publishedOrContentReader } from '../access/roles'
 import { hiddenWithoutContent } from './content-access'
 import { seoField } from '../fields/seo'
+import { DAY_PICKER } from '../fields/date'
 import { slugField } from '../fields/slug'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { livePreview, previewUrl } from '../preview/live-preview'
@@ -80,8 +81,18 @@ export const Projects: CollectionConfig = {
             { value: 'completed', label: label('Abgeschlossen', 'Completed', 'مكتمل') },
           ],
         },
-        { name: 'startDate', type: 'date', label: label('Beginn', 'Start', 'البداية') },
-        { name: 'endDate', type: 'date', label: label('Ende', 'End', 'النهاية') },
+        {
+          name: 'startDate',
+          type: 'date',
+          label: label('Beginn', 'Start', 'البداية'),
+          admin: { date: DAY_PICKER },
+        },
+        {
+          name: 'endDate',
+          type: 'date',
+          label: label('Ende', 'End', 'النهاية'),
+          admin: { date: DAY_PICKER },
+        },
       ],
     },
     { name: 'location', type: 'text', localized: true, label: label('Ort', 'Location', 'المكان') },

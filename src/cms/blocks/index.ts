@@ -28,11 +28,14 @@ const groups = {
 // Served on the Control Center's host only (public/admin/blocks, scripts/block-thumbnails.mjs).
 const thumbnail = (slug: string) => `/admin/blocks/${slug}.svg`
 
+// Rows are named by their block and number only: Payload's optional free name for each block
+// ("Untitled" when empty) is not needed and was mistaken for a missing heading.
 const block = (config: Block & { slug: string }, group: keyof typeof groups): Block => ({
   ...config,
   admin: {
     group: groups[group],
     images: { thumbnail: thumbnail(config.slug) },
+    disableBlockName: true,
     ...config.admin,
   },
 })

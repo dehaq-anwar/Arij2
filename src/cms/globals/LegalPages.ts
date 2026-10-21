@@ -1,3 +1,4 @@
+import { DAY_PICKER } from '../fields/date'
 import { label } from '../lib/labels'
 import { pageGlobal } from './shared'
 
@@ -12,6 +13,7 @@ const legalFields = [
     name: 'lastUpdated',
     type: 'date' as const,
     label: label('Stand', 'Last updated', 'آخر تحديث'),
+    admin: { date: DAY_PICKER },
   },
 ]
 

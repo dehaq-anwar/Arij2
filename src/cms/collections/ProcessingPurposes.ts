@@ -10,6 +10,7 @@ import { allowed } from '../access/roles'
 import { audit } from '../audit/log'
 import { hasFreshStepUp, isVerifiedSession } from '../auth/session-state'
 import { refuse } from '../lib/errors'
+import { DAY_PICKER } from '../fields/date'
 import { groups, label, localizedMessage } from '../lib/labels'
 import { EXPORT_DATASETS } from '../membership/export'
 import {
@@ -329,7 +330,7 @@ export const ProcessingPurposes: CollectionConfig = {
       name: 'approvedOn',
       type: 'date',
       label: label('Freigegeben am', 'Approved on', 'تاريخ الاعتماد'),
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { position: 'sidebar', readOnly: true, date: DAY_PICKER },
     },
     {
       name: 'approvedByName',

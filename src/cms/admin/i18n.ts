@@ -350,14 +350,13 @@ const de = {
   purposeProblem_decision: 'Bitte den Beschluss des Vereins angeben.',
   confirmRetire: 'Diesen Zweck zurückziehen? Danach sind keine Exporte dafür mehr möglich.',
   exportButton: 'CSV herunterladen',
-  exportDone: 'Export erstellt: {rows} Zeilen. Er steht im Exportprotokoll.',
+  exportDone: 'Export erstellt: {rows}. Er steht im Exportprotokoll.',
   exportErr_columns: 'Bitte nur Spalten des gewählten Zwecks wählen, mindestens eine.',
   exportErr_legal_basis: 'Die Rechtsgrundlage dieses Zwecks ist nicht mehr wählbar.',
   exportErr_not_allowed: 'Ihre Rolle erlaubt diesen Export nicht.',
   exportCsvNote: 'CSV-Datei (UTF-8) für Excel und LibreOffice.',
   recentExports: 'Ihre letzten Exporte',
   openRegister: 'Exportprotokoll öffnen',
-  rowsLabel: '{rows} Zeilen',
   exportNotAllowed: 'Für den Export personenbezogener Daten fehlt Ihnen die Berechtigung.',
   interfaceLanguage: 'Oberfläche',
   searchPreview: 'So erscheint die Seite in Suchmaschinen',
@@ -746,14 +745,13 @@ const en: Texts = {
   purposeProblem_decision: 'Please state the association’s decision.',
   confirmRetire: 'Retire this purpose? Afterwards no exports are possible for it.',
   exportButton: 'Download CSV',
-  exportDone: 'Export created: {rows} rows. It is in the export register.',
+  exportDone: 'Export created: {rows}. It is in the export register.',
   exportErr_columns: 'Please choose only columns of the chosen purpose, at least one.',
   exportErr_legal_basis: 'The legal basis of this purpose can no longer be chosen.',
   exportErr_not_allowed: 'Your role does not allow this export.',
   exportCsvNote: 'CSV file (UTF-8) for Excel and LibreOffice.',
   recentExports: 'Your recent exports',
   openRegister: 'Open export register',
-  rowsLabel: '{rows} rows',
   exportNotAllowed: 'You are not allowed to export personal data.',
   interfaceLanguage: 'Interface',
   searchPreview: 'How the page appears in search engines',
@@ -1131,14 +1129,13 @@ const ar: Texts = {
   purposeProblem_decision: 'يرجى ذكر قرار الجمعية.',
   confirmRetire: 'سحب هذا الغرض؟ بعدها لا يمكن التصدير له.',
   exportButton: 'تنزيل CSV',
-  exportDone: 'تم إنشاء التصدير: {rows} صفًا. وهو مسجّل في سجل التصدير.',
+  exportDone: 'تم إنشاء التصدير: {rows}. وهو مسجّل في سجل التصدير.',
   exportErr_columns: 'يرجى اختيار أعمدة الغرض المختار فقط، عمودًا واحدًا على الأقل.',
   exportErr_legal_basis: 'لم يعد الأساس القانوني لهذا الغرض متاحًا للاختيار.',
   exportErr_not_allowed: 'دورك لا يسمح بهذا التصدير.',
   exportCsvNote: 'ملف CSV (UTF-8) لبرنامجي Excel وLibreOffice.',
   recentExports: 'آخر عمليات التصدير لديك',
   openRegister: 'فتح سجل التصدير',
-  rowsLabel: '{rows} صفًا',
   exportNotAllowed: 'لا تملك صلاحية تصدير البيانات الشخصية.',
   interfaceLanguage: 'الواجهة',
   searchPreview: 'هكذا تظهر الصفحة في محركات البحث',
@@ -1194,6 +1191,27 @@ export type AdminTextKey = keyof Texts
 
 export const fill = (text: string, values: Record<string, string | number>) =>
   text.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? ''))
+
+/** "1 Zeile", "2 Zeilen"; Arabic has its own forms for one, two, three to ten and eleven on. */
+const ROWS: Record<
+  AdminLanguage,
+  Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
+> = {
+  de: { one: '1 Zeile', other: '{rows} Zeilen' },
+  en: { one: '1 row', other: '{rows} rows' },
+  ar: {
+    zero: 'لا صفوف',
+    one: 'صف واحد',
+    two: 'صفّان',
+    few: '{rows} صفوف',
+    many: '{rows} صفًا',
+    other: '{rows} صف',
+  },
+}
+export const rowsText = (language: AdminLanguage, rows: number) => {
+  const forms = ROWS[language]
+  return fill(forms[new Intl.PluralRules(language).select(rows)] ?? forms.other, { rows })
+}
 
 /** Dates and times in the admin language (Arabic with Latin digits, like the website). */
 /** The association's time zone: server-rendered times must not follow the server's (UTC). */

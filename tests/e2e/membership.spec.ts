@@ -830,7 +830,7 @@ test.describe('export of personal data', () => {
     await dialog.getByRole('button', { name: 'Bestätigen' }).click()
     expect((await file).suggestedFilename()).toMatch(/^mitglieder-\d{4}-\d{2}-\d{2}\.csv$/)
     await expect(
-      page.getByRole('status').filter({ hasText: 'Export erstellt: 1 Zeilen' }),
+      page.getByRole('status').filter({ hasText: 'Export erstellt: 1 Zeile.' }),
     ).toBeVisible()
   })
 })

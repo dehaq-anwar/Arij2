@@ -1,10 +1,11 @@
 import type { EmailField, Field, TextField } from 'payload'
 import { email, text } from 'payload/shared'
 
+import { DAY_PICKER } from '../fields/date'
 import { label } from '../lib/labels'
 
-/** Calendar days in the edit screens, with the year (Payload's default for days omits it). */
-export const DAY_PICKER = { pickerAppearance: 'dayOnly', displayFormat: 'dd.MM.yyyy' } as const
+// Calendar days in the edit screens, with the year (Payload's default for days omits it).
+export { DAY_PICKER }
 
 /**
  * A required field, unless the document's `waiver` field is set: the date on which the data
