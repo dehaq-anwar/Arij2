@@ -81,13 +81,16 @@ test.describe('the menu', () => {
       const cta = page.getByRole('banner').getByRole('link', { name: 'Mitglied werden' })
       const ctaBox = (await cta.boundingBox())!
       expect(Math.max(...boxes.map((box) => box.right))).toBeLessThanOrEqual(ctaBox.x)
-      const noSideways = () => document.documentElement.scrollWidth <= innerWidth
-      expect(await page.evaluate(noSideways)).toBe(true)
+      // Polled: after a resize the pinned sections take their new width a moment later
+      // (ScrollTrigger recalculates them about 200 ms after the window stops changing).
+      const noSideways = () =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+      await expect.poll(noSideways).toBe(true)
       // Too narrow for it: the menu button instead of a broken line, with every entry inside.
       await page.setViewportSize({ width: 1024, height: 800 })
       await expect(menuButton).toBeVisible()
       await expect(nav).toBeHidden()
-      expect(await page.evaluate(noSideways)).toBe(true)
+      await expect.poll(noSideways).toBe(true)
       await menuButton.click()
       const dialog = page.getByRole('dialog', { name: 'Menü' })
       await expect(dialog.getByRole('link', { name: 'Veranstaltungen' })).toBeVisible()
