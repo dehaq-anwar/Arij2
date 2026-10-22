@@ -282,7 +282,7 @@ docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --
   `[PLACEHOLDER: E-Mail-Adresse und Name für das Konto des ersten Super-Administrators — vom Verein benannt]`
 
 Getestet auf einer leeren Datenbank mit der Produktions-Compose-Datei (lokal und in der CI bei
-jedem Commit: Job „first-admin“ in `.github/workflows/ci.yml`): Das Konto wird mit der Rolle
+jedem Commit: Job „production“ in `.github/workflows/ci.yml`): Das Konto wird mit der Rolle
 Super-Administrator angelegt, ein zweites Konto mit derselben Adresse wird abgelehnt, und
 `reset-mfa` (§3.9) funktioniert auf dieselbe Weise. Auf dem echten Server noch nicht ausgeführt.
 
@@ -844,9 +844,11 @@ Zusammengetragen aus CONTROL-CENTER.md §12 und §14–§18 sowie aus diesem Han
 - [ ] Offener Punkt nach CC-0: die Sicherheits-E-Mails (Einrichtung, neues Gerät,
       Wiederherstellungscode benutzt, zweiter Faktor zurückgesetzt, Passwort geändert) einmal mit
       dem Mail-Anbieter des Vereins geprüft.
-- [ ] Offener Punkt nach CC-0: Bildoptimierung ohne Cache. Compose bindet jetzt ein beschreibbares
-      Volume `nextcache` unter `/app/.next/cache` ein.
-      `[PLACEHOLDER: bestätigen, ob das Volume nextcache diesen Punkt erledigt]`
+- [x] Offener Punkt nach CC-0: Bildoptimierung ohne Cache. Erledigt: Das Image legt
+      `/app/.next/cache` für den App-Benutzer an, daher ist das Volume `nextcache` auf dem
+      schreibgeschützten Dateisystem beschreibbar (geprüft vom CI-Job „production“). Nur ein Volume,
+      das vor dieser Änderung angelegt wurde, behält den alten Eigentümer; entfernen Sie es einmal
+      (`docker volume rm yop_nextcache`, **bei gestoppter App**), damit es neu angelegt wird.
 
 ### 11.3 Noch nicht durchgeführte Tests (CC-1 §15, CC-2 §16)
 

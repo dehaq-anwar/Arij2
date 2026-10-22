@@ -50,7 +50,9 @@ ENV NODE_ENV=production \
     APP_COMMIT=$APP_COMMIT
 RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder /app/public ./public
-RUN mkdir .next && chown nextjs:nodejs .next
+# The cache directory exists in the image and belongs to the app user, so the volume mounted
+# there in production (image optimizer cache) takes over that owner when it is created.
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs

@@ -1,6 +1,7 @@
-# Development (Phases 4–5 + visual redesign C)
+# Development
 
-Short guide until the full German/English README arrives in Phase 6.
+For developers. Overview: [README.md](../README.md); server: [OPERATIONS.md](OPERATIONS.md);
+the Control Center's design and decisions: [CONTROL-CENTER.md](CONTROL-CENTER.md).
 
 ## Requirements
 
@@ -26,7 +27,7 @@ npm run dev                   # http://localhost:3000 (de), /en, /ar · admin at
 
 There is no public registration, also not for the very first account: Payload's "create first user" screen is closed. The first administrator is created on the server with `npm run create-admin -- <email> "<name>"`; the password comes from `ADMIN_PASSWORD` or is generated and printed once (change it after signing in). All later accounts are created by administrators in the CMS. Passwords need at least 12 characters.
 
-Roles: **admin** (everything, including accounts), **editor** (website content), **board** (membership applications and contact messages; read-only for content).
+Roles: six base roles (super administrator, board administrator, content editor, membership manager, technical administrator, read-only auditor), each a fixed set of permissions in `src/cms/access/permissions.ts`; see CONTROL-CENTER.md §4. Every account signs in with a password and an authenticator app; development accounts too.
 
 ## Checks
 
@@ -35,6 +36,7 @@ Roles: **admin** (everything, including accounts), **editor** (website content),
 | `npm run lint` | ESLint (incl. jsx-a11y), no physical left/right CSS (RTL), WCAG contrast of all colour tokens |
 | `npm run typecheck` | TypeScript, strict |
 | `npm run test` | Unit tests (Vitest) |
+| `npm run test:integration` | Integration tests against a fresh database per file (migrations, the permission matrix, data transfers, operations collection, backup and restore drill with the agent's image, Caddy and the socket proxy with their pinned images; the Docker-based ones are skipped when their image is missing) |
 | `npm run build` | Production build |
 | `npm run check:deps` | Every package in `package-lock.json` is at least 14 days old |
 | `npm run check:audit` | No security advisory in production dependencies except the reviewed ones in `scripts/audit-allowlist.json` |
@@ -55,10 +57,10 @@ The test data (projects, a post, a statistic, people and partners named "E2E …
 ## Forms, e-mail and retention
 
 - The membership and contact forms are Server Actions with server-side validation; they also work without JavaScript. Pages with a form are rendered per request (`dynamic = 'force-dynamic'`; the form carries a freshly signed timestamp) and links to them are not prefetched. Do not use `connection()` for this: it never resolves while Next.js renders a prefetch.
-- Submissions are stored in the collections **Mitgliedsanträge** and **Kontaktnachrichten** (visible to the roles board and admin only). Details: `docs/privacy-notes.md`.
+- Submissions are stored in the collections **Mitgliedsanträge** and **Kontaktnachrichten** (visible only to roles with `inbox.read`: super administrator, board administrator, membership manager). Details: `docs/privacy-notes.md`.
 - E-mail: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` and `NOTIFY_EMAIL`. Without `SMTP_HOST` nothing is sent and nothing is logged in its place.
 - Retention: Payload's job queue checks every 10 minutes; the task `retention` is due every night at 03:00 (server time) and deletes contact messages after six months, rejected applications six months after the decision, and expired rate-limit counters. The queue starts with the first request after the server starts.
-- The rate limiter reads the client address from the **last** `X-Forwarded-For` entry. In production the app must be reachable only through the reverse proxy, which sets this header (the compose file binds the app to 127.0.0.1).
+- The rate limiter reads the client address from the **last** `X-Forwarded-For` entry. In production the app must be reachable only through the reverse proxy, which sets this header (in `docker-compose.prod.yml` only Caddy publishes ports).
 
 ## Media storage
 
@@ -98,6 +100,11 @@ The production container applies pending migrations by itself on first start.
 ```bash
 docker build -f docker/Dockerfile -t yop-website .
 ```
+
+Files only the tests need (`tests/`, `scripts/e2e-*`, the test configurations) are left out of the
+image (`.dockerignore`). The target `tools` builds the separate image for server commands
+(`create-admin`, `reset-mfa`, `membership:consolidate`; OPERATIONS.md §3.6). CI builds both with
+the production compose file and checks the running app (`scripts/ci/production-smoke.mjs`).
 
 The build needs no secrets. Behind a TLS-inspecting proxy, pass its CA as a build secret:
 `--secret id=extra_ca,src=/path/to/ca.crt`.

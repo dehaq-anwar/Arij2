@@ -272,7 +272,7 @@ docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --
   `[PLACEHOLDER: e-mail address and name for the first super administrator account — named by the association]`
 
 Tested on an empty database with the production compose file (locally, and in CI on every
-commit: job "first-admin" in `.github/workflows/ci.yml`): the account is created with the role
+commit: job "production" in `.github/workflows/ci.yml`): the account is created with the role
 super administrator, a second account with the same address is refused, and `reset-mfa`
 (§3.9) works the same way. Not yet run on the real server.
 
@@ -797,9 +797,11 @@ Collected from CONTROL-CENTER.md §12 and §14–§18, and from this guide.
 - [ ] Second super administrator, once named, created the same way.
 - [ ] Open point after CC-0: the security e-mails (set-up, new device, recovery code used, second
       factor reset, password changed) checked once with the association's mail provider.
-- [ ] Open point after CC-0: image optimizer without cache. Compose now mounts a writable
-      `nextcache` volume at `/app/.next/cache`.
-      `[PLACEHOLDER: confirm whether the nextcache volume closes this point]`
+- [x] Open point after CC-0: image optimizer without cache. Closed: the image creates
+      `/app/.next/cache` for the app user, so the `nextcache` volume is writable on the
+      read-only file system (checked by the CI job "production"). Only a volume created before
+      this change keeps the old owner; remove it once (`docker volume rm yop_nextcache`,
+      **with the app stopped**) so it is created again.
 
 ### 11.3 Tests not yet done (CC-1 §15, CC-2 §16)
 

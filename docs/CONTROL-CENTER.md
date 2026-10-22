@@ -1172,7 +1172,17 @@ way.
   in the compose file (profile `tools`, started only for one command) close this. Tested with the
   production compose file on an empty database: the command applies the migrations, creates the
   super administrator, refuses a second account with the same address, and `reset-mfa` works; CI
-  runs the same on every commit (job "first-admin").
+  runs the same on every commit (job "production").
+- **The production image did not build.** CI had checked the compose file but never built the
+  website's image. Built for the first time here, it failed: a test helper among the scripts
+  imports from `tests/`, which is not copied into the image, and the build checks every file.
+  Test-only files are now left out of the image. A new CI job "production" builds the image with
+  the production compose file on every commit, starts it on an empty database (migrations at
+  start, read-only file system), checks the website host, the Control Center host and the admin
+  gate (wrong or missing gate: 404), and creates the first account through the `tools` service.
+- **Image optimizer cache** (open point after CC-0): the cache volume was created owned by root,
+  so the app could not write to it on the read-only file system. The image now creates the
+  directory for the app user; the CI job checks that it is writable.
 - **Backup retention** can be set in `.env` (`BACKUP_KEEP_DAILY`, `_WEEKLY`, `_MONTHLY`; proposal
   7/4/6 until decision 9). The agent read an empty value as "keep 0"; it now means the proposal
   (unit test).
