@@ -13,12 +13,16 @@ export async function NewsCard({
   post,
   translated,
   introIndex,
+  headingLevel = 3,
 }: {
   post: News
   translated: boolean
   /** See ProjectCard: CSS intro for lists that are visible right away. */
   introIndex?: number
+  /** The title's heading level: 2 directly under the page title (list page), else 3. */
+  headingLevel?: 2 | 3
 }) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3'
   const t = await getTranslations('Common')
   const locale = (await getLocale()) as Locale
   const lang = translated ? undefined : 'de'
@@ -42,7 +46,7 @@ export async function NewsCard({
           </time>
         </p>
       ) : null}
-      <h3
+      <Heading
         className="mt-2 text-xl leading-snug font-semibold"
         lang={lang}
         dir={lang ? 'ltr' : undefined}
@@ -53,7 +57,7 @@ export async function NewsCard({
         >
           <bdi>{post.title}</bdi>
         </Link>
-      </h3>
+      </Heading>
     </article>
   )
 }

@@ -42,7 +42,8 @@ Roles: six base roles (super administrator, board administrator, content editor,
 | `npm run check:audit` | No security advisory in production dependencies except the reviewed ones in `scripts/audit-allowlist.json` |
 | `npm run verify` | All of the above, in order |
 | `npm run test:e2e` | End-to-end tests against the production build (`npm run build` first): every page in de/en/ar, CMS content and translation fallback, hreflang/canonical, visibility rules (drafts, consent, permissions), cache refresh after CMS changes, sitemap/robots, RTL, language switcher, navigation, mobile menu, no cookies or external requests, motion and reduced motion, axe WCAG 2.1 AA in light and dark mode; forms (validation, consent record, honeypot, timing, rate limit, without JavaScript, guardian consent), security headers, CMS sign-in limits and CSP. Needs Chromium (`npx playwright install chromium`, or set `PW_CHROMIUM_EXECUTABLE`) and a test database, see below |
-| `npm run check:placeholders` | Lists every `[PLACEHOLDER: …]` still to be filled; `-- --strict` fails if any is left (launch gate) |
+| `npm run check:placeholders` | Lists every `[PLACEHOLDER: …]` in the source (seed texts and fallbacks); `-- --strict` fails if any is left |
+| `npm run check:content` | The launch gate on the CMS content: every placeholder and draft text visitors can see (published entries, all languages), with links to edit them; `-- strict` fails if any is left. On the server through the tools service |
 
 ## End-to-end test database
 

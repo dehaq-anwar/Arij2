@@ -89,14 +89,14 @@ So behandeln Caddy (`docker/caddy/Caddyfile`) und die App (`src/lib/admin-host.t
 
 1. **`www.<SITE_HOST>`:** dauerhafte Weiterleitung auf `https://<SITE_HOST>` mit demselben Pfad.
 2. **`<SITE_HOST>`:** Caddy entfernt einen vom Besucher gesendeten `X-Admin-Gate`-Header
-   (`header_up -X-Admin-Gate`, Caddyfile Zeile 55) und reicht die Anfrage an die App weiter. Die
+   (`header_up -X-Admin-Gate`, Caddyfile Zeile 62) und reicht die Anfrage an die App weiter. Die
    App antwortet mit 404 auf `/admin`, die Live-Vorschau und `/api`. Einzige Ausnahme sind
    `GET`/`HEAD` auf `/api/media/file/…` (Bilder und Dateien der Website).
 3. **`<ADMIN_HOST>`:**
    1. Caddy prüft die Adresse des Besuchers gegen `ADMIN_ALLOW_IPS`
-      (`@outside not remote_ip …`, Zeile 68). Liegt sie außerhalb der Liste, antwortet Caddy
-      mit 404 (Zeile 69).
-   2. Sonst setzt Caddy `X-Admin-Gate: <ADMIN_GATE_SECRET>` (Zeile 72). Ein vom Besucher
+      (`@outside not remote_ip …`, Zeile 77). Liegt sie außerhalb der Liste, antwortet Caddy
+      mit 404 (Zeile 78).
+   2. Sonst setzt Caddy `X-Admin-Gate: <ADMIN_GATE_SECRET>` (Zeile 81). Ein vom Besucher
       gesendeter Wert wird dabei ersetzt.
    3. Die App vergleicht den Header mit ihrem eigenen `ADMIN_GATE_SECRET`. Fehlt er oder ist er
       falsch: 404. Stimmt er: `/admin`, `/api` und `/_next/` sind das Control Center, die
@@ -111,6 +111,10 @@ Weitere Fakten:
 - Der Filter der Zugriffsprotokolle löscht den Sperr-Header aus den Protokollen.
 - Caddy läuft ohne seine Admin-API (`admin off`, Caddyfile Zeile 7). Eine Änderung am Caddyfile
   oder an der Umgebung von Caddy erfordert einen Neustart des Containers `caddy`.
+- Alle drei Hosts senden `Strict-Transport-Security: max-age=31536000` (Baustein `(https_only)`
+  im Caddyfile): Bis ein Jahr nach dem letzten Besuch nutzen Browser für sie nur noch HTTPS, auch
+  wenn jemand `http://` eingibt. Andere Subdomains der Domain sind nicht eingeschlossen (kein
+  `includeSubDomains`). Getestet in `tests/integration/caddy.test.ts`.
 - Verbindungen über IPv6 können die Positivliste aushebeln. Siehe §2.1.
 
 ---
@@ -132,7 +136,7 @@ Weitere Fakten:
 ### 2.1 IPv6
 
 1. **Socket-Proxy.** Compose setzt `DISABLE_IPV6: '1'` für `socket-proxy`
-   (`docker-compose.prod.yml` Zeile 172). Der Grund laut Kommentar in der Compose-Datei: Das
+   (Dienst `socket-proxy` in `docker-compose.prod.yml`). Der Grund laut Kommentar in der Compose-Datei: Das
    interne Netz hat kein IPv6, und das Lauschen auf `[::]` hat den Start des Proxys verhindert
    (gefunden durch den Integrationstest, CONTROL-CENTER.md §17). Lassen Sie diese Einstellung so.
    Falls im Netz `docker` irgendwann IPv6 eingeschaltet wird, prüfen Sie sie erneut.
@@ -285,6 +289,28 @@ Getestet auf einer leeren Datenbank mit der Produktions-Compose-Datei (lokal und
 jedem Commit: Job „production“ in `.github/workflows/ci.yml`): Das Konto wird mit der Rolle
 Super-Administrator angelegt, ein zweites Konto mit derselben Adresse wird abgelehnt, und
 `reset-mfa` (§3.9) funktioniert auf dieselbe Weise. Auf dem echten Server noch nicht ausgeführt.
+
+### 3.6a Erste Inhalte (einmal)
+
+Eine neue Datenbank enthält die festen Seiten (beim Start der App aus den Seitentexten gebaut),
+aber sonst keine Inhalte. `npm run seed` legt die ersten Inhalte an: die Seitentexte in drei
+Sprachen, vier Schwerpunkte und fünf Projektplätze mit abstrakten Platzhalterbildern, alles als
+Platzhalter (`[PLACEHOLDER: …]`) oder markierte Entwürfe. Vorhandene Inhalte werden nie
+überschrieben.
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm tools \
+  npm run seed
+docker compose -f docker-compose.prod.yml --env-file .env restart app
+```
+
+- Nur mit eingerichtetem Medienspeicher (`S3_*`, §3.2): Die Platzhalterbilder werden dorthin
+  hochgeladen.
+- Starten Sie die App danach neu: Seiten, die sie schon erzeugt hat, zeigen bis dahin den leeren
+  Stand.
+- Niemals `npm run seed -- force` auf der echten Datenbank: Das setzt die angelegten Texte zurück.
+- Getestet mit dem Tools-Image gegen eine leere Datenbank und S3-kompatiblen Speicher (lokal):
+  Texte, Schwerpunkte, Projektplätze mit ihren Bildern und die festen Seiten wurden angelegt.
 
 ### 3.7 Zwei-Faktor-Anmeldung sofort einrichten
 
@@ -591,9 +617,9 @@ Wiederherstellung, Sicherungen auf echtem S3-Speicher (CONTROL-CENTER.md §17).
 
 8. Schalten Sie die App auf die wiederhergestellte Datenbank um.
    `[PLACEHOLDER: Verfahren zum Umschalten, entschieden und geprobt]`
-   Ein Fakt aus der Compose-Datei, den eine Entscheidung nutzen kann: Die App (Zeile 56) und der
-   Agent (Zeile 137) bilden ihre Verbindung beide aus `POSTGRES_DB`. Wird `POSTGRES_DB` auf die
-   wiederhergestellte Datenbank gesetzt und werden die Container neu erstellt, schalten beide um,
+   Ein Fakt aus der Compose-Datei, den eine Entscheidung nutzen kann: Die App, der Agent und der
+   Tools-Dienst bilden ihre Verbindung alle aus `POSTGRES_DB`. Wird `POSTGRES_DB` auf die
+   wiederhergestellte Datenbank gesetzt und werden die Container neu erstellt, schalten alle um,
    und die alte Datenbank bleibt bestehen. Das wurde nicht ausprobiert; auch der Container
    `postgres` würde neu erstellt.
 9. Starten Sie alles. Ausstehende Migrationen, die neuer als die Sicherung sind, laufen beim
@@ -736,7 +762,7 @@ Gescheiterte E-Mail-Zustellungen sind ein eigener Hinweis in der Glocke aller Pe
   (Let's Encrypt, laut Kommentar im Caddyfile). Sie liegen in `caddy_data`.
 - `ACME_EMAIL` ist die Kontaktadresse für die Zertifizierungsstelle (Warnungen vor Ablauf).
 - Der Agent prüft das Zertifikat, das Caddy für `<SITE_HOST>` und `<ADMIN_HOST>` tatsächlich
-  ausliefert (`CERT_HOSTS`, Compose Zeile 128), über `caddy:443` mit dem Hostnamen als SNI. Das
+  ausliefert (`CERT_HOSTS` im Dienst `ops-agent`), über `caddy:443` mit dem Hostnamen als SNI. Das
   funktioniert schon, bevor der DNS-Eintrag auf den Server zeigt. Ein Zertifikat gilt als in
   Ordnung, wenn es vertrauenswürdig ist und noch mindestens 14 Tage gilt. `www.<SITE_HOST>` wird
   nicht geprüft.
@@ -788,7 +814,7 @@ Nur Probleme, die im Code oder in der Dokumentation beschrieben sind.
 | Status: Docker nicht erreichbar; keine Liste der Dienste | `socket-proxy` läuft nicht | `logs socket-proxy`. `DISABLE_IPV6: '1'` beibehalten (§2.1) |
 | Ein Neustart aus dem Control Center wird abgelehnt | Der Proxy erlaubt Neustarts nur für Container namens `yop-app-N` und `yop-caddy-N` (`haproxy.cfg.template` Zeile 47); Grenze 3 pro Dienst in 15 Minuten | Projektnamen `yop` und die Standardnamen der Container von Compose beibehalten. Ist die Grenze erreicht: warten |
 | „Sicherungen nicht eingerichtet“; die Schaltflächen antworten „not configured“ | `RESTIC_REPOSITORY` oder `RESTIC_PASSWORD` fehlt | §3.2, §5.4 |
-| Sicherung fehlgeschlagen mit „S3_BUCKET is not set“ | Die Mediensicherung liest den Medien-Bucket (`BACKUP_MEDIA: s3`, Compose Zeile 138) | Die Werte `S3_*` setzen (§3.2) |
+| Sicherung fehlgeschlagen mit „S3_BUCKET is not set“ | Die Mediensicherung liest den Medien-Bucket (`BACKUP_MEDIA: s3` im Dienst `ops-agent`) | Die Werte `S3_*` setzen (§3.2) |
 | Sicherung fehlgeschlagen mit einem anderen Fehler | Fehler eines Werkzeugs (restic, `pg_dump`, rclone), maskiert im Verlauf | Einzelheiten im Verlauf und `logs ops-agent` lesen |
 | Verlauf: „retention: not applied“ | Object Lock hält Daten fest, die `forget --prune` entfernen würde | Erwartet; die Sicherung zählt (§5.3) |
 | Warnung „Sicherung überfällig“ (26 Stunden) | Keine erfolgreiche Sicherung: fehlgeschlagen, durch einen Neustart unterbrochen (nicht fortgesetzt) oder übersprungen, weil der Agent genau in dieser Minute gestartet ist | „Jetzt sichern“. `BACKUP_TIME` prüfen (`HH:MM`; ungültige Werte fallen auf 02:30 zurück) |
@@ -897,4 +923,8 @@ Zusammengetragen aus CONTROL-CENTER.md §12 und §14–§18 sowie aus diesem Han
 - [ ] Wie Releases auf den Server kommen (§3.1) und wie das App-Image zurückgerollt wird (§7.3).
 - [ ] Aufbewahrungswerte in `.env` gemäß Entscheidung 9 gesetzt (§5.3).
 - [ ] `ALLOW_INDEXING=true` erst beim Start.
-- [ ] `npm run check:placeholders -- --strict` läuft durch (docs/development.md, Startfreigabe).
+- [ ] Kein Platzhalter und kein Entwurfstext auf der Website sichtbar: Über den Tools-Dienst
+      endet `npm run check:content -- strict` ohne Fehler. Es listet jeden verbliebenen Punkt mit
+      einem Link zur Bearbeitungsmaske. (`npm run check:placeholders` listet die Platzhalter im
+      Quellcode, z. B. die Seed-Texte; diese erscheinen nicht mehr, sobald die Inhalte gefüllt
+      sind.)

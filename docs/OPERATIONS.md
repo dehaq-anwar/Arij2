@@ -86,13 +86,13 @@ How Caddy (`docker/caddy/Caddyfile`) and the app (`src/lib/admin-host.ts`) handl
 
 1. **`www.<SITE_HOST>`:** permanent redirect to `https://<SITE_HOST>` with the same path.
 2. **`<SITE_HOST>`:** Caddy removes any `X-Admin-Gate` header the visitor sent
-   (`header_up -X-Admin-Gate`, Caddyfile line 55) and passes the request to the app. The app
+   (`header_up -X-Admin-Gate`, Caddyfile line 62) and passes the request to the app. The app
    answers 404 for `/admin`, the live preview and `/api`. The only exception is `GET`/`HEAD` on
    `/api/media/file/…` (the website's images and files).
 3. **`<ADMIN_HOST>`:**
    1. Caddy checks the visitor's address against `ADMIN_ALLOW_IPS`
-      (`@outside not remote_ip …`, line 68). Outside the list, Caddy answers 404 (line 69).
-   2. Otherwise Caddy sets `X-Admin-Gate: <ADMIN_GATE_SECRET>` (line 72). This replaces any value
+      (`@outside not remote_ip …`, line 77). Outside the list, Caddy answers 404 (line 78).
+   2. Otherwise Caddy sets `X-Admin-Gate: <ADMIN_GATE_SECRET>` (line 81). This replaces any value
       the visitor sent.
    3. The app compares the header with its own `ADMIN_GATE_SECRET`. Missing or wrong: 404. Correct:
       `/admin`, `/api` and `/_next/` are the Control Center, the live preview is served, `/`
@@ -106,6 +106,10 @@ Further facts:
 - The gate header is deleted from the access logs by the log filter.
 - Caddy runs without its admin API (`admin off`, Caddyfile line 7). A change to the Caddyfile or
   to Caddy's environment needs a restart of the `caddy` container.
+- All three hosts send `Strict-Transport-Security: max-age=31536000` (the `(https_only)` snippet in
+  the Caddyfile): for a year after the last visit, browsers use HTTPS only for them, also when
+  someone types `http://`. Other subdomains of the domain are not included (no
+  `includeSubDomains`). Tested in `tests/integration/caddy.test.ts`.
 - Clients connecting over IPv6 can break the allowlist. See §2.1.
 
 ---
@@ -127,7 +131,7 @@ Further facts:
 ### 2.1 IPv6
 
 1. **Socket proxy.** Compose sets `DISABLE_IPV6: '1'` for `socket-proxy`
-   (`docker-compose.prod.yml` line 172). Reason, from the compose comment: the internal network has
+   (service `socket-proxy` in `docker-compose.prod.yml`). Reason, from the compose comment: the internal network has
    no IPv6, and listening on `[::]` stopped the proxy from starting (found by the integration test,
    CONTROL-CENTER.md §17). Keep this setting. If IPv6 is ever enabled on the `docker` network,
    review it.
@@ -275,6 +279,25 @@ Tested on an empty database with the production compose file (locally, and in CI
 commit: job "production" in `.github/workflows/ci.yml`): the account is created with the role
 super administrator, a second account with the same address is refused, and `reset-mfa`
 (§3.9) works the same way. Not yet run on the real server.
+
+### 3.6a Initial content (once)
+
+A new database has the fixed pages (built from the page texts when the app starts) but no other
+content. `npm run seed` fills in the initial content: the page texts in three languages, four
+focus areas and five project slots with abstract placeholder images, all as placeholders
+(`[PLACEHOLDER: …]`) or marked drafts. It never overwrites content that exists.
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env --profile tools run --rm tools \
+  npm run seed
+docker compose -f docker-compose.prod.yml --env-file .env restart app
+```
+
+- Only with the media storage set up (`S3_*`, §3.2): the placeholder images are uploaded there.
+- Restart the app afterwards: pages it has already rendered keep the empty state until then.
+- Never `npm run seed -- force` on the real database: it resets the seeded texts.
+- Tested with the tools image against an empty database and S3-compatible storage (locally):
+  the texts, focus areas, project slots with their images and the fixed pages were created.
 
 ### 3.7 Set up two-factor sign-in at once
 
@@ -558,9 +581,9 @@ restoring media files, a maintenance page during the restore, backups on real S3
 
 8. Switch the app to the restored database.
    `[PLACEHOLDER: switch-over method, decided and rehearsed]`
-   Fact from the compose file that a decision can use: the app (line 56) and the agent (line 137)
-   both build their connection from `POSTGRES_DB`. Pointing `POSTGRES_DB` at the restored database
-   and recreating the containers would switch both and leave the old database in place. This has
+   Fact from the compose file that a decision can use: the app, the agent and the tools service
+   all build their connection from `POSTGRES_DB`. Pointing `POSTGRES_DB` at the restored database
+   and recreating the containers would switch them all and leave the old database in place. This has
    not been tried; the `postgres` container would be recreated too.
 9. Start everything. Pending migrations newer than the backup run at start (§3.5).
 
@@ -692,7 +715,7 @@ Failed e-mail deliveries are a separate notice in the bell of everyone with `ema
   Caddyfile (Let's Encrypt, per the Caddyfile's comment). They are stored in `caddy_data`.
 - `ACME_EMAIL` is the contact address for the certificate authority (expiry warnings).
 - The agent checks the certificate Caddy actually serves for `<SITE_HOST>` and `<ADMIN_HOST>`
-  (`CERT_HOSTS`, compose line 128), through `caddy:443` with the host name as SNI. This works even
+  (`CERT_HOSTS` in the `ops-agent` service), through `caddy:443` with the host name as SNI. This works even
   before DNS points to the server. A certificate counts as ok when it is trusted and valid for at
   least 14 more days. `www.<SITE_HOST>` is not checked.
 
@@ -743,7 +766,7 @@ Only problems documented in the code or the docs.
 | Status: Docker not reachable; no service list | `socket-proxy` not running | `logs socket-proxy`. Keep `DISABLE_IPV6: '1'` (§2.1) |
 | A restart from the Control Center is refused | The proxy allows restarts only for containers named `yop-app-N` and `yop-caddy-N` (`haproxy.cfg.template` line 47); limit 3 per service in 15 minutes | Keep the project name `yop` and Compose's default container names. Wait if the limit was reached |
 | "Backups not set up"; the buttons answer "not configured" | `RESTIC_REPOSITORY` or `RESTIC_PASSWORD` missing | §3.2, §5.4 |
-| Backup failed with "S3_BUCKET is not set" | The media backup reads the media bucket (`BACKUP_MEDIA: s3`, compose line 138) | Set the `S3_*` values (§3.2) |
+| Backup failed with "S3_BUCKET is not set" | The media backup reads the media bucket (`BACKUP_MEDIA: s3` in the `ops-agent` service) | Set the `S3_*` values (§3.2) |
 | Backup failed with another error | Tool error (restic, `pg_dump`, rclone), masked in the history | Read the history's details and `logs ops-agent` |
 | History: "retention: not applied" | Object lock keeps data that `forget --prune` would remove | Expected; the backup counts (§5.3) |
 | Alert "backup overdue" (26 hours) | No successful backup: failed, interrupted by a restart (not resumed), or skipped because the agent started in that very minute | "Back up now". Check `BACKUP_TIME` (`HH:MM`; invalid values fall back to 02:30) |
@@ -846,4 +869,8 @@ Collected from CONTROL-CENTER.md §12 and §14–§18, and from this guide.
 - [ ] How releases reach the server (§3.1) and how the app image is rolled back (§7.3).
 - [ ] Retention values in `.env` set according to decision 9 (§5.3).
 - [ ] `ALLOW_INDEXING=true` only at launch.
-- [ ] `npm run check:placeholders -- --strict` passes (docs/development.md, launch gate).
+- [ ] No placeholder or draft text visible on the website: through the tools service,
+      `npm run check:content -- strict` ends without an error. It lists each remaining item with
+      a link to the screen where it is edited. (`npm run check:placeholders` lists the
+      placeholders in the source, e.g. the seed texts; those are not shown once the content is
+      filled in.)

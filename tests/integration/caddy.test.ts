@@ -97,7 +97,7 @@ function startCaddy(name: string, allowIps?: string): Ports {
   return { http: port('80'), https: port('443'), name }
 }
 
-type Answer = { status: number; location?: string; body: string }
+type Answer = { status: number; location?: string; hsts?: string; body: string }
 
 function request(
   port: string,
@@ -119,7 +119,12 @@ function request(
       res.setEncoding('utf8')
       res.on('data', (chunk: string) => (body += chunk))
       res.on('end', () =>
-        resolve({ status: res.statusCode ?? 0, location: res.headers.location, body }),
+        resolve({
+          status: res.statusCode ?? 0,
+          location: res.headers.location,
+          hsts: res.headers['strict-transport-security'],
+          body,
+        }),
       )
     })
     req.on('error', reject)
@@ -191,6 +196,18 @@ describe.skipIf(!ready)('Caddy in front of the app', () => {
       const forwarded = headersOf(answer)['x-forwarded-for'] ?? ''
       expect(forwarded).toMatch(/^[0-9a-f.:]+$/)
       expect(forwarded).not.toContain('198.51.100.23')
+    }
+  })
+
+  it('tells browsers to use HTTPS only, on both hosts (also when the Control Center is closed)', async () => {
+    for (const [ports, host, path] of [
+      [open, SITE, '/de'],
+      [open, ADMIN, '/admin'],
+      [closed, ADMIN, '/admin'],
+    ] as const) {
+      expect((await request(ports.https, host, path)).hsts, `${host}${path}`).toBe(
+        'max-age=31536000',
+      )
     }
   })
 

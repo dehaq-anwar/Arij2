@@ -20,6 +20,8 @@ type Props = {
    * CSS intro from the first paint instead of waiting for a scroll reveal (<Stagger>).
    */
   introIndex?: number
+  /** The title's heading level: 2 directly under the page title (list page), else 3. */
+  headingLevel?: 2 | 3
 }
 
 /**
@@ -34,7 +36,9 @@ export async function ProjectCard({
   className = '',
   preload = false,
   introIndex,
+  headingLevel = 3,
 }: Props) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3'
   const t = await getTranslations('Common')
   const lang = translated ? undefined : 'de'
   const pending = isPlaceholder(project.title)
@@ -66,7 +70,7 @@ export async function ProjectCard({
             {t('placeholder')}
           </span>
         ) : null}
-        <h3
+        <Heading
           className={`font-semibold tracking-tight text-on-night ${size === 'feature' ? 'text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.1]' : 'text-[1.375rem] leading-snug'}`}
         >
           <Link
@@ -75,7 +79,7 @@ export async function ProjectCard({
           >
             <bdi>{pending ? placeholderLabel(project.title) : project.title}</bdi>
           </Link>
-        </h3>
+        </Heading>
       </div>
     </article>
   )

@@ -34,3 +34,22 @@ for (const colorScheme of ['light', 'dark'] as const) {
     })
   })
 }
+
+// Not part of WCAG A/AA in axe, but a real barrier when reading by headings: every page has one
+// h1, and no heading skips a level (an h3 straight under the h1, found by Lighthouse in Phase 6).
+test.describe('heading structure', () => {
+  const paths = [...routes.flatMap((route) => locales.map((l) => route[l])), ...detailPages]
+  for (const path of paths) {
+    test(path, async ({ page }) => {
+      await page.goto(path)
+      const levels = await page
+        .locator('main h1, main h2, main h3, main h4, main h5, main h6')
+        .evaluateAll((headings) => headings.map((h) => Number(h.tagName.slice(1))))
+      expect(levels.filter((level) => level === 1)).toHaveLength(1)
+      const skips = levels.flatMap((level, i) =>
+        i > 0 && level > levels[i - 1]! + 1 ? [`h${levels[i - 1]} → h${level}`] : [],
+      )
+      expect(skips).toEqual([])
+    })
+  }
+})

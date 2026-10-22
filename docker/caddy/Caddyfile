@@ -46,9 +46,16 @@
 	}
 }
 
+# Browsers use HTTPS only for these hosts for a year, also when someone types http:// (HSTS).
+# Not for other subdomains of the domain (no includeSubDomains): those are not served here.
+(https_only) {
+	header Strict-Transport-Security "max-age=31536000"
+}
+
 # The website. Admin and API answer 404 here (the app checks the host); media files are served.
 {$SITE_HOST} {
 	import access_log access
+	import https_only
 	encode zstd gzip
 	reverse_proxy app:3000 {
 		# Only the admin host's block may send this header.
@@ -57,6 +64,7 @@
 }
 
 www.{$SITE_HOST} {
+	import https_only
 	redir https://{$SITE_HOST}{uri} permanent
 }
 
@@ -65,6 +73,7 @@ www.{$SITE_HOST} {
 # request came through this block (ADMIN_GATE_SECRET).
 {$ADMIN_HOST} {
 	import access_log admin-access
+	import https_only
 	@outside not remote_ip {$ADMIN_ALLOW_IPS:0.0.0.0/0 ::/0}
 	respond @outside 404
 	encode zstd gzip

@@ -38,6 +38,7 @@ export default async function ProjectsPage({ params }: Props) {
                   size={i === 0 ? 'feature' : 'tile'}
                   preload={i === 0}
                   introIndex={i}
+                  headingLevel={2}
                   className={
                     i === 0
                       ? 'aspect-[4/5] sm:col-span-2 sm:aspect-[21/9]'

@@ -28,6 +28,7 @@
     "check:audit": "node scripts/check-audit.mjs",
     "test:e2e": "playwright test",
     "check:placeholders": "node scripts/check-placeholders.mjs",
+    "check:content": "payload run scripts/check-content.ts",
     "seed": "payload run scripts/seed.ts",
     "create-admin": "payload run scripts/create-admin.ts",
     "reset-mfa": "payload run scripts/reset-mfa.ts",

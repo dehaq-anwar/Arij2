@@ -125,6 +125,8 @@ jobs:
           # A second account with the same address is refused.
           if $compose run --rm -e ADMIN_PASSWORD="$password" tools \
             npm run create-admin -- first-admin@example.test "Again"; then exit 1; fi
+          # The launch gate on the content runs the same way (here: lists, does not fail).
+          $compose run --rm tools npm run check:content
       - name: App log when something failed
         if: failure()
         run: docker compose -p ci -f docker-compose.prod.yml logs app | tail -100

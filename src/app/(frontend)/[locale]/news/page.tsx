@@ -31,7 +31,13 @@ export default async function NewsPage({ params }: Props) {
           {posts.length ? (
             <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
               {posts.map(({ doc, translated }, i) => (
-                <NewsCard key={doc.id} post={doc} translated={translated} introIndex={i} />
+                <NewsCard
+                  key={doc.id}
+                  post={doc}
+                  translated={translated}
+                  introIndex={i}
+                  headingLevel={2}
+                />
               ))}
             </div>
           ) : (
