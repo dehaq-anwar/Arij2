@@ -1,8 +1,18 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
+import { mkdtempSync, readFileSync } from 'node:fs'
+import type { Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import os from 'node:os'
+
+import { Agent } from '@ops/agent'
+import { loadConfig } from '@ops/config'
+import { Sampler } from '@ops/metrics'
+import { StateStore } from '@ops/state'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { agentAct, agentRead, type AgentSetup } from '@/cms/operations/agent'
 
 /**
  * The Docker socket proxy's rules (docker/socket-proxy/haproxy.cfg.template) against the real
@@ -31,6 +41,7 @@ const suffix = String(10_000 + Math.floor(Math.random() * 89_999))
 const proxyName = `socket-proxy-test-${suffix}`
 const caddy = `yop-caddy-${suffix}`
 const postgres = `yop-postgres-${suffix}`
+const project = `yopit${suffix}`
 let base = ''
 
 function startedAt(name: string) {
@@ -45,18 +56,26 @@ async function call(method: string, pathname: string) {
 
 beforeAll(async () => {
   if (!ready) return
-  for (const name of [caddy, postgres]) {
+  for (const [name, service] of [
+    [caddy, 'caddy'],
+    [postgres, 'postgres'],
+  ]) {
+    // Labelled as Compose labels its containers, for the agent (last describe block).
     const target = docker(
       'run',
       '-d',
       '--init',
       '--name',
-      name,
+      name!,
+      '--label',
+      `com.docker.compose.project=${project}`,
+      '--label',
+      `com.docker.compose.service=${service}`,
       '--entrypoint',
       'sh',
       image,
       '-c',
-      'sleep 600',
+      'echo "started with password=hunter2-${HOSTNAME}"; sleep 600',
     )
     if (!target.ok) throw new Error(target.err)
   }
@@ -151,5 +170,80 @@ describe.skipIf(!ready)('Docker socket proxy rules', () => {
         `${method} ${pathname}: 403`,
       )
     }
+  })
+})
+
+/**
+ * The whole chain as in production: the Control Center's agent client (src/cms/operations/
+ * agent.ts) signs its requests, the real agent checks them and talks to Docker only through the
+ * real proxy. The proxy's rules come from the same template; the containers are this test's own.
+ */
+describe.skipIf(!ready)('Control Center → agent → socket proxy → Docker', () => {
+  let server: Server | undefined
+  let setup: AgentSetup = null
+
+  beforeAll(async () => {
+    const secret = 'chain-test-'.padEnd(48, 'x')
+    const stateDir = mkdtempSync(path.join(os.tmpdir(), 'yop-agent-chain-'))
+    const config = loadConfig({
+      OPS_AGENT_SECRET: secret,
+      HOST: '127.0.0.1',
+      DOCKER_URL: base,
+      COMPOSE_PROJECT: project,
+      SERVICES: 'caddy,postgres',
+      STATE_DIR: stateDir,
+    })
+    const state = new StateStore(path.join(stateDir, 'state.json'))
+    await state.load()
+    // Any free port: the agent's own port (4100) may be taken on this machine.
+    server = await new Agent({
+      config: { ...config, port: 0 },
+      state,
+      sampler: new Sampler(stateDir),
+    }).listen()
+    setup = { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, secret }
+  })
+
+  afterAll(async () => {
+    await new Promise((resolve) => server?.close(resolve))
+  })
+
+  it('shows the services, reads masked logs and restarts Caddy', async () => {
+    const status = await agentRead('/v1/status', {}, { setup })
+    expect(status.docker.reachable).toBe(true)
+    expect(status.containers.map((c) => [c.service, c.name, c.state]).sort()).toEqual([
+      ['caddy', caddy, 'running'],
+      ['postgres', postgres, 'running'],
+    ])
+
+    const logs = await agentRead('/v1/logs', { service: 'postgres', lines: 5 }, { setup })
+    expect(logs.lines.join('\n')).toContain('password=[hidden]')
+    expect(logs.lines.join('\n')).not.toContain('hunter2')
+
+    const before = startedAt(caddy)
+    expect(await agentAct('/v1/restart', { service: 'caddy' }, { setup })).toMatchObject({
+      accepted: true,
+    })
+    // The agent answers first and restarts a moment later (Docker waits up to 20 s for exit).
+    for (let i = 0; i < 150 && startedAt(caddy) === before; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    expect(startedAt(caddy)).not.toBe(before)
+    await expect
+      .poll(async () => (await agentRead('/v1/events', {}, { setup })).events.at(-1))
+      .toMatchObject({ kind: 'restart', ok: true, detail: { service: 'caddy' } })
+  }, 60_000)
+
+  it('refuses unsigned or wrongly signed requests and services that may not restart', async () => {
+    const unsigned = await fetch(`${setup!.url}/v1/status`)
+    expect(unsigned.status).toBe(401)
+    await expect(
+      agentRead('/v1/status', {}, { setup: { url: setup!.url, secret: 'w'.repeat(48) } }),
+    ).rejects.toMatchObject({ reason: 'refused', status: 401 })
+    const before = startedAt(postgres)
+    await expect(agentAct('/v1/restart', { service: 'postgres' }, { setup })).rejects.toMatchObject(
+      { reason: 'refused', status: 403 },
+    )
+    expect(startedAt(postgres)).toBe(before)
   })
 })

@@ -93,6 +93,12 @@ const nextConfig: NextConfig = {
     // Pages rendered from the CMS are cached in memory only: the production container's file
     // system is read-only. After a restart each page is rendered again on its first visit.
     isrFlushToDisk: false,
+    // The server code is not minified. Since Next.js 16.4 the minifier inlines Payload's exported
+    // error classes as anonymous classes: their `name` is empty, and Payload then answers "An
+    // unknown error occurred." instead of the reason a change was refused (e.g. "confirm with a
+    // code first"). Visitors' JavaScript is still minified. The end-to-end tests on refusal
+    // messages (control-center, membership, forms) check this.
+    serverMinification: false,
   },
   images: {
     formats: ['image/avif', 'image/webp'],

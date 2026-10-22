@@ -68,9 +68,10 @@ const errorCode = (error: unknown) => {
 
 /**
  * Sends with the settings in effect (e-mail settings in the Control Center, else .env) and
- * writes one delivery-log entry. Without a mail server nothing is sent and nothing is written
- * to the log either: Payload's built-in fallback prints whole e-mails, which would put
- * password-reset links into the logs. Failures warn those who manage e-mail, in the bell.
+ * writes one delivery-log entry. Without a mail server nothing is sent and the entry says "not
+ * configured"; Payload's built-in fallback, which prints whole e-mails (and so would put
+ * password-reset links into the logs), is never used. Failures warn those who manage e-mail, in
+ * the bell.
  */
 export async function deliver(payload: Payload, message: SendEmailOptions) {
   const template = templateOf(message)

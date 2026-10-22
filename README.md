@@ -23,8 +23,9 @@ sind als `[PLACEHOLDER: …]` markiert; `npm run check:placeholders` listet sie 
 | Control Center | Anmeldung mit zweitem Faktor, sechs Rollen, Audit-Log; Inhalte mit Entwürfen, Vorschau und geplanter Veröffentlichung; Anträge, Mitgliederregister, Export personenbezogener Daten nur mit Zweck und Rechtsgrundlage; Benachrichtigungen; Betrieb (Dienste, Ressourcen, Protokolle, Sicherungen, Zertifikate); E-Mail; Besucherstatistik ohne Cookies |
 | Betrieb | Docker Compose mit Caddy (zwei Hosts, Zugangsschranke), PostgreSQL, einem Betriebs-Agenten mit nächtlichen Sicherungen (restic) und wöchentlicher Wiederherstellungsprobe |
 
-Technik: Next.js 16.3.8, Payload 3.90.2, PostgreSQL 18.6, Node.js 24.21.0. Alle Abhängigkeiten
-haben exakte Versionen und sind mindestens 14 Tage alt (`npm run check:deps`).
+Technik: Next.js 16.4.2, Payload 3.91.0, PostgreSQL 18.6, Node.js 24.21.0. Alle Abhängigkeiten
+haben exakte Versionen und sind mindestens 14 Tage alt (`npm run check:deps`); Ausnahme sind
+nur Sicherheitsupdates, die der Verein freigegeben hat (`scripts/release-age-exceptions.json`).
 
 ### Dokumentation
 
@@ -74,8 +75,9 @@ checklist ([docs/OPERATIONS.md](docs/OPERATIONS.md) §11). Missing texts are mar
 | Control Center | Sign-in with a second factor, six roles, audit log; content with drafts, preview and scheduled publishing; applications, members register, export of personal data only with a purpose and a legal basis; notifications; operations (services, resources, logs, backups, certificates); e-mail; visitor statistics without cookies |
 | Operations | Docker Compose with Caddy (two hosts, access gate), PostgreSQL, an operations agent with nightly backups (restic) and a weekly restore drill |
 
-Stack: Next.js 16.3.8, Payload 3.90.2, PostgreSQL 18.6, Node.js 24.21.0. Every dependency has an
-exact version and is at least 14 days old (`npm run check:deps`).
+Stack: Next.js 16.4.2, Payload 3.91.0, PostgreSQL 18.6, Node.js 24.21.0. Every dependency has an
+exact version and is at least 14 days old (`npm run check:deps`); the only exceptions are security
+updates the association approved (`scripts/release-age-exceptions.json`).
 
 ### Documentation
 

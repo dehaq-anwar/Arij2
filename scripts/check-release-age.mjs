@@ -13,6 +13,17 @@ const cacheFile = path.join(root, '.cache', 'release-age.json')
 const minAgeDays = Number(process.env.RELEASE_AGE_DAYS ?? 14)
 const concurrency = 8
 const now = Date.now()
+const today = new Date(now).toISOString().slice(0, 10)
+
+// Security exceptions approved by the association (scripts/release-age-exceptions.json): exact
+// name@version entries, valid until their reviewBy date.
+const exceptions = new Map()
+for (const entry of JSON.parse(
+  readFileSync(path.join(root, 'scripts', 'release-age-exceptions.json'), 'utf8'),
+).exceptions) {
+  for (const id of entry.packages) exceptions.set(id, entry)
+}
+const excepted = []
 
 const lock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8'))
 const problems = []
@@ -71,7 +82,10 @@ for (const [name, versions] of wanted) {
     checked++
     const ageDays = (now - Date.parse(published)) / 86_400_000
     if (!newest || ageDays < newest.ageDays) newest = { id: `${name}@${v}`, published, ageDays }
-    if (ageDays < minAgeDays) {
+    const exception = exceptions.get(`${name}@${v}`)
+    if (ageDays < minAgeDays && exception && exception.reviewBy >= today) {
+      excepted.push(`${name}@${v} (${exception.advisory})`)
+    } else if (ageDays < minAgeDays) {
       problems.push(
         `${name}@${v}: published ${published.slice(0, 10)} (${ageDays.toFixed(1)} days ago)`,
       )
@@ -87,9 +101,17 @@ if (newest) {
     `Newest: ${newest.id}, published ${newest.published.slice(0, 10)} (${newest.ageDays.toFixed(1)} days ago).`,
   )
 }
+if (excepted.length) {
+  console.log(`\n${excepted.length} younger package(s) allowed as an approved security exception:`)
+  for (const e of excepted.sort()) console.log(`  ! ${e}`)
+}
 if (problems.length) {
   console.error(`\n${problems.length} problem(s) (minimum age ${minAgeDays} days):`)
   for (const p of problems.sort()) console.error(`  ✗ ${p}`)
   process.exit(1)
 }
-console.log(`All packages are at least ${minAgeDays} days old.`)
+console.log(
+  excepted.length
+    ? `All other packages are at least ${minAgeDays} days old.`
+    : `All packages are at least ${minAgeDays} days old.`,
+)

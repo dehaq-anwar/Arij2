@@ -1227,3 +1227,36 @@ https://www.cloudpanel.io/blog/cloudpanel-review.
 npm registry (versions, publish dates, licences) checked on 2026-10-19 for `otpauth`,
 `@simplewebauthn/server`, `@simplewebauthn/browser`, `web-vitals`, the Payload plugins and
 `ua-parser-js` (not used: AGPL-3.0).
+
+## 20. Review of all phases before launch (2026-10-22)
+
+An independent read of the code against this plan (CC-0 to CC-5, Phase 6) found no screen without
+a working function behind it: every action goes from the screen to an endpoint and on to the
+database, the mail server or the signed call to the agent. What was missing were tests of some
+real paths; they were added:
+
+| Gap | Now |
+|---|---|
+| The whole chain Control Center → agent → socket proxy → Docker was only tested in parts (stand-ins for the agent or Docker) | `tests/integration/socket-proxy.test.ts`: the app's signing client, the real agent, the real proxy image with the production rules and real Docker. Status, masked logs (a password in a container log arrives as `[hidden]`), a real restart of Caddy with its event, refusal of unsigned and wrongly signed calls and of restarting another service |
+| A successful e-mail delivery was not tested (only "not configured" and "failed") | `tests/integration/operations.test.ts`: a small SMTP server with STARTTLS and a certificate made for the run. The message arrives only encrypted, with subject and text, without the internal template header; the delivery log says "sent" with the shortened recipient |
+| Restoring an earlier version (§11) was not tested | `tests/e2e/pages.spec.ts`: a page in two versions, the first restored by a content editor and shown on the website; auditor, technical administrator and membership manager are refused |
+| Real images | `tests/integration/media.test.ts`, `media-s3.test.ts` (Phase 6) |
+
+Deviations from the plan, recorded here:
+
+- **SEO and redirects** are built in the project's own code (`src/cms/fields/seo.ts`,
+  `src/cms/collections/Redirects.ts`, behaviour in §16), not with `@payloadcms/plugin-seo` and
+  `@payloadcms/plugin-redirects` as §10 listed; the plugins are not installed.
+- **The restore drill checks the data, not the application.** §8 lists an "application health
+  check" after the row counts. The drill restores into a separate database and compares row
+  counts, the newest migration and the protective triggers, then drops it; it does not start the
+  app against the restored database. Starting a second app would need its own container and
+  settings on the server. Open; the rehearsal on a test server (OPERATIONS.md §6, pre-launch
+  checklist) covers it by hand.
+- **Failed deliveries** warn in the bell, not by e-mail to the technical address (§18).
+- **Release shown in the Control Center** is "unknown" unless the deployment sets `APP_VERSION`
+  and `APP_COMMIT` (OPERATIONS.md §3.2).
+- **No generic test for hard-coded figures on screens** (§11); the code review found none.
+
+Security update (PLAN.md §28): Next.js 16.4.2 and Payload 3.91.0, with
+`experimental.serverMinification: false` so that refusal messages keep their text.

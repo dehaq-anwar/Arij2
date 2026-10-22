@@ -244,6 +244,59 @@ test.describe('the page builder', () => {
     expect(await page.content()).not.toMatch(/javascript:|vbscript:|data:text/)
   })
 
+  test('an earlier version is restored, by content editors only', async ({ page, request }) => {
+    const slug = `e2e-version-${worker()}`
+    const created = await api(request, 'contentEditor', 'post', '/api/pages?locale=de', {
+      title: 'E2E Erste Fassung',
+      slug,
+      layout: germanLayout(),
+      _status: 'published',
+    })
+    expect(created.status).toBe(201)
+    const id = (created.body?.doc as Doc).id
+    const changed = await api(request, 'contentEditor', 'patch', `/api/pages/${id}?locale=de`, {
+      title: 'E2E Zweite Fassung',
+      _status: 'published',
+    })
+    expect(changed.status).toBe(200)
+    await page.goto(`/${slug}`)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('E2E Zweite Fassung')
+
+    const versions = await api(
+      request,
+      'contentEditor',
+      'get',
+      `/api/pages/versions?where[parent][equals]=${id}&sort=createdAt&locale=de&depth=0&limit=50`,
+    )
+    expect(versions.status).toBe(200)
+    const first = (versions.body?.docs as (Doc & { version: { title?: string } })[]).find(
+      (v) => v.version.title === 'E2E Erste Fassung',
+    )
+    expect(first).toBeTruthy()
+
+    // Those who may only read content (or nothing) cannot restore.
+    for (const name of ['auditor', 'technicalAdmin', 'membershipManager'] as const) {
+      const attempt = await api(request, name, 'post', `/api/pages/versions/${first!.id}`)
+      expect(attempt.status, name).toBe(403)
+    }
+    const restored = await api(
+      request,
+      'contentEditor',
+      'post',
+      `/api/pages/versions/${first!.id}?locale=de`,
+    )
+    expect(restored.status).toBe(200)
+    const current = await api(request, 'contentEditor', 'get', `/api/pages/${id}?locale=de`)
+    expect(current.body?.title).toBe('E2E Erste Fassung')
+    // The website shows the restored text.
+    await expect
+      .poll(async () => {
+        await page.goto(`/${slug}`)
+        return page.getByRole('heading', { level: 1 }).textContent()
+      })
+      .toBe('E2E Erste Fassung')
+  })
+
   test('only content editors build pages; fixed pages cannot be deleted', async ({ request }) => {
     for (const name of ['auditor', 'technicalAdmin', 'membershipManager'] as const) {
       const attempt = await api(request, name, 'post', '/api/pages?locale=de', {

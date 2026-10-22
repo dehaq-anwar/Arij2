@@ -1,0 +1,39 @@
+{
+  "$comment": "Package versions allowed to be younger than the minimum release age, only to fix a confirmed security advisory, with the association's approval. Exact name@version only; after reviewBy the exception no longer applies (by then these versions are old enough anyway).",
+  "exceptions": [
+    {
+      "advisory": "GHSA-p3m5-59mp-jv5r, GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr",
+      "reason": "Next.js 16.3.8 is affected (denial of service through Server Actions, used by the forms). The fix is in 16.4.1+; 16.4.2 is the newest stable release. Payload 3.91.0 is the newest release and is tested with it. @next/env 15.5.28 is Payload's own env loader, pulled in by payload 3.91.0.",
+      "approved": "2026-10-22, by the association (security exception to the 14-day rule)",
+      "reviewBy": "2026-11-05",
+      "packages": [
+        "@next/env@15.5.28",
+        "@next/env@16.4.2",
+        "@next/eslint-plugin-next@16.4.2",
+        "@next/swc-darwin-arm64@16.4.2",
+        "@next/swc-darwin-x64@16.4.2",
+        "@next/swc-linux-arm64-gnu@16.4.2",
+        "@next/swc-linux-arm64-musl@16.4.2",
+        "@next/swc-linux-x64-gnu@16.4.2",
+        "@next/swc-linux-x64-musl@16.4.2",
+        "@next/swc-win32-arm64-msvc@16.4.2",
+        "@next/swc-win32-x64-msvc@16.4.2",
+        "@payloadcms/db-postgres@3.91.0",
+        "@payloadcms/drizzle@3.91.0",
+        "@payloadcms/email-nodemailer@3.91.0",
+        "@payloadcms/graphql@3.91.0",
+        "@payloadcms/live-preview-react@3.91.0",
+        "@payloadcms/live-preview@3.91.0",
+        "@payloadcms/next@3.91.0",
+        "@payloadcms/plugin-cloud-storage@3.91.0",
+        "@payloadcms/richtext-lexical@3.91.0",
+        "@payloadcms/storage-s3@3.91.0",
+        "@payloadcms/translations@3.91.0",
+        "@payloadcms/ui@3.91.0",
+        "eslint-config-next@16.4.2",
+        "next@16.4.2",
+        "payload@3.91.0"
+      ]
+    }
+  ]
+}

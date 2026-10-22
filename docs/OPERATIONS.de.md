@@ -45,7 +45,7 @@ Befehl gestartet, §3.6). Nur Caddy veröffentlicht Ports.
 | Dienst | Image | Aufgabe | Veröffentlichte Ports |
 |---|---|---|---|
 | `caddy` | `caddy:2.11.7-alpine`, per Digest fixiert | TLS-Zertifikate, HTTP → HTTPS, der Host der Website und der Host des Control Centers, Weiterleitung von `www`, Admin-Sperre, Zugriffsprotokolle | `80/tcp`, `443/tcp`, `443/udp` |
-| `app` | `yop-website:<APP_VERSION>`, gebaut aus `docker/Dockerfile` | Website und Control Center (Next.js 16.3.8, Payload 3.90.2), Port 3000 innerhalb von Docker | keine |
+| `app` | `yop-website:<APP_VERSION>`, gebaut aus `docker/Dockerfile` | Website und Control Center (Next.js 16.4.2, Payload 3.91.0), Port 3000 innerhalb von Docker | keine |
 | `postgres` | `postgres:18.6-alpine3.24`, per Digest fixiert | Datenbank | keine |
 | `ops-agent` | `yop-ops-agent:<APP_VERSION>`, gebaut aus `ops-agent/Dockerfile` | Sicherungen, Test-Wiederherstellungen, Status, maskierte Protokolle, Neustarts von `app` und `caddy`, Zertifikatsprüfungen, Besucherzählung; Port 4100 innerhalb von Docker; nimmt nur signierte Anfragen der App an | keine |
 | `socket-proxy` | `tecnativa/docker-socket-proxy:v0.5.0`, per Digest fixiert | Docker-API nur für den Agenten, beschränkt auf genau dessen Aufrufe (`docker/socket-proxy/haproxy.cfg.template`) | keine |
@@ -923,11 +923,12 @@ Zusammengetragen aus CONTROL-CENTER.md §12 und §14–§18 sowie aus diesem Han
 - [ ] Wie Releases auf den Server kommen (§3.1) und wie das App-Image zurückgerollt wird (§7.3).
 - [ ] Aufbewahrungswerte in `.env` gemäß Entscheidung 9 gesetzt (§5.3).
 - [ ] `ALLOW_INDEXING=true` erst beim Start.
-- [ ] **Sicherheitsupdate von Next.js erledigt.** Next.js 16.3.8 ist von GHSA-p3m5-59mp-jv5r
-      betroffen (Dienstblockade über Server Actions; die Formulare nutzen sie). Die Korrektur ist
-      in 16.4.1. Mit 16.4.2 (getestet mit Payload 3.90.2 und 3.91.0) zeigt Payload „An unknown error
-      occurred“ statt des Grundes abgelehnter Änderungen (getestet am 2026-10-22; PLAN.md §28).
-      Nicht starten, bevor eine Next.js-Version mit der Korrektur mit grünen Tests läuft.
+- [ ] **Das Image auf dem Server enthält die Sicherheitskorrektur von Next.js.** Next.js 16.3.8
+      und älter sind von GHSA-p3m5-59mp-jv5r betroffen (Dienstblockade über Server Actions; die
+      Formulare nutzen sie). Der Code nutzt seit 2026-10-22 Next.js 16.4.2 mit Payload 3.91.0, mit
+      grünen Tests (PLAN.md §28). Vor dem Start: `npm audit` und die Sicherheitshinweise von
+      Next.js melden nichts Neues für die genutzten Versionen; der Server läuft mit einem Image aus
+      diesem Commit oder einem späteren.
 - [ ] Die manuelle Prüfung mit Tastatur und Screenreader ist erledigt, ihre Befunde behoben
       ([accessibility-check.de.md](accessibility-check.de.md)).
 - [ ] Kein Platzhalter und kein Entwurfstext auf der Website sichtbar: Über den Tools-Dienst

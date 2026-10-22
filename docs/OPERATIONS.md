@@ -43,7 +43,7 @@ services, plus `tools` for server commands (profile `tools`, started only for on
 | Service | Image | What it does | Published ports |
 |---|---|---|---|
 | `caddy` | `caddy:2.11.7-alpine`, pinned by digest | TLS certificates, HTTP → HTTPS, the website host and the Control Center host, `www` redirect, admin gate, access logs | `80/tcp`, `443/tcp`, `443/udp` |
-| `app` | `yop-website:<APP_VERSION>`, built from `docker/Dockerfile` | Website and Control Center (Next.js 16.3.8, Payload 3.90.2), port 3000 inside Docker | none |
+| `app` | `yop-website:<APP_VERSION>`, built from `docker/Dockerfile` | Website and Control Center (Next.js 16.4.2, Payload 3.91.0), port 3000 inside Docker | none |
 | `postgres` | `postgres:18.6-alpine3.24`, pinned by digest | Database | none |
 | `ops-agent` | `yop-ops-agent:<APP_VERSION>`, built from `ops-agent/Dockerfile` | Backups, restore drills, status, masked logs, restarts of `app` and `caddy`, certificate checks, visitor counts; port 4100 inside Docker; signed requests from the app only | none |
 | `socket-proxy` | `tecnativa/docker-socket-proxy:v0.5.0`, pinned by digest | Docker API for the agent only, limited to the agent's exact calls (`docker/socket-proxy/haproxy.cfg.template`) | none |
@@ -869,11 +869,12 @@ Collected from CONTROL-CENTER.md §12 and §14–§18, and from this guide.
 - [ ] How releases reach the server (§3.1) and how the app image is rolled back (§7.3).
 - [ ] Retention values in `.env` set according to decision 9 (§5.3).
 - [ ] `ALLOW_INDEXING=true` only at launch.
-- [ ] **Security update of Next.js done.** Next.js 16.3.8 is affected by GHSA-p3m5-59mp-jv5r
-      (denial of service through Server Actions; the forms use them). The fix is in 16.4.1. With
-      16.4.2 (tested with Payload 3.90.2 and 3.91.0), Payload shows "An unknown error occurred"
-      instead of the reason for refused changes (tested 2026-10-22; PLAN.md §28). Do not launch
-      before a Next.js release with the fix runs with all tests green.
+- [ ] **The image on the server contains the Next.js security fix.** Next.js 16.3.8 and older
+      are affected by GHSA-p3m5-59mp-jv5r (denial of service through Server Actions; the forms
+      use them). The code uses Next.js 16.4.2 with Payload 3.91.0 since 2026-10-22, with all tests
+      green (PLAN.md §28). Before launch: `npm audit` and the Next.js security advisories show
+      nothing new for the versions in use; the server runs an image built from that commit or
+      later.
 - [ ] The manual keyboard and screen-reader check is done and its findings fixed
       ([accessibility-check.md](accessibility-check.md)).
 - [ ] No placeholder or draft text visible on the website: through the tools service,

@@ -1,5 +1,10 @@
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import net, { type AddressInfo } from 'node:net'
+import os from 'node:os'
+import path from 'node:path'
+import tls from 'node:tls'
 
 import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -339,6 +344,45 @@ describe('the delivery log', () => {
     ])
   })
 
+  it('delivers over TLS through the configured server and records it as sent', async () => {
+    const relay = await startSmtpRelay()
+    process.env.MAIL_ALLOW_INTERNAL_HOSTS = 'true'
+    try {
+      await payload.updateGlobal({
+        slug: 'email-settings',
+        data: {
+          smtp: { host: '127.0.0.1', port: relay.port, fromAddress: 'website@example.org' },
+        },
+      })
+      await payload.sendEmail({
+        to: 'person@example.org',
+        subject: 'Zustellung',
+        text: 'Inhalt der Nachricht',
+        headers: { 'X-YOP-Template': 'test' },
+      })
+    } finally {
+      delete process.env.MAIL_ALLOW_INTERNAL_HOSTS
+      await relay.close()
+    }
+    // STARTTLS is required on every port but 465: the message was only sent encrypted.
+    expect(relay.messages).toHaveLength(1)
+    expect(relay.messages[0]).toMatchObject({
+      tls: true,
+      from: 'website@example.org',
+      to: ['person@example.org'],
+    })
+    expect(relay.messages[0]?.data).toContain('Subject: Zustellung')
+    expect(relay.messages[0]?.data).toContain('Inhalt der Nachricht')
+    // The template marker is for the log only and does not leave the server.
+    expect(relay.messages[0]?.data).not.toMatch(/X-YOP-Template/i)
+    const { docs } = await payload.find({
+      collection: 'email-log',
+      where: { status: { equals: 'sent' } },
+      depth: 0,
+    })
+    expect(docs.map((d) => [d.template, d.recipient])).toEqual([['test', 'p***@example.org']])
+  })
+
   it('records a failed delivery with its code and warns those who manage e-mail', async () => {
     // A relay inside the network, allowed on the server (as the end-to-end tests do).
     process.env.MAIL_ALLOW_INTERNAL_HOSTS = 'true'
@@ -415,3 +459,98 @@ describe('visitor statistics', () => {
     })
   })
 })
+
+/**
+ * A minimal SMTP server on 127.0.0.1 with STARTTLS and a certificate made for this run, trusted
+ * by this test process only (tls.setDefaultCACertificates). It records what it receives.
+ */
+async function startSmtpRelay() {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'yop-smtp-'))
+  const made = spawnSync(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'rsa:2048',
+      '-nodes',
+      '-days',
+      '1',
+      '-subj',
+      '/CN=127.0.0.1',
+      '-addext',
+      'subjectAltName=IP:127.0.0.1',
+      '-keyout',
+      `${dir}/key.pem`,
+      '-out',
+      `${dir}/cert.pem`,
+    ],
+    { encoding: 'utf8' },
+  )
+  if (made.status !== 0) throw new Error(made.stderr)
+  const key = readFileSync(`${dir}/key.pem`)
+  const cert = readFileSync(`${dir}/cert.pem`, 'utf8')
+  tls.setDefaultCACertificates([...tls.getCACertificates('default'), cert])
+
+  const messages: { tls: boolean; from: string; to: string[]; data: string }[] = []
+  const server = net.createServer((plain) => {
+    let socket: net.Socket = plain
+    let secure = false
+    let current = { from: '', to: [] as string[] }
+    let data: string[] | null = null
+    let buffer = ''
+    const reply = (line: string) => socket.write(`${line}\r\n`)
+    const onLine = (line: string) => {
+      if (data) {
+        if (line === '.') {
+          messages.push({ tls: secure, ...current, data: data.join('\n') })
+          data = null
+          current = { from: '', to: [] }
+          reply('250 2.0.0 queued')
+        } else data.push(line.startsWith('..') ? line.slice(1) : line)
+        return
+      }
+      const command = line.slice(0, 4).toUpperCase()
+      if (command === 'EHLO') reply(secure ? '250 relay' : '250-relay\r\n250 STARTTLS')
+      else if (command === 'STAR') {
+        reply('220 2.0.0 ready')
+        socket.removeAllListeners('data')
+        socket = new tls.TLSSocket(plain, { isServer: true, key, cert })
+        secure = true
+        buffer = ''
+        socket.on('data', onData)
+      } else if (command === 'MAIL') {
+        current.from = /<([^>]*)>/.exec(line)?.[1] ?? ''
+        reply('250 2.1.0 ok')
+      } else if (command === 'RCPT') {
+        current.to.push(/<([^>]*)>/.exec(line)?.[1] ?? '')
+        reply('250 2.1.5 ok')
+      } else if (command === 'DATA') {
+        data = []
+        reply('354 go ahead')
+      } else if (command === 'QUIT') {
+        reply('221 2.0.0 bye')
+        socket.end()
+      } else if (command === 'RSET' || command === 'NOOP') reply('250 2.0.0 ok')
+      else reply('502 5.5.2 not implemented')
+    }
+    const onData = (chunk: Buffer) => {
+      buffer += chunk.toString('utf8')
+      let end
+      while ((end = buffer.indexOf('\r\n')) >= 0) {
+        const line = buffer.slice(0, end)
+        buffer = buffer.slice(end + 2)
+        onLine(line)
+      }
+    }
+    socket.on('data', onData)
+    socket.on('error', () => {})
+    reply('220 relay ESMTP')
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  return {
+    port: (server.address() as AddressInfo).port,
+    messages,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  }
+}
