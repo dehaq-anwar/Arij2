@@ -1,6 +1,7 @@
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import type { EmailAdapter, Payload, SendEmailOptions } from 'payload'
 
+import { checkMailHost, internalHostsAllowed } from './mail/host-policy'
 import { recordDelivery } from './mail/log'
 import { DEFAULT_FROM_NAME, mailSettings, type MailSettings } from './mail/settings'
 import { PASSWORD_RESET_SUBJECT, TEMPLATE_HEADER } from './mail/templates'
@@ -10,9 +11,21 @@ type Send = (message: SendEmailOptions) => Promise<unknown>
 
 let transport: { key: string; send: Send } | null = null
 
+/**
+ * Where to connect: a server set on the server (.env) as it is; one entered in the Control Center
+ * only after the check in mail/host-policy.ts, at the address that was checked.
+ */
+async function addressOf(settings: MailSettings): Promise<string> {
+  const host = settings.host ?? ''
+  if (settings.source.host !== 'settings' || internalHostsAllowed()) return host
+  const check = await checkMailHost(host, settings.port)
+  if (!check.ok) throw Object.assign(new Error(`Mail server not used: ${check.code}`), check)
+  return check.address
+}
+
 /** One SMTP connection setup per set of settings (host, port, user); rebuilt when they change. */
-async function sender(payload: Payload, settings: MailSettings): Promise<Send> {
-  const key = [settings.host, settings.port, settings.user, settings.passwordSet].join('|')
+async function sender(payload: Payload, settings: MailSettings, address: string): Promise<Send> {
+  const key = [address, settings.host, settings.port, settings.user, settings.passwordSet].join('|')
   if (transport?.key === key) return transport.send
   const adapter = await nodemailerAdapter({
     defaultFromAddress: settings.fromAddress ?? '',
@@ -20,7 +33,9 @@ async function sender(payload: Payload, settings: MailSettings): Promise<Send> {
     // Checked on first use instead of at startup, so a mail outage never blocks the website.
     skipVerify: true,
     transportOptions: {
-      host: settings.host ?? '',
+      host: address,
+      // The certificate is checked against the name, also when connecting to a checked address.
+      servername: settings.host ?? undefined,
       port: settings.port,
       // Port 465 uses TLS from the start; other ports must upgrade with STARTTLS.
       secure: settings.port === 465,
@@ -69,7 +84,7 @@ export async function deliver(payload: Payload, message: SendEmailOptions) {
   }
   const started = Date.now()
   try {
-    const send = await sender(payload, settings)
+    const send = await sender(payload, settings, await addressOf(settings))
     const result = await send({
       ...message,
       headers,

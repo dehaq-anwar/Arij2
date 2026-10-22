@@ -25,8 +25,17 @@ function revalidateSite(req: PayloadRequest) {
   }
 }
 
-export const revalidateAfterChange: CollectionAfterChangeHook = ({ doc, req }) => {
-  revalidateSite(req)
+/**
+ * A draft of something never published is not on the site: autosaving it (every two seconds
+ * while editing) or creating it (the create screen does that on opening) changes no cached
+ * page. Publishing, unpublishing and any change to a published document still do.
+ */
+type Versioned = { _status?: 'draft' | 'published' | null } | null | undefined
+const draftOnly = (doc: Versioned, previousDoc: Versioned) =>
+  doc?._status === 'draft' && previousDoc?._status !== 'published'
+
+export const revalidateAfterChange: CollectionAfterChangeHook = ({ doc, previousDoc, req }) => {
+  if (!draftOnly(doc, previousDoc)) revalidateSite(req)
   return doc
 }
 
@@ -35,7 +44,7 @@ export const revalidateAfterDelete: CollectionAfterDeleteHook = ({ doc, req }) =
   return doc
 }
 
-export const revalidateGlobal: GlobalAfterChangeHook = ({ doc, req }) => {
-  revalidateSite(req)
+export const revalidateGlobal: GlobalAfterChangeHook = ({ doc, previousDoc, req }) => {
+  if (!draftOnly(doc, previousDoc)) revalidateSite(req)
   return doc
 }

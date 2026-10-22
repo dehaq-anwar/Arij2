@@ -118,6 +118,8 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 | Service logs in the Control Center | Shown only to roles with `operations.read`, loaded on request, masked before they leave the agent (e-mail addresses shortened, IP addresses shortened, tokens, passwords, cookies and keys replaced). Each view is in the audit log. The logs themselves stay in Docker on the server (Docker's default rotation) |
 | E-mail delivery log | Per e-mail: time, template (e.g. "new application"), recipient **shortened** (`i***@yop-ye.org`), result, error code, duration. No subject, no content. Kept 90 days (proposal). Readable with `email.manage` |
 | Technical warnings | To people with `operations.act` in the Control Center, and by e-mail to the technical address if set: what (service, host, time) and a link. No personal data |
+| Visitor statistics (CC-4) | Per hour: page views, visits (entries from outside), bots, 404 and 5xx counts; per page and language version, referring domain (without path), 404 address and error address (masked like log lines). No IP address, no browser string, no cookie, no profile of a person. Kept 13 months (proposal). Readable with `analytics.read` |
+| E-mail settings (CC-4) | Mail server, user name, sender, notification and technical addresses, domain: stored in the database, changed only with a code, every change in the audit log. The mail server password is never stored there (`SMTP_PASSWORD` on the server) |
 
 ## Security headers
 

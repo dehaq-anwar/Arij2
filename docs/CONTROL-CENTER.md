@@ -1,8 +1,8 @@
 # Youth of Peace — Administration & Control Center
 
 **Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions); all remaining
-phases approved 2026-10-21 without stops between them. CC-0 to CC-3 are implemented (sections
-14 to 17). Plan date: 2026-10-19.
+phases approved 2026-10-21 without stops between them. CC-0 to CC-4 are implemented (sections
+14 to 18). Plan date: 2026-10-19.
 **Arabic version:** [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)
 **Visual design (interactive):** [control-center/mockups.html](control-center/mockups.html). Open the
 file in a browser. It needs no network access: fonts and logo are embedded. Useful addresses:
@@ -1002,6 +1002,140 @@ Nothing in CC-3 touches a real server: everything below was built and tested loc
   longer, reload by hand.
 - External uptime monitoring is not set up (decision 8); without it, an outage of the whole
   server is only noticed by people.
+
+## 18. CC-4 implementation notes (2026-10-22)
+
+### What CC-4 contains
+
+- **E-mail settings** (Operations → E-mail → "Edit settings", `email.manage`): mail server,
+  port, user name, sender address and name, the address for new applications and messages, the
+  technical address for warnings, and the domain and DKIM selector for the checks. Saving needs a
+  code from the last five minutes and is in the audit log. Empty fields use the server settings
+  (`SMTP_*`, `NOTIFY_EMAIL`), so an installation configured there keeps working. The password is
+  only ever read from the server (`SMTP_PASSWORD`, decision 16 as recommended); the screen shows
+  "set on the server" or "not set".
+- **E-mail screen** (`/admin/email`): the server in use (and whether from the settings or the
+  server), delivered / failed / not sent (no server) in the last 30 days, the domain's
+  deliverability (MX, SPF, DKIM, DMARC looked up now from the server, with plain advice: missing
+  record, several SPF records, `+all`, DMARC only monitoring, DKIM selector not set, lookup
+  failed), the delivery log (time, template, shortened recipient, result, error code; no subject
+  or content; 90 days), every template with a preview of exactly what is sent, and the addresses.
+  "Test e-mail to me" sends through the real transport to the signed-in person's own address only,
+  at most five per hour; result and error code are shown and logged.
+- **Failed deliveries** warn everyone with `email.manage` in the bell (once a day); a failed
+  delivery cannot also be reported by e-mail.
+- **Statistics** (Insights → Statistics, new permission `analytics.read` for the roles that read
+  operations: super administrator, board, technical administrator, auditor): page views and
+  visits (entries from outside) for 7, 30 or 90 days, per day as bars with a table, the most
+  visited pages, languages (the language version opened), sources (domain only, plus "direct /
+  unknown"), addresses not found with "create redirect" (opens the redirect form with the address
+  filled in; for those who may edit content), server errors with a link to the logs, the sitemap's
+  size and whether search engines may index, uptime "not set up" (decision 8), loading times
+  measured in the lab (decision 7).
+- **Counting**: the agent counts the website's access log per hour (counts only; bots,
+  prefetches, assets and the admin not counted as views); the job `analytics-collect` stores
+  complete hours every hour (at most the 7 days the raw logs are kept). An hour counted again
+  replaces itself, in one database statement, so two runs at the same moment cannot double it
+  (found by the end-to-end tests and fixed). Addresses not found and error addresses are masked
+  like log lines before they leave the agent (a visitor can type an e-mail address into an
+  address). Hourly counts are kept 13 months (proposal; no personal data).
+- **Dashboard**: page views of the last 7 days (with visits) for `analytics.read`, failed e-mails
+  of the last 30 days for `email.manage`.
+
+### Verification (2026-10-22)
+
+- Unit tests: DNS checks against a stand-in resolver (all fine, all missing, weak SPF and DMARC,
+  several SPF records, failed lookups), the statistics summary (days in Berlin time with empty
+  days kept, pages, languages, sources, direct visits, 404 and errors), the role matrix with the
+  new permission, masking of a 404 address that contains an e-mail address.
+- Integration tests: the statistics job (complete hours only, at most 7 days back, nothing to do
+  within the same hour, a recount replaces, two runs at once neither fail nor double).
+- End-to-end tests (statistics in the main run; e-mail as its own project after the others,
+  because it points the shared e-mail settings at a closed port for a while): the statistics
+  screen's numbers, pages, sources, 404 and errors; "create redirect" fills in the address;
+  roles without the permission get 403 and no menu; the e-mail screen without a server; a
+  password reset appears in the delivery log as "not sent" with the recipient shortened and never
+  in full; saving settings needs a code; a test e-mail to a closed port fails with its code, is
+  logged and reported in the bell; the DNS check of a reserved domain finds nothing; only e-mail
+  managers reach the screen and its actions; axe without violations and no sideways scrolling on
+  a phone (light German, dark Arabic) on both screens.
+- Visual review: the day bars were blocks (a stretched drawing) and are now thin bars of at most
+  28 px; percentages and counts were reversed in Arabic ("% 50") and are isolated now; the
+  "create redirect" arrow points the way of reading in Arabic (also the redirects icon in the
+  menu); the last row of tables with row headers kept a short line under its first cell.
+- The privacy test that opens all 30 pages took 28.6 s of its 30 s limit and failed once under
+  load; it now has 90 s. Its checks (no cookies, no other hosts) are unchanged.
+- CI of the CC-3 commit failed once: the test that runs a job signs in with a fresh code, and
+  when another worker has just used the current code of the same account, the helper waits for
+  the next 30-second step. That wait counted against the test's 30 s limit. The application was
+  not slow (the request had only just been sent). The sign-in helper now gives a test the time it
+  waits for a code on top of its limit; no check was loosened.
+- Found in the same CI log: saving a draft (autosave every two seconds while editing, and the
+  create screen, which saves on opening) marked the whole website's cache as stale, and while the
+  create screen rendered that raised a warning. A draft that was never published is not on the
+  website, so it no longer does; publishing, unpublishing and every change to published content
+  still do (unit test).
+
+### Not tested with real services, and why
+
+| What | Why | Before launch |
+|---|---|---|
+| Sending through the association's mail provider | Provider and sender not decided (decision 5); no sending to real addresses from tests | Enter server, user and sender, set `SMTP_PASSWORD` on the server, "Test e-mail to me" |
+| DNS checks of the real domain | The test environment has no reliable DNS access; the real records belong to the association | Open the e-mail screen after entering the domain and DKIM selector |
+| Statistics from real visits | No server yet | The screen fills from the first complete hour after launch |
+
+### Known limitations
+
+- "Visits" are page views that arrive from outside the website (a search engine, a link
+  elsewhere, a typed address). Someone who arrives twice counts twice: without cookies, people
+  cannot be told apart, which is the point.
+- DMARC and SPF advice covers the common mistakes; the provider's documentation decides details.
+- The e-mail delivery log records what the mail server accepted, not what reached the inbox.
+
+---
+
+## 19. CC-5 implementation notes (2026-10-22)
+
+### Security review
+
+Every collection, global and endpoint was checked against the permission table (§4), including
+Payload's own records and the rules Payload applies where none is set. Found and fixed:
+
+- **Payload's scheduling record** (`payload-jobs-stats`, added by Payload when tasks have a
+  schedule) had Payload's default access: anyone signed in, a content editor too, could change it
+  through the API and so keep the retention and deletion tasks from being scheduled. It is closed
+  to the API now; Payload reads and writes it directly.
+- **Earlier versions and drafts** of pages, projects, news, events and the versioned settings
+  (menu, form texts, legal pages, site settings) had no rule of their own, so Payload's default
+  let anyone signed in read them, also the membership manager and the technical administrator,
+  who have no access to content. They contain no personal data, but the table says "—". Now only
+  those who see content in full (`content.read`) read them.
+- **Mail server entered in the Control Center**: "test e-mail to me" connects to whatever server
+  is entered, so it could have been used to reach the server's own services (the database, the
+  operations agent) or to scan its network. A server entered on the screen is now used only on a
+  mail port (25, 465, 587, 2525) and only if every address its name resolves to is on the
+  internet; the connection then goes to the address checked (the certificate is still checked
+  against the name), so a name that resolves differently a moment later cannot slip past. The
+  e-mail screen says right after saving when a server will not be used, and why. A relay inside
+  the server's network is set on the server (`SMTP_HOST`) or allowed with
+  `MAIL_ALLOW_INTERNAL_HOSTS=true`.
+
+Checked and found in order: there is no sign-up, also not through Payload's first-user endpoint
+on an empty database (the account rules refuse a new account without a signed-in person; server
+scripts are exempt); confirming with a code is limited per address and locks after repeated
+wrong codes; Payload's job list, key-value store and migrations are closed (the migrations have
+no API at all); the record of who is editing which document holds ids only and is visible to
+those signed in, as the editing screens need it.
+
+### Permission matrix
+
+An integration test (`tests/integration/permissions.test.ts`) checks every collection and global
+of the running configuration, for every role and for visitors, against the table in §4 written
+out in the test (all / some / none per operation, versions included), and fails if a collection,
+a global or anything with versions is added without an entry. It also checks that restrictions
+take permissions away and that a role counts for nothing without a session confirmed with the
+second factor. End-to-end tests check the same refusals through the real API (versions, Payload's
+records).
 
 ---
 

@@ -40,6 +40,7 @@ export const RESTARTABLE_SERVICES = ['app', 'caddy'] as const
  */
 export const MANUAL_JOBS: Record<string, { deletes: boolean; queue: string }> = {
   'ops-collect': { deletes: false, queue: 'operations' },
+  'analytics-collect': { deletes: false, queue: 'operations' },
   'membership-reminders': { deletes: false, queue: 'maintenance' },
   retention: { deletes: true, queue: 'maintenance' },
   'auth-cleanup': { deletes: true, queue: 'maintenance' },

@@ -193,6 +193,11 @@ export const Redirects: CollectionConfig = {
       unique: true,
       index: true,
       maxLength: 300,
+      // "Create redirect" on the statistics screen opens this form with the address not found.
+      defaultValue: ({ req }) => {
+        const from = req?.searchParams?.get('from') ?? ''
+        return /^\/[^\s?#]{0,299}$/.test(from) ? from : undefined
+      },
       label: label('Alte Adresse', 'Old address', 'العنوان القديم'),
       admin: {
         placeholder: '/alte-seite',

@@ -8,6 +8,7 @@ import { getCredential, unusedRecoveryCodes } from '../../auth/mfa'
 import { listActiveSessions } from '../../auth/sessions'
 import { startOfTomorrowBerlin } from '../../jobs/membership-reminders'
 import { OPEN_STATUSES, stageWhere } from '../../membership/stage'
+import { analyticsSummary } from '../../analytics/read'
 import { BACKUP_OVERDUE_MS } from '../../operations/alerts'
 import { lastGoodBackupAt, readOperationsState } from '../../operations/collect'
 import { actionLabel } from '../audit/actions'
@@ -21,6 +22,8 @@ import {
   type AdminLanguage,
 } from '../i18n'
 import { Icon, type IconName } from '../icons'
+import { analyticsTexts } from '../analytics/texts'
+import { mailTexts } from '../mail/texts'
 import { opsTexts } from '../operations/texts'
 
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
@@ -293,13 +296,31 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
       : null,
   ])
 
-  const [pipeline, tasks, members, operations] = await Promise.all([
+  const [pipeline, tasks, members, operations, visits, mailFailures] = await Promise.all([
     showInbox ? membershipPipeline(req) : null,
     showInbox ? myTasks(req, person.id) : null,
     can(person, 'members.read') ? membersSummary(req) : null,
     can(person, 'operations.read') ? operationsSummary(req) : null,
+    can(person, 'analytics.read') ? analyticsSummary(req.payload, 7, new Date(), req) : null,
+    can(person, 'email.manage')
+      ? req.payload
+          .count({
+            collection: 'email-log',
+            where: {
+              and: [
+                { status: { equals: 'failed' } },
+                { createdAt: { greater_than: hoursAgo(24 * 30) } },
+              ],
+            },
+            overrideAccess: true,
+            req,
+          })
+          .then((r) => r.totalDocs)
+      : null,
   ])
   const o = opsTexts[language]
+  const a = analyticsTexts[language]
+  const m = mailTexts[language]
 
   const recoveryLeft = credential ? unusedRecoveryCodes(credential) : 0
   const withoutMfa = accounts
@@ -427,6 +448,24 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
               tone={operations.certificatesOk ? undefined : 'warning'}
             />
           </>
+        )}
+        {visits && (
+          <Stat
+            icon="chart"
+            label={`${a.views} · ${fill(a.rangeDays, { n: 7 })}`}
+            value={visits.totals.views}
+            href="/admin/analytics?range=7"
+            hint={`${a.visits}: ${visits.totals.entrances}`}
+          />
+        )}
+        {mailFailures != null && (
+          <Stat
+            icon="mail"
+            label={m.failed30}
+            value={mailFailures}
+            href="/admin/email"
+            tone={mailFailures ? 'warning' : undefined}
+          />
         )}
         {accounts && (
           <Stat

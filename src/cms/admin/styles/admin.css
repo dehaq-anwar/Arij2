@@ -1139,7 +1139,15 @@ html[data-theme='dark'] .yop-nav {
   border-block-end: 1px solid var(--yop-line);
   vertical-align: middle;
 }
-.yop-table tr:last-child td {
+/* Row headers (th scope=row) read like the other cells of their row. */
+.yop-table tbody th {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  padding-block: 10px;
+}
+.yop-table tbody tr:last-child td,
+.yop-table tbody tr:last-child th {
   border-block-end: 0;
 }
 .yop-table__action {
@@ -2352,6 +2360,156 @@ html[data-theme='dark'] .yop-search-preview__title {
 .yop-log__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* ── e-mail and statistics (CC-4) ── */
+.yop-segmented__item {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 32px;
+  padding-inline: 12px;
+  border-radius: 7px;
+  color: var(--yop-muted);
+  font-size: 13px;
+  font-weight: 550;
+  text-decoration: none;
+}
+.yop-segmented__item[aria-current='page'] {
+  background: var(--yop-accent-soft);
+  color: var(--yop-accent);
+}
+.yop-segmented__item:focus-visible {
+  outline: none;
+  box-shadow: var(--yop-focus);
+}
+.yop-daybars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: 140px;
+  border-block-end: 1px solid var(--yop-line-strong);
+  background: linear-gradient(var(--yop-line), var(--yop-line)) 0 50% / 100% 1px no-repeat;
+}
+.yop-daybars__day {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-end;
+  justify-content: center;
+  block-size: 100%;
+}
+.yop-daybars__bar {
+  inline-size: 100%;
+  max-inline-size: 28px;
+  min-block-size: 0;
+  border-start-start-radius: 4px;
+  border-start-end-radius: 4px;
+  background: var(--yop-accent);
+}
+.yop-daybars__bar--active {
+  background: var(--yop-accent-hover);
+}
+.yop-bars {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.yop-bars__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.yop-bars__value {
+  color: var(--yop-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.yop-bars__track {
+  display: block;
+  block-size: 8px;
+  margin-block-start: 5px;
+  border-radius: 4px;
+  background: var(--yop-surface-2);
+  overflow: hidden;
+}
+.yop-bars__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 4px;
+  background: var(--yop-accent);
+}
+.yop-facts--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.yop-facts dd {
+  overflow-wrap: anywhere;
+}
+.yop-mail-record {
+  display: block;
+  margin-block-start: 4px;
+  font-size: 12px;
+  color: var(--yop-muted);
+  overflow-wrap: anywhere;
+}
+.yop-mail-templates {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.yop-mail-templates summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--yop-line);
+  cursor: pointer;
+  list-style: none;
+}
+.yop-mail-templates summary::-webkit-details-marker {
+  display: none;
+}
+.yop-mail-templates summary > span {
+  display: grid;
+  gap: 2px;
+}
+.yop-mail-templates__preview {
+  color: var(--yop-accent);
+  font-size: 13px;
+  font-weight: 550;
+}
+.yop-mail-templates details[open] summary {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+.yop-mail-preview {
+  padding: 12px;
+  border: 1px solid var(--yop-line);
+  border-block-start: 0;
+  border-end-start-radius: 12px;
+  border-end-end-radius: 12px;
+  background: var(--yop-surface-2);
+  font-size: 13px;
+}
+.yop-mail-preview p {
+  margin: 0 0 8px;
+}
+.yop-mail-preview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    12.5px/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
 }
 
 @media (max-width: 768px) {

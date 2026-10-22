@@ -5,6 +5,7 @@ import { roleLabels } from '../../access/labels'
 import { can, isRole, type PermissionSubject } from '../../access/permissions'
 import { adminLanguage, adminTexts } from '../i18n'
 import type { IconName } from '../icons'
+import { analyticsTexts } from '../analytics/texts'
 import { opsTexts } from '../operations/texts'
 import { NavClient, type NavGroupData, type NavItemData } from './NavClient'
 
@@ -218,13 +219,8 @@ export async function Nav(props: Props) {
       },
     )
   }
-  if (can(person, 'email.manage') && (visible.globals as string[]).includes('email-settings')) {
-    operations.push({
-      id: 'nav-ops-email',
-      href: '/admin/globals/email-settings',
-      label: o.navEmail,
-      icon: 'mail',
-    })
+  if (can(person, 'email.manage')) {
+    operations.push({ id: 'nav-ops-email', href: '/admin/email', label: o.navEmail, icon: 'mail' })
   }
   if (operations.length) {
     const at = groups.findIndex((group) => group.key === 'security')
@@ -232,6 +228,18 @@ export async function Nav(props: Props) {
       key: 'operations',
       label: o.navOperations,
       items: operations,
+    })
+  }
+  // Insights (CC-4): visitor statistics, also before Security.
+  if (can(person, 'analytics.read')) {
+    const a = analyticsTexts[language]
+    const at = groups.findIndex((group) => group.key === 'security')
+    groups.splice(at === -1 ? groups.length : at, 0, {
+      key: 'insights',
+      label: a.navInsights,
+      items: [
+        { id: 'nav-analytics', href: '/admin/analytics', label: a.navAnalytics, icon: 'chart' },
+      ],
     })
   }
 

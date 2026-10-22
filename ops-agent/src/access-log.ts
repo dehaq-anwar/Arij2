@@ -3,6 +3,8 @@ import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
+import { maskLine } from './mask.ts'
+
 /**
  * Visitor statistics without cookies (docs/CONTROL-CENTER.md §7): the website's access log
  * (Caddy, JSON, kept 7 days, IP addresses already shortened by Caddy) is counted per hour.
@@ -130,8 +132,10 @@ export class Aggregator {
     const path = normalisePath(entry.request.uri)
     if (status >= 500) {
       b.serverErrors++
-      const key = `${status} ${path}`
-      const error = b.errors.get(key) ?? { path, status, count: 0 }
+      // Error and 404 addresses can be anything a visitor typed: masked like log lines.
+      const masked = maskLine(path)
+      const key = `${status} ${masked}`
+      const error = b.errors.get(key) ?? { path: masked, status, count: 0 }
       error.count++
       if (b.errors.has(key) || b.errors.size < MAX_PATHS) b.errors.set(key, error)
       return
@@ -140,8 +144,9 @@ export class Aggregator {
     if (status === 404) {
       if (path.startsWith('/_next/')) return
       b.notFound++
-      if (b.notFoundPaths.has(path) || b.notFoundPaths.size < MAX_PATHS) {
-        b.notFoundPaths.set(path, (b.notFoundPaths.get(path) ?? 0) + 1)
+      const masked = maskLine(path)
+      if (b.notFoundPaths.has(masked) || b.notFoundPaths.size < MAX_PATHS) {
+        b.notFoundPaths.set(masked, (b.notFoundPaths.get(masked) ?? 0) + 1)
       }
       return
     }

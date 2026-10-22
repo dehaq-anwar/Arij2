@@ -10,6 +10,7 @@ import * as migration_20261021_133111_cc2_display_titles from './20261021_133111
 import * as migration_20261021_135132_cc2_pages from './20261021_135132_cc2_pages';
 import * as migration_20261021_141353_cc2_publishing from './20261021_141353_cc2_publishing';
 import * as migration_20261021_233818_cc3_operations from './20261021_233818_cc3_operations';
+import * as migration_20261022_001925_cc4_mail_analytics from './20261022_001925_cc4_mail_analytics';
 
 export const migrations = [
   {
@@ -70,6 +71,11 @@ export const migrations = [
   {
     up: migration_20261021_233818_cc3_operations.up,
     down: migration_20261021_233818_cc3_operations.down,
-    name: '20261021_233818_cc3_operations'
+    name: '20261021_233818_cc3_operations',
+  },
+  {
+    up: migration_20261022_001925_cc4_mail_analytics.up,
+    down: migration_20261022_001925_cc4_mail_analytics.down,
+    name: '20261022_001925_cc4_mail_analytics'
   },
 ];

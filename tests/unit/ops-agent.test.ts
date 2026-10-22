@@ -225,6 +225,7 @@ describe('visitor statistics from the access log', () => {
     a.add(entry('/admin'))
     a.add(entry('/logo.png'))
     a.add(entry('/gibt-es-nicht', { status: 404 }))
+    a.add(entry('/reset/max.mustermann@example.org', { status: 404 }))
     a.add(entry('/_next/static/old.js', { status: 404 }))
     a.add(entry('/kontakt', { status: 500 }, {}))
     a.add({
@@ -235,11 +236,11 @@ describe('visitor statistics from the access log', () => {
     const [hour] = a.result()
     expect(hour).toMatchObject({
       hour: '2026-10-21T10:00:00.000Z',
-      requests: 14,
+      requests: 15,
       views: 4,
       entrances: 2,
       bots: 1,
-      notFound: 1,
+      notFound: 2,
       serverErrors: 2,
     })
     expect(hour!.pages.map((p) => [p.path, p.locale, p.views, p.entrances])).toEqual(
@@ -251,7 +252,11 @@ describe('visitor statistics from the access log', () => {
       ]),
     )
     expect(hour!.referrers).toEqual([{ host: 'google.com', entrances: 1 }])
-    expect(hour!.notFoundPaths).toEqual([{ path: '/gibt-es-nicht', count: 1 }])
+    // A 404 address can hold anything a visitor typed: masked like log lines.
+    expect(hour!.notFoundPaths).toEqual([
+      { path: '/gibt-es-nicht', count: 1 },
+      { path: '/reset/m***@example.org', count: 1 },
+    ])
     expect(hour!.errors).toEqual(
       expect.arrayContaining([
         { path: '/kontakt', status: 500, count: 1 },

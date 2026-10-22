@@ -257,6 +257,44 @@ test.describe('roles', () => {
     }
   })
 
+  test("Payload's internal records are closed to every role", async ({ request }) => {
+    // The scheduling record: whoever could change it could keep the deletion tasks from running.
+    for (const name of ['superAdmin', 'contentEditor'] as const) {
+      const headers = await authHeaders(request, name)
+      const stats = adminUrl('/api/globals/payload-jobs-stats')
+      expect((await request.get(stats, { headers })).status(), name).toBe(403)
+      const write = await request.post(stats, { headers, data: { stats: {} } })
+      expect(write.status(), name).toBe(403)
+      expect((await request.get(adminUrl('/api/payload-jobs?limit=1'), { headers })).status()).toBe(
+        403,
+      )
+      expect(
+        (await request.get(adminUrl('/api/payload-migrations?limit=1'), { headers })).status(),
+      ).toBe(501)
+    }
+  })
+
+  test('earlier versions and drafts only for those who see content in full', async ({
+    request,
+  }) => {
+    const expected: Partial<Record<AccountName, number>> = {
+      superAdmin: 200,
+      boardAdmin: 200,
+      contentEditor: 200,
+      auditor: 200,
+      membershipManager: 403,
+      technicalAdmin: 403,
+    }
+    for (const [role, status] of Object.entries(expected)) {
+      for (const path of [
+        '/api/pages/versions?limit=1',
+        '/api/globals/navigation/versions?limit=1',
+      ]) {
+        expect(await read(request, role as AccountName, path), `${role} ${path}`).toBe(status)
+      }
+    }
+  })
+
   test('drafts and accounts are visible only to the roles that need them', async ({ request }) => {
     const drafts = async (name: AccountName) =>
       (

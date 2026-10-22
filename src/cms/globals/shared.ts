@@ -9,7 +9,13 @@ import { groups, type AdminLabel } from '../lib/labels'
 export const pageGlobal = (config: Omit<GlobalConfig, 'access' | 'hooks'>): GlobalConfig => ({
   ...config,
   admin: { group: groups.pages, hidden: hiddenWithoutContent, ...config.admin },
-  access: { read: () => true, update: allow('content.write') },
+  access: {
+    read: () => true,
+    // Earlier versions and drafts: for those who see content in full (Payload's default: anyone
+    // signed in).
+    readVersions: allow('content.read'),
+    update: allow('content.write'),
+  },
   hooks: { afterChange: [revalidateGlobal] },
 })
 

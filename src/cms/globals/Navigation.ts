@@ -74,7 +74,13 @@ export const Navigation: GlobalConfig = {
     ),
   },
   versions: { max: 50 },
-  access: { read: () => true, update: allow('content.write') },
+  access: {
+    read: () => true,
+    // Earlier versions and drafts: for those who see content in full (Payload's default: anyone
+    // signed in).
+    readVersions: allow('content.read'),
+    update: allow('content.write'),
+  },
   hooks: { afterChange: [revalidateGlobal] },
   fields: [
     {

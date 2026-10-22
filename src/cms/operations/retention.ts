@@ -15,6 +15,8 @@ export const OPERATIONS_RETENTION = {
   eventsDays: 365,
   emailLogDays: EMAIL_LOG_DAYS,
   jobsDays: 30,
+  /** Hourly visitor counts (no personal data): 13 months, so a year compares with the last. */
+  accessStatsDays: 400,
 } as const
 
 export async function purgeOperations(payload: Payload, now = new Date(), req?: PayloadRequest) {
@@ -41,6 +43,9 @@ export async function purgeOperations(payload: Payload, now = new Date(), req?: 
     emailLog: await run('email-log', {
       createdAt: { less_than: before(OPERATIONS_RETENTION.emailLogDays) },
     }),
+    accessStats: await run('access-stats', {
+      hour: { less_than: before(OPERATIONS_RETENTION.accessStatsDays) },
+    }),
     jobs: await run('payload-jobs', {
       completedAt: { less_than: before(OPERATIONS_RETENTION.jobsDays) },
     }),
@@ -56,6 +61,7 @@ export const opsRetentionTask: TaskConfig = {
     { name: 'samples', type: 'number' },
     { name: 'events', type: 'number' },
     { name: 'emailLog', type: 'number' },
+    { name: 'accessStats', type: 'number' },
     { name: 'jobs', type: 'number' },
   ],
   handler: async ({ req }) => ({ output: await purgeOperations(req.payload, new Date(), req) }),

@@ -41,6 +41,8 @@ export const PERMISSIONS = [
   'operations.act',
   /** E-mail settings and test sending (CC-4). */
   'email.manage',
+  /** Visitor statistics: counts only, from the web server's log (CC-4). */
+  'analytics.read',
   /** Run the job queue by hand (e.g. the retention job). */
   'jobs.run',
   /** See all accounts, their roles and two-factor status. */
@@ -66,6 +68,7 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'personalData.export',
     'exports.review',
     'operations.read',
+    'analytics.read',
     'users.read',
     'users.manageLimited',
     'audit.read',
@@ -80,9 +83,23 @@ const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'personalData.export',
   ],
   // Deliberately without any access to applications, members or messages.
-  technicalAdmin: ['operations.read', 'operations.act', 'email.manage', 'jobs.run', 'audit.read'],
+  technicalAdmin: [
+    'operations.read',
+    'operations.act',
+    'email.manage',
+    'analytics.read',
+    'jobs.run',
+    'audit.read',
+  ],
   // Oversight without personal data: the export register holds no personal data.
-  auditor: ['content.read', 'operations.read', 'users.read', 'audit.read', 'exports.review'],
+  auditor: [
+    'content.read',
+    'operations.read',
+    'analytics.read',
+    'users.read',
+    'audit.read',
+    'exports.review',
+  ],
 }
 
 /** Areas of the audit log; each entry belongs to one. */

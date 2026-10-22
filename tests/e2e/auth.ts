@@ -8,7 +8,7 @@ import type { APIRequestContext, BrowserContext } from '@playwright/test'
 import { totpCode, totpStep } from '../../src/cms/auth/totp'
 import { account, adminUrl, freshAddress } from './fixtures'
 import { STATE_FILE, testTotpSecret, type AccountName, type E2EState } from './secrets'
-import { expect } from './test'
+import { expect, test } from './test'
 
 /**
  * The last time step used per account, kept in a file: after a failed test Playwright starts a
@@ -27,6 +27,20 @@ function lastStepOf(email: string) {
 }
 
 /**
+ * Gives the running test the time it waits for a code on top of its own time limit. Waiting for
+ * the next time step (up to 30 seconds, when another worker just used a code of the same
+ * account) is not the application being slow, so it must not count against the test.
+ */
+function allowWaiting(ms: number) {
+  try {
+    const info = test.info()
+    if (info.timeout > 0) info.setTimeout(info.timeout + ms)
+  } catch {
+    // Outside a test (global setup): no time limit to extend.
+  }
+}
+
+/**
  * A fresh code for the account. A code (time step) is accepted only once, so if this account
  * already used the current step, it waits for the next 30-second step.
  */
@@ -34,7 +48,9 @@ export async function nextCode(name: AccountName): Promise<string> {
   const { email, password } = account(name)
   let step = totpStep()
   if (step <= lastStepOf(email)) {
-    await new Promise((resolve) => setTimeout(resolve, (step + 1) * 30_000 - Date.now() + 250))
+    const wait = (step + 1) * 30_000 - Date.now() + 250
+    allowWaiting(wait)
+    await new Promise((resolve) => setTimeout(resolve, wait))
     step = totpStep()
   }
   mkdirSync(STEP_DIR, { recursive: true })

@@ -58,6 +58,7 @@ export const permissionLabels: Record<Permission, AdminLabel> = {
     'تنفيذ إجراءات التشغيل',
   ),
   'email.manage': label('E-Mail-Einstellungen', 'E-mail settings', 'إعدادات البريد'),
+  'analytics.read': label('Statistik ansehen', 'View statistics', 'عرض الإحصاءات'),
   'jobs.run': label('Aufgaben manuell starten', 'Run jobs manually', 'تشغيل المهام يدويًا'),
   'users.read': label('Konten ansehen', 'View accounts', 'عرض الحسابات'),
   'users.manage': label('Konten verwalten', 'Manage accounts', 'إدارة الحسابات'),

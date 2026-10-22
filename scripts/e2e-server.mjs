@@ -59,6 +59,8 @@ const serverEnv = {
   OPS_AGENT_SECRET: randomBytes(24).toString('hex'),
   // No mail server in the tests: e-mails are recorded as "not configured", never sent.
   SMTP_HOST: '',
+  // The e-mail tests enter a closed local port as the mail server, to see a failure.
+  MAIL_ALLOW_INTERNAL_HOSTS: 'true',
 }
 
 const payloadCli = path.join(root, 'node_modules', '.bin', 'payload')

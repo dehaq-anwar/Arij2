@@ -94,6 +94,7 @@ export interface Config {
     'ops-samples': OpsSample;
     'ops-events': OpsEvent;
     'email-log': EmailLog;
+    'access-stats': AccessStat;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -129,6 +130,7 @@ export interface Config {
     'ops-samples': OpsSamplesSelect<false> | OpsSamplesSelect<true>;
     'ops-events': OpsEventsSelect<false> | OpsEventsSelect<true>;
     'email-log': EmailLogSelect<false> | EmailLogSelect<true>;
+    'access-stats': AccessStatsSelect<false> | AccessStatsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -185,6 +187,7 @@ export interface Config {
       'notifications-retention': TaskNotificationsRetention;
       'ops-collect': TaskOpsCollect;
       'ops-retention': TaskOpsRetention;
+      'analytics-collect': TaskAnalyticsCollect;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -1315,6 +1318,7 @@ export interface User {
         | 'operations.read'
         | 'operations.act'
         | 'email.manage'
+        | 'analytics.read'
         | 'jobs.run'
         | 'users.read'
         | 'users.manage'
@@ -1756,6 +1760,56 @@ export interface EmailLog {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "access-stats".
+ */
+export interface AccessStat {
+  id: number;
+  hour: string;
+  requests: number;
+  views: number;
+  entrances: number;
+  bots: number;
+  notFound: number;
+  serverErrors: number;
+  pages?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  referrers?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  notFoundPaths?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  errors?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -1832,6 +1886,7 @@ export interface PayloadJob {
           | 'notifications-retention'
           | 'ops-collect'
           | 'ops-retention'
+          | 'analytics-collect'
           | 'schedulePublish';
         taskID: string;
         input?:
@@ -1875,6 +1930,7 @@ export interface PayloadJob {
         | 'notifications-retention'
         | 'ops-collect'
         | 'ops-retention'
+        | 'analytics-collect'
         | 'schedulePublish'
       )
     | null;
@@ -1979,6 +2035,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'email-log';
         value: number | EmailLog;
+      } | null)
+    | ({
+        relationTo: 'access-stats';
+        value: number | AccessStat;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -2988,6 +3048,23 @@ export interface EmailLogSelect<T extends boolean = true> {
   durationMs?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "access-stats_select".
+ */
+export interface AccessStatsSelect<T extends boolean = true> {
+  hour?: T;
+  requests?: T;
+  views?: T;
+  entrances?: T;
+  bots?: T;
+  notFound?: T;
+  serverErrors?: T;
+  pages?: T;
+  referrers?: T;
+  notFoundPaths?: T;
+  errors?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4028,7 +4105,19 @@ export interface TaskOpsRetention {
     samples?: number | null;
     events?: number | null;
     emailLog?: number | null;
+    accessStats?: number | null;
     jobs?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskAnalytics-collect".
+ */
+export interface TaskAnalyticsCollect {
+  input?: unknown;
+  output: {
+    configured?: boolean | null;
+    hours?: number | null;
   };
 }
 /**

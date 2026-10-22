@@ -177,6 +177,7 @@ describe('roles and permissions', () => {
       'personalData.export',
       'exports.review',
       'operations.read',
+      'analytics.read',
       'users.read',
       'users.manageLimited',
       'audit.read',
@@ -190,8 +191,22 @@ describe('roles and permissions', () => {
       'members.write',
       'personalData.export',
     ],
-    technicalAdmin: ['operations.read', 'operations.act', 'email.manage', 'jobs.run', 'audit.read'],
-    auditor: ['content.read', 'operations.read', 'users.read', 'audit.read', 'exports.review'],
+    technicalAdmin: [
+      'operations.read',
+      'operations.act',
+      'email.manage',
+      'analytics.read',
+      'jobs.run',
+      'audit.read',
+    ],
+    auditor: [
+      'content.read',
+      'operations.read',
+      'analytics.read',
+      'users.read',
+      'audit.read',
+      'exports.review',
+    ],
   }
 
   it.each(ROLES)('%s has exactly the permissions of the matrix', (role) => {

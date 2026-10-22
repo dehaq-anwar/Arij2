@@ -65,6 +65,7 @@ export async function recentSamples(payload: Payload, now: Date, req?: PayloadRe
 /** Scheduled tasks shown on the status screen, in this order. */
 export const SCHEDULED_TASKS = [
   'ops-collect',
+  'analytics-collect',
   'retention',
   'auth-cleanup',
   'audit-retention',

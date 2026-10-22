@@ -117,7 +117,11 @@ export function NavClient({ groups, person, texts }: Props) {
                           className={`yop-nav__link${active ? ' yop-nav__link--active' : ''}`}
                           aria-current={active ? 'page' : undefined}
                         >
-                          <Icon name={item.icon} />
+                          {/* Arrows point the way of reading. */}
+                          <Icon
+                            name={item.icon}
+                            className={item.icon === 'arrow' ? 'yop-flip' : ''}
+                          />
                           <span className="yop-nav__label">{item.label}</span>
                           {item.badge ? <span className="yop-nav__badge">{item.badge}</span> : null}
                         </Link>

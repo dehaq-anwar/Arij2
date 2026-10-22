@@ -25,6 +25,8 @@ let agent: Server
 let agentUrl = ''
 let technical = 0
 let board = 0
+let hourViews = 10
+const accessCalls: string[] = []
 
 const events = [
   {
@@ -146,12 +148,32 @@ beforeAll(async () => {
     })
     const url = new URL(req.url ?? '/', 'http://agent')
     const since = url.searchParams.get('since')
+    accessCalls.push(url.pathname === '/v1/access' ? url.search : '')
     const answers: Record<string, unknown> = {
       '/v1/status': status,
       '/v1/metrics': {
         samples: [sample(3), sample(2), sample(1)].filter((s) => !since || s.at > since),
       },
       '/v1/events': { events: events.filter((e) => !since || e.finishedAt > since) },
+      '/v1/access': {
+        // Two hours inside the asked range (the agent only reports hours it has lines for).
+        hours: [iso(3 * HOUR), iso(2 * HOUR)]
+          .map((at) => new Date(Math.floor(new Date(at).getTime() / HOUR) * HOUR).toISOString())
+          .filter((at) => (!since || at >= since) && at < (url.searchParams.get('until') ?? ''))
+          .map((hour) => ({
+            hour,
+            requests: 30,
+            views: hourViews,
+            entrances: 3,
+            bots: 2,
+            notFound: 1,
+            serverErrors: 0,
+            pages: [{ path: '/', locale: 'de', views: hourViews, entrances: 3 }],
+            referrers: [],
+            notFoundPaths: [{ path: '/alt', count: 1 }],
+            errors: [],
+          })),
+      },
       '/v1/certificates': {
         certificates: [
           {
@@ -284,23 +306,112 @@ describe('the delivery log', () => {
     ])
   })
 
+  const failures = async () =>
+    (
+      await payload.find({
+        collection: 'email-log',
+        where: { status: { equals: 'failed' } },
+        sort: 'createdAt',
+        depth: 0,
+      })
+    ).docs
+
+  it("a server entered on the screen inside the server's network, or on another port, is not used", async () => {
+    const fromAddress = 'website@example.org'
+    for (const [smtp, code] of [
+      [{ host: '127.0.0.1', port: 587 }, 'HOST_NOT_ALLOWED'],
+      [{ host: '10.1.2.3', port: 25 }, 'HOST_NOT_ALLOWED'],
+      [{ host: 'smtp.example.org', port: 9 }, 'PORT_NOT_ALLOWED'],
+    ] as const) {
+      await payload.updateGlobal({
+        slug: 'email-settings',
+        data: { smtp: { ...smtp, fromAddress } },
+      })
+      await expect(
+        payload.sendEmail({ to: 'info@example.org', subject: 'x', text: 'y' }),
+      ).rejects.toMatchObject({ code })
+    }
+    // Refused before any connection, logged like any failed delivery.
+    expect((await failures()).map((d) => d.errorCode)).toEqual([
+      'HOST_NOT_ALLOWED',
+      'HOST_NOT_ALLOWED',
+      'PORT_NOT_ALLOWED',
+    ])
+  })
+
   it('records a failed delivery with its code and warns those who manage e-mail', async () => {
-    await payload.updateGlobal({
-      slug: 'email-settings',
-      data: { smtp: { host: '127.0.0.1', port: 9, fromAddress: 'website@example.org' } },
-    })
-    await expect(
-      payload.sendEmail({ to: 'info@example.org', subject: 'x', text: 'y' }),
-    ).rejects.toBeTruthy()
-    const { docs } = await payload.find({
-      collection: 'email-log',
-      where: { status: { equals: 'failed' } },
-      depth: 0,
-    })
-    expect(docs).toHaveLength(1)
-    expect(docs[0]).toMatchObject({ template: 'other', recipient: 'i***@example.org' })
-    expect(docs[0]?.errorCode).toMatch(/ECONNECTION|ESOCKET|ECONNREFUSED/)
+    // A relay inside the network, allowed on the server (as the end-to-end tests do).
+    process.env.MAIL_ALLOW_INTERNAL_HOSTS = 'true'
+    try {
+      await payload.updateGlobal({
+        slug: 'email-settings',
+        data: { smtp: { host: '127.0.0.1', port: 9, fromAddress: 'website@example.org' } },
+      })
+      await expect(
+        payload.sendEmail({ to: 'info@example.org', subject: 'x', text: 'y' }),
+      ).rejects.toBeTruthy()
+    } finally {
+      delete process.env.MAIL_ALLOW_INTERNAL_HOSTS
+    }
+    const last = (await failures()).at(-1)
+    expect(last).toMatchObject({ template: 'other', recipient: 'i***@example.org' })
+    expect(last?.errorCode).toMatch(/ECONNECTION|ESOCKET|ECONNREFUSED/)
     expect(await notices(technical)).toContain('emailFailed:email')
     expect(await notices(board)).not.toContain('emailFailed:email')
+  })
+})
+
+describe('visitor statistics', () => {
+  it('stores complete hours once, replaces a recounted hour and keeps a cursor', async () => {
+    const { collectAnalytics } = await import('@/cms/analytics/collect')
+    const setup = { url: agentUrl, secret: SECRET }
+    const first = await collectAnalytics(payload, { now: NOW, setup })
+    expect(first).toEqual({ configured: true, hours: 2 })
+    // Only complete hours, at most the 7 days the agent keeps.
+    const asked = new URLSearchParams(accessCalls.filter(Boolean).at(-1))
+    expect(asked.get('until')).toBe('2026-10-22T08:00:00.000Z')
+    expect(asked.get('since')).toBe('2026-10-15T08:00:00.000Z')
+    expect(await payload.count({ collection: 'access-stats' })).toMatchObject({ totalDocs: 2 })
+
+    // Within the same hour: nothing to ask for.
+    expect(
+      await collectAnalytics(payload, { now: new Date(NOW.getTime() + 20 * 60_000), setup }),
+    ).toEqual({ configured: true, hours: 0 })
+
+    // A recount of the same hours (e.g. after the cursor was reset) replaces, never adds.
+    await payload.updateGlobal({
+      slug: 'operations-state',
+      data: { accessCollectedUntil: null } as never,
+    })
+    hourViews = 12
+    await collectAnalytics(payload, { now: NOW, setup })
+    const { docs } = await payload.find({ collection: 'access-stats', sort: 'hour', depth: 0 })
+    expect(docs.map((d) => d.views)).toEqual([12, 12])
+  })
+
+  it('two runs at the same moment (schedule and "run now") neither fail nor double', async () => {
+    const { collectAnalytics } = await import('@/cms/analytics/collect')
+    const setup = { url: agentUrl, secret: SECRET }
+    await payload.updateGlobal({
+      slug: 'operations-state',
+      data: { accessCollectedUntil: null } as never,
+    })
+    const results = await Promise.all([
+      collectAnalytics(payload, { now: NOW, setup }),
+      collectAnalytics(payload, { now: NOW, setup }),
+    ])
+    expect(results).toEqual([
+      { configured: true, hours: 2 },
+      { configured: true, hours: 2 },
+    ])
+    expect(await payload.count({ collection: 'access-stats' })).toMatchObject({ totalDocs: 2 })
+  })
+
+  it('without an agent there is nothing to collect', async () => {
+    const { collectAnalytics } = await import('@/cms/analytics/collect')
+    expect(await collectAnalytics(payload, { now: NOW, setup: null })).toEqual({
+      configured: false,
+      hours: 0,
+    })
   })
 })

@@ -58,6 +58,9 @@ export const Events: CollectionConfig = {
   defaultSort: '-startsAt',
   access: {
     read: publishedOrContentReader,
+    // Earlier versions and drafts: for those who see content in full (Payload's default:
+    // anyone signed in).
+    readVersions: allow('content.read'),
     create: allow('content.write'),
     update: allow('content.write'),
     delete: allow('content.write'),

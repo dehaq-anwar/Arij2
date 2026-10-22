@@ -42,6 +42,8 @@ import { StatusView as StatusView_daaf80eb5622e397ec49857e0f743427 } from '../..
 import { BackupsView as BackupsView_49b107e84204ca0e437cdc0bac88ec49 } from '../../../cms/admin/operations/BackupsView'
 import { LogsView as LogsView_074ebf87e00341d41bf590c2aa468966 } from '../../../cms/admin/operations/LogsView'
 import { DomainsView as DomainsView_f7e43f95b69557555826f23d74d7ab8e } from '../../../cms/admin/operations/DomainsView'
+import { EmailView as EmailView_874fa61f7712f6092b20f572a9071302 } from '../../../cms/admin/mail/EmailView'
+import { AnalyticsView as AnalyticsView_efea063e76ae6a31722aa4a6f8662b4b } from '../../../cms/admin/analytics/AnalyticsView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 
@@ -91,6 +93,8 @@ export const importMap = {
   "/cms/admin/operations/BackupsView#BackupsView": BackupsView_49b107e84204ca0e437cdc0bac88ec49,
   "/cms/admin/operations/LogsView#LogsView": LogsView_074ebf87e00341d41bf590c2aa468966,
   "/cms/admin/operations/DomainsView#DomainsView": DomainsView_f7e43f95b69557555826f23d74d7ab8e,
+  "/cms/admin/mail/EmailView#EmailView": EmailView_874fa61f7712f6092b20f572a9071302,
+  "/cms/admin/analytics/AnalyticsView#AnalyticsView": AnalyticsView_efea063e76ae6a31722aa4a6f8662b4b,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24
 }

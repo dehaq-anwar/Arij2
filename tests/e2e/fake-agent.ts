@@ -159,6 +159,36 @@ const logLines = [
   '{"level":30,"time":5,"msg":"Notification e-mail sent","template":"newApplication"}',
 ]
 
+/**
+ * Counts for every complete hour of the last two days in the range: the same numbers every run
+ * (the hour of the day decides them), so the statistics screen can be tested exactly.
+ */
+function accessHours(since: number, until: number) {
+  const hours = []
+  const earliest = Math.max(since, Date.now() - 48 * HOUR)
+  for (let at = Math.ceil(earliest / HOUR) * HOUR; at < until; at += HOUR) {
+    const h = new Date(at).getUTCHours()
+    hours.push({
+      hour: new Date(at).toISOString(),
+      requests: 40,
+      views: 10,
+      entrances: 4,
+      bots: 3,
+      notFound: h === 9 ? 2 : 0,
+      serverErrors: h === 9 ? 1 : 0,
+      pages: [
+        { path: '/', locale: 'de', views: 5, entrances: 2 },
+        { path: '/en/projects', locale: 'en', views: 3, entrances: 1 },
+        { path: '/ar', locale: 'ar', views: 2, entrances: 1 },
+      ],
+      referrers: [{ host: 'duckduckgo.com', entrances: 2 }],
+      notFoundPaths: h === 9 ? [{ path: '/projekt-alt', count: 2 }] : [],
+      errors: h === 9 ? [{ path: '/en/news/x', status: 500, count: 1 }] : [],
+    })
+  }
+  return hours
+}
+
 function reply(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify(body))
@@ -232,8 +262,12 @@ createServer(async (req, res) => {
       )
       return reply(res, 200, { service, lines })
     }
-    case 'GET /v1/access':
-      return reply(res, 200, { hours: [] })
+    case 'GET /v1/access': {
+      const since = new Date(url.searchParams.get('since') ?? '').getTime()
+      const until = new Date(url.searchParams.get('until') ?? '').getTime()
+      if (!(until > since)) return reply(res, 400, { error: 'range' })
+      return reply(res, 200, { hours: accessHours(since, until) })
+    }
     case 'POST /v1/restart': {
       const service = String((JSON.parse(body || '{}') as { service?: unknown }).service ?? '')
       if (!['app', 'caddy'].includes(service)) return reply(res, 403, { error: 'not_allowed' })

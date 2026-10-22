@@ -14,9 +14,11 @@ import {
 } from 'payload'
 import sharp from 'sharp'
 
+import { withClosedInternals } from './cms/access/internals'
 import type { AuditArea } from './cms/access/permissions'
 import { allowed } from './cms/access/roles'
 import { auditCollection, auditGlobal } from './cms/audit/log'
+import { AccessStats } from './cms/collections/AccessStats'
 import { AuditLog } from './cms/collections/AuditLog'
 import { AuthCredentials, AuthSessions, TrustedDevices } from './cms/collections/AuthSecurity'
 import { CaseEvents } from './cms/collections/CaseEvents'
@@ -59,6 +61,8 @@ import { notificationsRetentionTask } from './cms/jobs/notifications-retention'
 import { retentionTask } from './cms/jobs/retention'
 import { withCheckedSchedule } from './cms/jobs/scheduled-publish'
 import { ensureSystemPages } from './cms/pages/system-pages'
+import { analyticsCollectTask } from './cms/analytics/collect'
+import { mailEndpoints } from './cms/mail/endpoints'
 import { EmailLog } from './cms/mail/log'
 import { EmailSettings } from './cms/mail/settings'
 import { opsCollectTask } from './cms/operations/collect'
@@ -168,6 +172,16 @@ const config = buildConfig({
           path: '/operations/domains',
           exact: true,
         },
+        email: {
+          Component: '/cms/admin/mail/EmailView#EmailView',
+          path: '/email',
+          exact: true,
+        },
+        analytics: {
+          Component: '/cms/admin/analytics/AnalyticsView#AnalyticsView',
+          path: '/analytics',
+          exact: true,
+        },
       },
       // The interface language (separate from Payload's content language menu) and the bell.
       actions: [
@@ -204,6 +218,7 @@ const config = buildConfig({
     OpsSamples,
     OpsEvents,
     EmailLog,
+    AccessStats,
   ],
   globals: [
     ...[
@@ -225,8 +240,8 @@ const config = buildConfig({
     // Rewritten every five minutes by the collection job: not an audited change.
     OperationsState,
   ],
-  // The operations actions (src/cms/operations/endpoints.ts), under /api/operations.
-  endpoints: operationsEndpoints,
+  // The operations and e-mail actions (src/cms/operations, src/cms/mail), under /api.
+  endpoints: [...operationsEndpoints, ...mailEndpoints],
   // The fixed pages and the form texts moved out of the old page globals (CC-2): built once from
   // them on the first start of the new version, never overwritten afterwards.
   onInit: async (payload) => {
@@ -275,6 +290,7 @@ const config = buildConfig({
       notificationsRetentionTask,
       opsCollectTask,
       opsRetentionTask,
+      analyticsCollectTask,
     ],
     // Checks the maintenance queue every 10 minutes (the tasks' own schedules decide when they
     // are due), the operations queue every 5 minutes and the default queue, where scheduled
@@ -344,5 +360,6 @@ const config = buildConfig({
   ],
 })
 
-// Scheduled publications check that the person who scheduled them may still publish.
-export default config.then(withCheckedSchedule)
+// Scheduled publications check that the person who scheduled them may still publish; Payload's
+// own scheduling record is closed to the API.
+export default config.then(withCheckedSchedule).then(withClosedInternals)
