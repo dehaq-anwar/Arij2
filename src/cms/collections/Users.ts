@@ -499,7 +499,7 @@ export const Users: CollectionConfig = {
       access: { create: manageFieldOnCreate, update: manageField },
       admin: {
         description: label(
-          'Bestimmt die Grundrechte (siehe Sicherheit → Rollen). Die eigene Rolle kann niemand ändern.',
+          'Bestimmt die Grundrechte. Die eigene Rolle kann niemand ändern.',
           'Sets the basic permissions. Nobody can change their own role.',
           'يحدد الصلاحيات الأساسية. لا يمكن لأحد تغيير دوره بنفسه.',
         ),

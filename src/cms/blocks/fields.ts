@@ -70,18 +70,24 @@ export const ICONS = [
   'community',
 ] as const
 
+/** The design's symbols, named the same wherever one is chosen (blocks, focus areas). */
+export const ICON_OPTIONS = [
+  { value: 'youth', label: label('Junge Menschen', 'Young people', 'الشباب') },
+  { value: 'peace', label: label('Frieden', 'Peace', 'السلام') },
+  { value: 'integration', label: label('Integration', 'Integration', 'الاندماج') },
+  {
+    value: 'entrepreneurship',
+    label: label('Unternehmertum', 'Entrepreneurship', 'ريادة الأعمال'),
+  },
+  { value: 'education', label: label('Bildung', 'Education', 'التعليم') },
+  { value: 'community', label: label('Gemeinschaft', 'Community', 'المجتمع') },
+]
+
 export const iconField: Field = {
   name: 'icon',
   type: 'select',
   label: label('Symbol', 'Icon', 'الأيقونة'),
-  options: [
-    { value: 'youth', label: label('Jugend', 'Youth', 'الشباب') },
-    { value: 'peace', label: label('Frieden', 'Peace', 'السلام') },
-    { value: 'integration', label: label('Integration', 'Integration', 'الاندماج') },
-    { value: 'entrepreneurship', label: label('Ideen', 'Ideas', 'الأفكار') },
-    { value: 'education', label: label('Bildung', 'Education', 'التعليم') },
-    { value: 'community', label: label('Gemeinschaft', 'Community', 'المجتمع') },
-  ],
+  options: ICON_OPTIONS,
 }
 
 const urlMessage = label(

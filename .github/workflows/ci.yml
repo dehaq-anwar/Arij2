@@ -83,3 +83,34 @@ jobs:
         run: npm run check:deps
       - name: No unreviewed security advisories
         run: npm run check:audit
+
+  # The only way to create the first account of a new installation (docs/OPERATIONS.md §3.6):
+  # the production compose file's tools service, against its own empty database.
+  first-admin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create the first super administrator with the production tools service
+        run: |
+          cp .env.example .env
+          {
+            echo SITE_HOST=example.org
+            echo ADMIN_HOST=admin.example.org
+            echo ACME_EMAIL=ci@example.org
+            echo "ADMIN_GATE_SECRET=$(openssl rand -hex 32)"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 32)"
+            echo "OPS_AGENT_SECRET=$(openssl rand -hex 32)"
+            echo "PAYLOAD_SECRET=$(openssl rand -hex 32)"
+          } >> .env
+          compose="docker compose -p ci-tools -f docker-compose.prod.yml --profile tools"
+          password="$(openssl rand -hex 16)"
+          # Empty database: the command applies the migrations, then creates the account.
+          $compose run --rm -e ADMIN_PASSWORD="$password" tools \
+            npm run create-admin -- first-admin@example.test "First Admin"
+          role="$($compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select role from users"')"
+          test "$role" = superAdmin
+          # A second account with the same address is refused.
+          if $compose run --rm -e ADMIN_PASSWORD="$password" tools \
+            npm run create-admin -- first-admin@example.test "Again"; then exit 1; fi
+          $compose down -v

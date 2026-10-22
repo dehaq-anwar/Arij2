@@ -241,6 +241,9 @@ export function ApplicationPanel() {
           {error}
         </Notice>
       )}
+      {(docPermissions as { delete?: boolean } | undefined)?.delete && (
+        <StepUpSection hint={t.applicationDeleteHint} />
+      )}
       <History events={data ? data.events : null} t={t} lang={lang} />
     </section>
   )

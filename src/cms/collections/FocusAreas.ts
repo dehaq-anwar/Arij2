@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { allow } from '../access/roles'
+import { ICON_OPTIONS } from '../blocks/fields'
 import { hiddenWithoutContent } from './content-access'
 import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 import { groups, label } from '../lib/labels'
@@ -56,17 +57,7 @@ export const FocusAreas: CollectionConfig = {
       required: true,
       defaultValue: 'youth',
       label: label('Symbol', 'Icon', 'الأيقونة'),
-      options: [
-        { value: 'youth', label: label('Junge Menschen', 'Young people', 'الشباب') },
-        { value: 'peace', label: label('Frieden', 'Peace', 'السلام') },
-        { value: 'integration', label: label('Integration', 'Integration', 'الاندماج') },
-        {
-          value: 'entrepreneurship',
-          label: label('Unternehmertum', 'Entrepreneurship', 'ريادة الأعمال'),
-        },
-        { value: 'education', label: label('Bildung', 'Education', 'التعليم') },
-        { value: 'community', label: label('Gemeinschaft', 'Community', 'المجتمع') },
-      ],
+      options: ICON_OPTIONS,
     },
     {
       name: 'order',

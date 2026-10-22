@@ -46,7 +46,9 @@ const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 const time = (value: string | undefined, fallback: string) =>
   value && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : fallback
 
+/** A whole number from 0 to 1000; empty or anything else is the default (Number('') is 0). */
 const count = (value: string | undefined, fallback: number) => {
+  if (!value?.trim()) return fallback
   const n = Number(value)
   return Number.isInteger(n) && n >= 0 && n <= 1000 ? n : fallback
 }

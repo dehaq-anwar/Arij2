@@ -798,7 +798,7 @@ the audit log, kept for its 12 months (tested: the notification goes, the audit 
 | Part | Implementation |
 |---|---|
 | Pages | A collection "Pages": title, address (`/<slug>`, the same in all languages; addresses of existing pages and of the Control Center are reserved), the blocks, search-engine and sharing settings. Drafts with autosave, versions, scheduled publishing |
-| Blocks | 24 sections of the design system: page header, header with image, home stage; text, cards, image and text, guiding statement, quote, questions and answers, gallery, timeline, values, journey; night band, call to action, donations; projects, news, upcoming events, focus areas, statistics, board, partners (from the CMS); membership form, contact and form. Each with a preview image in the block menu and grouped |
+| Blocks | 25 sections of the design system: page header, header with image, home stage; text, cards, image and text, guiding statement, quote, questions and answers, gallery, timeline, values, journey; night band, call to action, donations; projects, news, upcoming events, focus areas, statistics, board, partners (from the CMS); membership form, contact form. Each with a preview image in the block menu and grouped |
 | Controls | Every field has a maximum length or number of entries; choices are fixed values of the design (background light/sky blue, image at the start/end, number of entries); **no free HTML, colours, sizes or embeds**; links only to pages of the website, pages of the builder or checked addresses (https, mailto, tel — no javascript:, data: or similar, also in rich text, refused on save and not rendered); images through the media library with required alt text. Layout rules on every save: one page opening at the top, the home stage only on the home page, the forms only on their own page and exactly once there |
 | Fixed pages | Home, About us, Membership, Support us, Contact are pages of the builder with fixed addresses; they cannot be deleted, their address cannot change, and their form stays. **Built once from the former page texts** on the first start of the new version (all three languages, every text unchanged — tested on a real database); the former page globals stay unchanged, hidden and read-only. The texts inside the forms (declarations, consents) moved unchanged into "Form texts", with versions |
 | Unchanged website | Screenshots of the five fixed pages in three languages on desktop and phone, old build against new build on the same data: **identical** (26 of 30 without any differing pixel, the home page with 0.004–0.015 %, a sub-pixel difference at one button) |
@@ -1136,6 +1136,59 @@ a global or anything with versions is added without an entry. It also checks tha
 take permissions away and that a role counts for nothing without a session confirmed with the
 second factor. End-to-end tests check the same refusals through the real API (versions, Payload's
 records).
+
+### Deleting an application needs a code
+
+The plan (§3.3) lists deleting applications among the actions that need a fresh code; members had
+it, applications did not (found while writing the handbook). Deleting an application now needs a
+code from the last five minutes, like deleting a member; the application's screen offers the
+confirmation, and an end-to-end test checks the refusal without a code and the deletion with one.
+
+### Payload's own screens
+
+Lists, edit screens, settings, the account and the sign-in were reviewed on a phone in Arabic and
+dark, a tablet in English and a desktop in German. Fixed:
+
+- "Publish changes" (a button with a menu) kept Payload's black and white instead of the brand
+  colour, and a disabled button was a bright block in dark mode. Payload colours buttons through
+  variables, which are now set, so every primary button, both halves of the publish button and
+  their disabled state follow the design.
+- The pagination arrows pointed the wrong way in Arabic.
+- The status and dates of a document ran off the edge of a phone; they wrap now.
+- The rich text editor's placeholder fell back to a serif font.
+- In the Arabic e-mail settings, "(.env)" showed as "(env.)" and "465 = TLS" reversed; the first is
+  isolated now, the second is phrased in Arabic.
+
+An end-to-end test opens six of Payload's screens on a phone in Arabic and fails if the page
+scrolls sideways (wide tables scroll inside their own box) or if "next page" points the wrong
+way.
+
+### Operations
+
+- **First account on a new server.** The operations guide's review found that the website image
+  cannot run the server commands (`create-admin`, `reset-mfa`, `membership:consolidate`): it
+  holds only the compiled server. As there is no sign-up, a new installation could not have got its
+  first account. A separate `tools` image (same Dockerfile, with the source) and a `tools` service
+  in the compose file (profile `tools`, started only for one command) close this. Tested with the
+  production compose file on an empty database: the command applies the migrations, creates the
+  super administrator, refuses a second account with the same address, and `reset-mfa` works; CI
+  runs the same on every commit (job "first-admin").
+- **Backup retention** can be set in `.env` (`BACKUP_KEEP_DAILY`, `_WEEKLY`, `_MONTHLY`; proposal
+  7/4/6 until decision 9). The agent read an empty value as "keep 0"; it now means the proposal
+  (unit test).
+- **Container logs** are limited to three files of 10 MB per service. Docker keeps them without
+  limit unless told otherwise; the privacy notes said "Docker's default rotation", which does not
+  exist. Corrected there.
+- **Operations guide** in English and German (docs/OPERATIONS.md, docs/OPERATIONS.de.md):
+  services, first deployment, every setting, e-mail, backups and drills, a restore draft (not
+  rehearsed, approval needed), updates, alerts, data protection facts, troubleshooting and the
+  pre-launch checklist, with every open point marked as a placeholder.
+- **Handbook for the association's staff** in German and English (docs/HANDBOOK.de.md,
+  docs/HANDBOOK.md): signing in and the second factor, the roles, which actions need a code,
+  content, membership and exports, accounts, the audit log, the operations screens and data
+  protection in daily work, with the labels of the screens. Writing it also unified two names of
+  the same symbols ("Jugend"/"Junge Menschen", "Ideen"/"Unternehmertum") and removed a hint to a
+  screen that does not exist.
 
 ---
 

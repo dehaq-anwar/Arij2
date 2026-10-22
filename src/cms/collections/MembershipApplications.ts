@@ -7,7 +7,8 @@ import {
 } from 'payload'
 
 import { allow, nobody } from '../access/roles'
-import { refuse } from '../lib/errors'
+import { hasFreshStepUp } from '../auth/session-state'
+import { refuse, STEP_UP_MESSAGE } from '../lib/errors'
 import { groups, label, localizedMessage } from '../lib/labels'
 import {
   consolidateApplication,
@@ -245,7 +246,12 @@ const afterApplicationChange: CollectionAfterChangeHook = async ({
 }
 
 /** The case history belongs to the application and goes with it. */
+/**
+ * Deleting an application (super administrators only, `applications.delete`) is a sensitive
+ * action: only with a fresh code, like deleting a member (docs/CONTROL-CENTER.md §3.3).
+ */
 const removeHistory: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  if (req.user && !(await hasFreshStepUp(req))) throw refuse(req, STEP_UP_MESSAGE)
   await deleteCaseEvents(req.payload, { application: Number(id) }, req)
 }
 

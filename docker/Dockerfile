@@ -23,6 +23,20 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+# --- server commands ---
+# create-admin, reset-mfa and membership:consolidate run Payload's command-line tool on the
+# TypeScript source, which the standalone server below does not contain. This separate image
+# has the source and all dependencies; it is built and started only for such a command
+# (docker-compose.prod.yml, service "tools", profile "tools"; docs/OPERATIONS.md §3.6).
+FROM base AS tools
+WORKDIR /app
+ENV NODE_ENV=production \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+USER nextjs
+
 # --- runtime ---
 FROM base AS runner
 WORKDIR /app

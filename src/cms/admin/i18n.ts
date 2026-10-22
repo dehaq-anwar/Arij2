@@ -419,6 +419,7 @@ const de = {
   saveFirst: 'Bitte zuerst speichern.',
   memberDeleteHint:
     'Einen Mitgliedereintrag zu löschen braucht einen Code aus den letzten 5 Minuten. Super-Administrationen werden informiert.',
+  applicationDeleteHint: 'Einen Antrag zu löschen braucht einen Code aus den letzten 5 Minuten.',
 }
 
 type Texts = typeof de
@@ -825,6 +826,7 @@ const en: Texts = {
   saveFirst: 'Please save first.',
   memberDeleteHint:
     'Deleting a member entry needs a code from the last 5 minutes. Super administrators are informed.',
+  applicationDeleteHint: 'Deleting an application needs a code from the last 5 minutes.',
 }
 
 const ar: Texts = {
@@ -1220,6 +1222,7 @@ const ar: Texts = {
   navExport: 'التصدير',
   saveFirst: 'يرجى الحفظ أولًا.',
   memberDeleteHint: 'حذف إدخال عضو يحتاج رمزًا من آخر 5 دقائق. ويُبلَّغ المسؤولون العامّون.',
+  applicationDeleteHint: 'حذف طلب يحتاج رمزًا من آخر 5 دقائق.',
 }
 
 export const adminTexts: Record<AdminLanguage, Texts> = { de, en, ar }

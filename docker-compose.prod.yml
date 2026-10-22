@@ -10,10 +10,19 @@
 
 name: yop
 
+# Container logs stay on the server, at most three files of 10 MB per service (Docker keeps them
+# without limit unless told otherwise). The access logs are Caddy's own files (Caddyfile).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   caddy:
     # Caddy 2.11.7 (released 2026-10-03)
     image: caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    logging: *logging
     restart: unless-stopped
     ports:
       - '80:80'
@@ -43,6 +52,7 @@ services:
 
   app:
     image: yop-website:${APP_VERSION:-latest}
+    logging: *logging
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -94,8 +104,54 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Server commands, never started with the others (docs/OPERATIONS.md §3.6), e.g.:
+  #   docker compose -f docker-compose.prod.yml --profile tools run --rm tools \
+  #     npm run create-admin -- <email> "<name>"
+  # The same settings as the app where the commands need them (database, secrets, e-mail for the
+  # notice of reset-mfa); no published port, no access to the agent.
+  tools:
+    profiles: [tools]
+    image: yop-website-tools:${APP_VERSION:-latest}
+    logging: *logging
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: tools
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SERVER_URL: https://${SITE_HOST}
+      ADMIN_URL: https://${ADMIN_HOST}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?set in .env}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MAIL_ALLOW_INTERNAL_HOSTS: ${MAIL_ALLOW_INTERNAL_HOSTS:-}
+      AUDIT_RETENTION_MONTHS: ${AUDIT_RETENTION_MONTHS:-}
+      MEMBERSHIP_CONSOLIDATION: ${MEMBERSHIP_CONSOLIDATION:-off}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NEXT_TELEMETRY_DISABLED: '1'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [db, egress]
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
   postgres:
     image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    logging: *logging
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set in .env}
@@ -116,6 +172,7 @@ services:
   # visitor statistics (counts only). Reachable only from the app, with signed requests.
   ops-agent:
     image: yop-ops-agent:${APP_VERSION:-latest}
+    logging: *logging
     build:
       context: ./ops-agent
     restart: unless-stopped
@@ -146,6 +203,10 @@ services:
       BACKUP_TIME: ${BACKUP_TIME:-02:30}
       DRILL_DAY: ${DRILL_DAY:-sun}
       DRILL_TIME: ${DRILL_TIME:-04:00}
+      # Snapshots kept after each backup (decision 9; proposal 7 daily, 4 weekly, 6 monthly).
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-6}
     volumes:
       - agent_data:/var/lib/agent
       - caddy_logs:/var/log/caddy:ro
@@ -165,6 +226,7 @@ services:
   socket-proxy:
     # docker-socket-proxy 0.5.0 (released 2026-07-27)
     image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    logging: *logging
     restart: unless-stopped
     environment:
       LOG_LEVEL: warning

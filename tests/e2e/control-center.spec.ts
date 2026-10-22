@@ -541,6 +541,45 @@ test.describe('accessibility of the Control Center', () => {
     await expect(menu).toBeHidden()
   })
 
+  test("Payload's own lists and forms fit a phone in Arabic and point the right way", async ({
+    page,
+    request,
+  }) => {
+    await page.context().addCookies([
+      { name: 'payload-lng', value: 'ar', url: adminUrl('/') },
+      { name: 'payload-theme', value: 'dark', url: adminUrl('/') },
+    ])
+    await page.setViewportSize({ width: 390, height: 844 })
+    await signInBrowser(page.context(), request, 'superAdmin')
+    // Wide tables scroll inside their own box; the page itself never scrolls sideways.
+    for (const path of [
+      '/admin/collections/pages',
+      '/admin/collections/users',
+      '/admin/collections/news/create',
+      '/admin/globals/navigation',
+      '/admin/globals/email-settings',
+      '/admin/account',
+    ]) {
+      await page.goto(adminUrl(path))
+      await expect(page.locator('html')).toHaveAttribute('dir', /^rtl$/i)
+      await expect(page.locator('h1').first()).toBeVisible()
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        path,
+      ).toBe(true)
+    }
+    // "Next page" points the way of reading (to the left) in Arabic.
+    await page.goto(adminUrl('/admin/collections/users?limit=5'))
+    const next = page.locator('.clickable-arrow--right .icon').first()
+    await expect(next).toBeVisible()
+    // rotate(90deg): the chevron, drawn pointing down, then points left.
+    const turn = await next.evaluate((icon) => {
+      const m = new DOMMatrix(getComputedStyle(icon).transform)
+      return Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI)
+    })
+    expect(turn).toBe(90)
+  })
+
   test('the dashboard loads quickly', async ({ page, request }) => {
     await signInBrowser(page.context(), request, 'superAdmin')
     await page.goto(adminUrl('/admin')) // warm-up

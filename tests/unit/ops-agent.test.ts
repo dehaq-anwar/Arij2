@@ -117,6 +117,21 @@ describe('signed requests', () => {
       loadConfig({ OPS_AGENT_SECRET: SECRET, DRILL_DATABASE: 'x; drop' }).backup.drillDatabase,
     ).toBe('restore_drill')
   })
+
+  it('keeps the proposed number of snapshots unless a valid number is set', () => {
+    const keep = (env: Record<string, string>) =>
+      loadConfig({ OPS_AGENT_SECRET: SECRET, ...env }).backup.keep
+    expect(keep({})).toEqual({ daily: 7, weekly: 4, monthly: 6 })
+    // An empty value (e.g. "BACKUP_KEEP_DAILY=" in .env) is the default, not "keep none".
+    expect(
+      keep({ BACKUP_KEEP_DAILY: '', BACKUP_KEEP_WEEKLY: ' ', BACKUP_KEEP_MONTHLY: 'x' }),
+    ).toEqual({ daily: 7, weekly: 4, monthly: 6 })
+    expect(keep({ BACKUP_KEEP_DAILY: '14', BACKUP_KEEP_MONTHLY: '12' })).toEqual({
+      daily: 14,
+      weekly: 4,
+      monthly: 12,
+    })
+  })
 })
 
 describe('masked logs', () => {

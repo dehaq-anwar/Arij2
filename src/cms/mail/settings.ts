@@ -119,7 +119,7 @@ export const EmailSettings: GlobalConfig = {
     description: label(
       'Leere Felder übernehmen die Werte vom Server (.env). Das Passwort des Mailservers steht nur auf dem Server (SMTP_PASSWORD). Änderungen brauchen einen Code und stehen im Audit-Log.',
       'Empty fields use the server settings (.env). The mail server password is kept on the server only (SMTP_PASSWORD). Changes need a code and are recorded in the audit log.',
-      'الحقول الفارغة تأخذ القيم من إعدادات الخادم (.env). كلمة مرور خادم البريد محفوظة على الخادم فقط (SMTP_PASSWORD). تتطلب التغييرات رمزًا وتُسجَّل في سجل العمليات.',
+      'الحقول الفارغة تأخذ القيم من إعدادات الخادم (\u2066.env\u2069). كلمة مرور خادم البريد محفوظة على الخادم فقط (SMTP_PASSWORD). تتطلب التغييرات رمزًا وتُسجَّل في سجل العمليات.',
     ),
   },
   access: { read: allow('email.manage'), update: allow('email.manage') },
@@ -164,7 +164,7 @@ export const EmailSettings: GlobalConfig = {
                 description: label(
                   '465 = TLS, sonst STARTTLS (Pflicht).',
                   '465 = TLS, otherwise STARTTLS (required).',
-                  '465 = TLS، وإلا STARTTLS (إلزامي).',
+                  'المنفذ 465 يعني TLS، وأي منفذ آخر يتطلب STARTTLS.',
                 ),
               },
             },

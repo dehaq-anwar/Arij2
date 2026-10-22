@@ -13,7 +13,7 @@ export const localizedMessage = (message: AdminLabel, req: PayloadRequest): stri
 
 export const groups = {
   content: label('Inhalte', 'Content', 'المحتوى'),
-  pages: label('Seiten', 'Pages', 'الصفحات'),
+  pages: label('Seitentexte', 'Page texts', 'نصوص الصفحات'),
   inbox: label('Eingänge', 'Inbox', 'الوارد'),
   settings: label('Einstellungen', 'Settings', 'الإعدادات'),
   admin: label('Verwaltung', 'Administration', 'الإدارة'),

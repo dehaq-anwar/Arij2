@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { APIRequestContext, Page } from '@playwright/test'
 
-import { authHeaders } from './auth'
+import { authHeaders, confirmStepUp, signedInToken } from './auth'
 import { adminUrl, freshAddress } from './fixtures'
 import { expect, test } from './test'
 
@@ -243,6 +243,20 @@ test.describe('membership form', () => {
     const [doc] = await findStored(request, 'membership-applications', 'lastName', lastName)
     expect(doc).toMatchObject({ under18: false })
     expect(JSON.stringify(doc)).not.toContain('Should not be stored')
+
+    // Deleting it: a super administrator only, and only with a fresh code.
+    const remove = async () =>
+      request.delete(adminUrl(`/api/membership-applications/${doc!.id}`), {
+        headers: await authHeaders(request, 'superAdmin'),
+      })
+    // A new session: one this worker used before may still hold a recent code confirmation.
+    await signedInToken(request, 'superAdmin', true)
+    const withoutCode = await remove()
+    expect(withoutCode.status()).toBe(403)
+    expect((await withoutCode.text()).toLowerCase()).toContain('authenticator')
+    await confirmStepUp(request, 'superAdmin')
+    expect((await remove()).status()).toBe(200)
+    expect(await findStored(request, 'membership-applications', 'lastName', lastName)).toEqual([])
   })
 
   test('acceptance of an applicant under 18 needs the recorded guardian consent', async ({
