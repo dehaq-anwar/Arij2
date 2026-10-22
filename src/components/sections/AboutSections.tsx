@@ -150,13 +150,17 @@ export async function FocusAreasDetail({
             {heading || t('focusHeading')}
           </h2>
         </Reveal>
-        <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:gap-5">
+        <Stagger as="ul" className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
           {areas.map((area) => (
-            <li key={area.id} data-stagger-item className="flex gap-5 rounded-card bg-surface p-7">
+            <li
+              key={area.id}
+              data-stagger-item
+              className="flex gap-4 rounded-card bg-surface p-5 sm:gap-5 sm:p-7"
+            >
               <span className="grid size-14 shrink-0 place-items-center rounded-full bg-surface-sky text-accent">
                 <FocusIcon icon={area.icon} className="size-7" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-xl font-semibold">{area.title}</h3>
                 <MarkedText text={area.summary} className="mt-2 text-ink-muted" />
               </div>

@@ -53,3 +53,22 @@ test.describe('heading structure', () => {
     })
   }
 })
+
+// WCAG 1.4.10 (reflow): at 320 CSS pixels wide (a 1280 px window zoomed to 400 %) every page
+// reads without scrolling sideways. Reduced motion, so that intros which slide in from the side
+// are measured in their final place, not on the way there.
+test.describe('reflow at 320 px', () => {
+  test.use({ viewport: { width: 320, height: 256 }, reducedMotion: 'reduce' })
+  const paths = [...routes.flatMap((route) => locales.map((l) => route[l])), ...detailPages]
+  for (const path of paths) {
+    test(path, async ({ page }) => {
+      await page.goto(path)
+      await page.waitForFunction(() => document.documentElement.hasAttribute('data-motion-ready'))
+      const widths = await page.evaluate(() => ({
+        page: document.documentElement.scrollWidth,
+        window: document.documentElement.clientWidth,
+      }))
+      expect(widths.page).toBeLessThanOrEqual(widths.window)
+    })
+  }
+})

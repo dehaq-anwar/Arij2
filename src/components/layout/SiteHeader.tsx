@@ -23,8 +23,8 @@ export async function SiteHeader() {
       <Container className="flex h-8 items-center justify-end text-[0.8125rem]">
         <LanguageSwitcher />
       </Container>
-      <Container className="flex h-16 items-center gap-4 lg:h-[4.75rem]">
-        <Logo className="shrink-0" />
+      <Container className="flex h-16 items-center gap-4 max-[22.5rem]:gap-2 lg:h-[4.75rem]">
+        <Logo className="shrink-0 max-[22.5rem]:min-w-0 max-[22.5rem]:shrink" />
         {/* Below 1024 px, and wherever the menu does not fit (HeaderShell measures it), the
             menu button replaces the menu and the highlighted button. */}
         <MainNav

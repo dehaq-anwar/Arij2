@@ -56,6 +56,20 @@
     text-size-adjust: 100%;
   }
 
+  /*
+   * Long words (German compounds, e-mail addresses) break instead of pushing the page sideways
+   * on narrow screens or at 400 % zoom (WCAG 1.4.10); headings are hyphenated by language.
+   */
+  body {
+    overflow-wrap: break-word;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    hyphens: auto;
+  }
+
   /* Arabic script needs more vertical room, and is never letter-spaced. */
   html:lang(ar) {
     font-family: var(--font-arabic);
@@ -170,6 +184,14 @@
     line-height: 1;
     letter-spacing: -0.04em;
     font-weight: 600;
+  }
+
+  /* At 320 px (or 400 % zoom) the longest German page title ("Veranstaltungen") must fit: the
+     animated letters of a word cannot wrap. */
+  @media (max-width: 22.5rem) {
+    .text-title {
+      font-size: 2.125rem;
+    }
   }
 
   .text-heading {

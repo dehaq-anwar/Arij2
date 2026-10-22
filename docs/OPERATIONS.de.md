@@ -923,6 +923,13 @@ Zusammengetragen aus CONTROL-CENTER.md §12 und §14–§18 sowie aus diesem Han
 - [ ] Wie Releases auf den Server kommen (§3.1) und wie das App-Image zurückgerollt wird (§7.3).
 - [ ] Aufbewahrungswerte in `.env` gemäß Entscheidung 9 gesetzt (§5.3).
 - [ ] `ALLOW_INDEXING=true` erst beim Start.
+- [ ] **Sicherheitsupdate von Next.js erledigt.** Next.js 16.3.8 ist von GHSA-p3m5-59mp-jv5r
+      betroffen (Dienstblockade über Server Actions; die Formulare nutzen sie). Die Korrektur ist
+      in 16.4.1. Mit 16.4.2 (getestet mit Payload 3.90.2 und 3.91.0) zeigt Payload „An unknown error
+      occurred“ statt des Grundes abgelehnter Änderungen (getestet am 2026-10-22; PLAN.md §28).
+      Nicht starten, bevor eine Next.js-Version mit der Korrektur mit grünen Tests läuft.
+- [ ] Die manuelle Prüfung mit Tastatur und Screenreader ist erledigt, ihre Befunde behoben
+      ([accessibility-check.de.md](accessibility-check.de.md)).
 - [ ] Kein Platzhalter und kein Entwurfstext auf der Website sichtbar: Über den Tools-Dienst
       endet `npm run check:content -- strict` ohne Fehler. Es listet jeden verbliebenen Punkt mit
       einem Link zur Bearbeitungsmaske. (`npm run check:placeholders` listet die Platzhalter im

@@ -107,10 +107,11 @@ export function MobileMenu({
         aria-expanded={open}
         aria-controls="mobile-menu"
         onClick={show}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-current/30 px-4 py-2 text-[0.95rem] font-medium text-current"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-current/30 px-4 py-2 text-[0.95rem] font-medium text-current max-[22.5rem]:px-2.5"
       >
         {icon('M4 8h16M4 16h16')}
-        {t('menu')}
+        {/* Very narrow screens (or 400 % zoom): the icon alone, so the button stays in view. */}
+        <span className="max-[22.5rem]:sr-only">{t('menu')}</span>
       </button>
 
       <dialog

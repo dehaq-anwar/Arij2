@@ -869,6 +869,13 @@ Collected from CONTROL-CENTER.md §12 and §14–§18, and from this guide.
 - [ ] How releases reach the server (§3.1) and how the app image is rolled back (§7.3).
 - [ ] Retention values in `.env` set according to decision 9 (§5.3).
 - [ ] `ALLOW_INDEXING=true` only at launch.
+- [ ] **Security update of Next.js done.** Next.js 16.3.8 is affected by GHSA-p3m5-59mp-jv5r
+      (denial of service through Server Actions; the forms use them). The fix is in 16.4.1. With
+      16.4.2 (tested with Payload 3.90.2 and 3.91.0), Payload shows "An unknown error occurred"
+      instead of the reason for refused changes (tested 2026-10-22; PLAN.md §28). Do not launch
+      before a Next.js release with the fix runs with all tests green.
+- [ ] The manual keyboard and screen-reader check is done and its findings fixed
+      ([accessibility-check.md](accessibility-check.md)).
 - [ ] No placeholder or draft text visible on the website: through the tools service,
       `npm run check:content -- strict` ends without an error. It lists each remaining item with
       a link to the screen where it is edited. (`npm run check:placeholders` lists the

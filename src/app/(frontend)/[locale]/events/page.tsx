@@ -35,7 +35,7 @@ export default async function EventsPage({ params }: Props) {
               {t('upcoming')}
             </h2>
             {upcoming.length ? (
-              <Stagger className="mt-10 grid gap-5 lg:grid-cols-2">
+              <Stagger className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 {upcoming.map(({ doc, translated }) => (
                   <EventCard key={doc.id} event={doc} translated={translated} />
                 ))}
@@ -51,7 +51,7 @@ export default async function EventsPage({ params }: Props) {
               <h2 id="past-heading" className="text-heading">
                 {t('past')}
               </h2>
-              <Stagger className="mt-10 grid gap-5 lg:grid-cols-2">
+              <Stagger className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 {past.map(({ doc, translated }) => (
                   <EventCard key={doc.id} event={doc} translated={translated} />
                 ))}

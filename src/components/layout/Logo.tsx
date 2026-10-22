@@ -34,7 +34,7 @@ export function Logo({
   return (
     <Link
       href="/"
-      className={`inline-flex items-center gap-3 text-[0.95rem] font-semibold whitespace-nowrap text-current no-underline hover:text-current sm:text-base ${className}`}
+      className={`inline-flex items-center gap-3 text-[0.95rem] font-semibold whitespace-nowrap text-current max-[22.5rem]:gap-2 max-[22.5rem]:leading-tight max-[22.5rem]:whitespace-normal no-underline hover:text-current sm:text-base ${className}`}
     >
       {tone === 'night' ? mark(logoLight, '') : null}
       {tone === 'day' ? mark(logo, '') : null}

@@ -33,7 +33,7 @@ export async function UpcomingEventsSection({
             {t('allEvents')}
           </ButtonLink>
         </div>
-        <Stagger className="mt-12 grid gap-5 lg:grid-cols-2">
+        <Stagger className="mt-12 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {events.map(({ doc, translated }) => (
             <EventCard key={doc.id} event={doc} translated={translated} />
           ))}
