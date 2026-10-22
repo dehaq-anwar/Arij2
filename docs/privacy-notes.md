@@ -107,6 +107,18 @@ Backups of the database (Phase 6) contain submissions until the backup itself ex
 | Password reset | By e-mail with a link to the Control Center's host (requires SMTP). After the new password, the second factor is still required |
 | Account pictures | A neutral icon. Payload's default (Gravatar, which would send a hash of the e-mail address to a third party) is switched off |
 
+## Server operations (CC-3)
+
+| Topic | Fact |
+|---|---|
+| Access logs (Caddy) | One JSON line per request to the website and to the Control Center: time, method, host, path **without query string**, status, size, duration, referring page, browser string, and the visitor's IP address **shortened** to /24 (IPv4) or /48 (IPv6). Not written: full IP addresses, ports, cookies, `Authorization`, forwarded addresses, response headers. Files rotate at 50 MB and are **deleted after 7 days** (proposal, decision 7). They stay on the server; the operations agent reads them only to count (CC-4) |
+| Host samples | CPU, memory, load and disk of the server once a minute, database size; kept 30 days. No personal data |
+| Backups | Contain the whole database (including applications, members, messages and accounts) and the media files, **encrypted** with restic (password in the agent's environment and offline with the board) on EU storage with object lock (decision 9). Proposed retention: 7 daily, 4 weekly, 6 monthly: **data deleted in the live database remain in backups until the backups expire** (up to about six months). Restore drills restore into a separate test database, compare counts and delete it at once |
+| Backup, drill and restart history | Time, kind, result, counts, sizes, durations, snapshot ids, error text (masked); kept 12 months. No personal data |
+| Service logs in the Control Center | Shown only to roles with `operations.read`, loaded on request, masked before they leave the agent (e-mail addresses shortened, IP addresses shortened, tokens, passwords, cookies and keys replaced). Each view is in the audit log. The logs themselves stay in Docker on the server (Docker's default rotation) |
+| E-mail delivery log | Per e-mail: time, template (e.g. "new application"), recipient **shortened** (`i***@yop-ye.org`), result, error code, duration. No subject, no content. Kept 90 days (proposal). Readable with `email.manage` |
+| Technical warnings | To people with `operations.act` in the Control Center, and by e-mail to the technical address if set: what (service, host, time) and a link. No personal data |
+
 ## Security headers
 
 Sent on every response (pages, API, CMS, files):

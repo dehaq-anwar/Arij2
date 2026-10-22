@@ -8,6 +8,7 @@
 // scripts/e2e-fixtures.ts. The database is E2E_DATABASE_URL,
 // or DATABASE_URL with "_e2e" appended to its name; it must end in "_e2e", because it is wiped.
 import { spawn, spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { cpSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -53,6 +54,11 @@ const serverEnv = {
   // 127.0.0.1 and the admin on localhost (same server, separate cookies and rules).
   ADMIN_URL: `http://localhost:${port}`,
   ALLOW_INDEXING: 'false',
+  // A stand-in for the operations agent (tests/e2e/fake-agent.ts) with a fresh key per run.
+  OPS_AGENT_URL: `http://127.0.0.1:${env.FAKE_AGENT_PORT ?? '3199'}`,
+  OPS_AGENT_SECRET: randomBytes(24).toString('hex'),
+  // No mail server in the tests: e-mails are recorded as "not configured", never sent.
+  SMTP_HOST: '',
 }
 
 const payloadCli = path.join(root, 'node_modules', '.bin', 'payload')
@@ -75,10 +81,23 @@ for (const [from, to] of [
 // Pages cached by an earlier run (e.g. against the development database) must not be served.
 rmSync(path.join(standalone, '.next', 'cache'), { recursive: true, force: true })
 
+const agent = spawn(process.execPath, [path.join(root, 'tests', 'e2e', 'fake-agent.ts')], {
+  cwd: root,
+  stdio: 'inherit',
+  env: { ...process.env, OPS_AGENT_SECRET: serverEnv.OPS_AGENT_SECRET },
+})
 const server = spawn(process.execPath, ['server.js'], {
   cwd: standalone,
   stdio: 'inherit',
   env: { ...serverEnv, PORT: port, HOSTNAME: '0.0.0.0' },
 })
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill(signal))
-server.on('exit', (code) => process.exit(code ?? 0))
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    agent.kill(signal)
+    server.kill(signal)
+  })
+}
+server.on('exit', (code) => {
+  agent.kill()
+  process.exit(code ?? 0)
+})

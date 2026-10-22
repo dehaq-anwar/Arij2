@@ -1156,6 +1156,8 @@ html[data-theme='dark'] .yop-nav {
 
 /* ── step-up dialog ── */
 .yop-dialog {
+  /* Opened from table cells that align to the end: the dialog's own text starts at the start. */
+  text-align: start;
   border: 1px solid var(--yop-line);
   border-radius: 18px;
   padding: 0;
@@ -1232,7 +1234,8 @@ html[data-theme='dark'] .yop-nav {
   block-size: 40px;
   border-radius: 12px;
   background: var(--yop-accent-soft);
-  color: var(--yop-accent-ink);
+  /* The accent itself: its "ink" colour is meant for text on the solid accent. */
+  color: var(--yop-accent);
   flex: none;
 }
 .yop-page__icon .yop-icon {
@@ -2076,4 +2079,319 @@ html[data-theme='dark'] .yop-search-preview__title {
 .yop-search-preview__hidden {
   margin-block: 0.6rem !important;
   font-weight: 500;
+}
+
+/* ── operations (CC-3): status, backups, logs, domains ── */
+.yop-notice--info {
+  background: var(--yop-info-soft);
+  color: var(--yop-info);
+}
+.yop-notice p {
+  margin: 2px 0 0;
+}
+.yop-pill--bad {
+  background: var(--yop-bad-soft);
+  color: var(--yop-bad);
+}
+.yop-dialog__icon--warning {
+  background: var(--yop-warn-soft);
+  color: var(--yop-warn);
+}
+.yop-stat__value--small {
+  font-size: 17px;
+  line-height: 1.35;
+}
+.yop-ops {
+  display: grid;
+  gap: 18px;
+}
+.yop-ops-notice strong {
+  display: block;
+}
+.yop-ops-table th[scope='row'] {
+  font-weight: inherit;
+  text-align: start;
+}
+.yop-ops-table td,
+.yop-ops-table th {
+  vertical-align: top;
+}
+.yop-ops-service {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+.yop-ops-service code,
+.yop-ops-image,
+.yop-ops-tables code,
+.yop-ops-tool,
+.yop-ops-issuer {
+  font-size: 12.5px;
+  color: var(--yop-muted);
+  overflow-wrap: anywhere;
+}
+.yop-ops-detail {
+  max-inline-size: 42ch;
+  overflow-wrap: anywhere;
+}
+.yop-ops-detail details {
+  margin-block-start: 6px;
+}
+.yop-ops-tables li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.yop-ops-footnote {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-block: 14px 0;
+}
+.yop-ops-footnote .yop-icon {
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  margin-block-start: 2px;
+}
+.yop-ops-action {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+.yop-ops-action--inline {
+  justify-items: end;
+}
+.yop-ops-result:empty {
+  display: none;
+}
+.yop-ops-result .yop-notice {
+  max-inline-size: 360px;
+  font-size: 13px;
+}
+.yop-ops .yop-grid--stats {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.yop-ops-table .yop-button {
+  white-space: nowrap;
+}
+.yop-ops-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 6px;
+  color: var(--yop-muted);
+  font-size: 12px;
+}
+.yop-ops-code .yop-icon {
+  inline-size: 13px;
+  block-size: 13px;
+}
+.yop-ops-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+/* A measure over time: line, area, crosshair and tooltip (MetricChart). */
+.yop-chart {
+  margin: 0;
+  min-inline-size: 0;
+}
+.yop-chart__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-block-end: 6px;
+}
+.yop-chart__title {
+  font-size: 13px;
+  color: var(--yop-muted);
+}
+.yop-chart__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.yop-chart__plot {
+  position: relative;
+}
+.yop-chart__svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 96px;
+  touch-action: pan-y;
+}
+.yop-chart__grid {
+  stroke: var(--yop-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.yop-chart__base {
+  stroke: var(--yop-line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.yop-chart__area {
+  fill: var(--yop-accent);
+  opacity: 0.12;
+}
+.yop-chart__line {
+  fill: none;
+  stroke: var(--yop-accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.yop-chart__cross {
+  stroke: var(--yop-ink-2);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.yop-chart__dot {
+  position: absolute;
+  inline-size: 9px;
+  block-size: 9px;
+  margin-inline-start: -4.5px;
+  margin-block-start: -4.5px;
+  border-radius: 50%;
+  background: var(--yop-accent);
+  box-shadow: 0 0 0 2px var(--yop-surface);
+  pointer-events: none;
+}
+.yop-chart__tooltip {
+  position: absolute;
+  inset-block-start: -6px;
+  transform: translateY(-100%);
+  padding-block: 4px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  background: var(--yop-ink);
+  color: var(--yop-surface);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.yop-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--yop-muted);
+  margin-block-start: 4px;
+}
+.yop-chart__table {
+  margin-block-start: 6px;
+  font-size: 13px;
+}
+.yop-chart__table summary {
+  cursor: pointer;
+  color: var(--yop-accent);
+  inline-size: fit-content;
+}
+.yop-chart__table .yop-table-wrap {
+  max-block-size: 260px;
+  overflow-y: auto;
+}
+
+/* Masked log lines (LogsClient): monospace, one line per entry, level in a word and colour. */
+.yop-ops-log-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, max-content));
+  gap: 6px 12px;
+  align-items: end;
+  margin-block-end: 14px;
+}
+.yop-ops-log-controls .yop-label {
+  margin-block: 0 6px;
+}
+.yop-ops-log-controls .yop-check {
+  min-block-size: 44px;
+}
+.yop-ops-log-search {
+  min-inline-size: min(320px, 100%);
+}
+.yop-log {
+  margin: 0;
+  padding: 10px 0;
+  list-style: none;
+  max-block-size: 70vh;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--yop-surface-2);
+  border: 1px solid var(--yop-line);
+  font:
+    12.5px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+.yop-log__line {
+  display: grid;
+  grid-template-columns: 8.5ch 5.5ch minmax(0, 1fr);
+  gap: 10px;
+  padding-inline: 12px;
+}
+.yop-log__line:hover {
+  background: var(--yop-line);
+}
+.yop-log__time {
+  color: var(--yop-muted);
+}
+.yop-log__level {
+  color: var(--yop-muted);
+  font-weight: 600;
+}
+.yop-log__line--warn .yop-log__level {
+  color: var(--yop-warn);
+}
+.yop-log__line--error .yop-log__level,
+.yop-log__line--error .yop-log__text {
+  color: var(--yop-bad);
+}
+.yop-log__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .yop-ops-table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .yop-ops-table tr {
+    display: grid;
+    gap: 6px;
+    padding-block: 12px;
+    border-block-end: 1px solid var(--yop-line);
+  }
+  .yop-ops-table tr:last-child {
+    border-block-end: 0;
+  }
+  .yop-ops-table td,
+  .yop-ops-table th {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .yop-ops-table td:empty {
+    display: none;
+  }
+  .yop-ops-table .yop-table__action {
+    text-align: start;
+  }
+  .yop-ops-action,
+  .yop-ops-action--inline {
+    justify-items: start;
+  }
+  .yop-log__line {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .yop-ops-log-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

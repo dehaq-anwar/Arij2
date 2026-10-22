@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
  */
 const root = path.resolve(__dirname, '../..')
 const compose = readFileSync(path.join(root, 'docker-compose.prod.yml'), 'utf8')
-const image = process.env.CADDY_IMAGE ?? compose.match(/image: (caddy:\S+)/)?.[1] ?? ''
+const image = process.env.CADDY_IMAGE || (compose.match(/image: (caddy:\S+)/)?.[1] ?? '')
 const upstreamImage = process.env.OPS_AGENT_IMAGE ?? 'yop-ops-agent:test'
 const caddyfile = path.join(root, 'docker/caddy/Caddyfile')
 

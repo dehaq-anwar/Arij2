@@ -1,8 +1,8 @@
 # Youth of Peace — Administration & Control Center
 
-**Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions). CC-0 and CC-1
-are implemented (sections 14 and 15); CC-2 and later wait for the association's approval. Plan
-date: 2026-10-19.
+**Status:** approved 2026-10-20 (option A, phases CC-0 to CC-5 with conditions); all remaining
+phases approved 2026-10-21 without stops between them. CC-0 to CC-3 are implemented (sections
+14 to 17). Plan date: 2026-10-19.
 **Arabic version:** [CONTROL-CENTER.ar.md](CONTROL-CENTER.ar.md)
 **Visual design (interactive):** [control-center/mockups.html](control-center/mockups.html). Open the
 file in a browser. It needs no network access: fonts and logo are embedded. Useful addresses:
@@ -865,6 +865,143 @@ membership managers get no preview; visitors cannot list redirects.
   loading (a short visible change, only where the menu does not fit).
 - The former page globals stay in the database as the record of the old texts; removing them is
   a later decision.
+
+## 17. CC-3 implementation notes (2026-10-22)
+
+The association approved all remaining phases (CC-2 to CC-5, then Phase 6) without a stop
+between phases, on the conditions already agreed: no changes to the production server, DNS, mail
+accounts or real data, and no restore or deletion with effect, without its explicit approval.
+Nothing in CC-3 touches a real server: everything below was built and tested locally and in CI.
+
+### What CC-3 contains
+
+- **Operations agent** (`ops-agent/`): a small service on Node's own HTTP server, no npm
+  packages, run as TypeScript by Node 24 itself, in its own image (PostgreSQL 18.6 client tools,
+  restic 0.19.1, rclone 1.75.1, Node 24.21.0, all pinned by digest, unprivileged user, read-only
+  file system). Every request is signed (HMAC-SHA256 over method, path with query, time, a
+  one-time value and the body's hash; older than a minute or replayed: refused). The complete
+  action list: status, host samples, masked logs, backups list, events, certificates, visitor
+  counts, restart of `app` or `caddy`, backup, restore drill. Everything else answers 404.
+- **Backups and restore drills** in the agent, with its own schedule (02:30 nightly, Sunday
+  04:00 drill, Berlin time) so they run even when the website is down: `pg_dump` and the media
+  bucket into an encrypted restic repository; the row count of every table is taken in the same
+  database snapshot as the dump. The drill restores the newest backup into a separate database,
+  compares every table's exact row count, the newest migration and the protective triggers,
+  counts the media files, reads the repository back (`restic check`) and removes the drill
+  database. Retention 7 daily, 4 weekly, 6 monthly (proposal, decision 9).
+- **Production setup** (`docker-compose.prod.yml`): Caddy (TLS for the website and the Control
+  Center hosts, HTTP→HTTPS and www redirects, the admin gate header set only on the Control
+  Center host, optional IP allowlist, privacy-friendly access logs), the app, PostgreSQL, the
+  agent and the Docker socket proxy. Separate networks; the database, the agent's network and the
+  Docker network are internal. The app gets only the settings it uses (not the backup password or
+  the backup storage keys).
+- **Docker socket proxy with its own rules** (`docker/socket-proxy/haproxy.cfg.template`): the
+  proxy's switches allow whole API sections, and "POST + containers" would also allow creating
+  containers — root on the host. Our rules allow exactly: ping and version, the container list,
+  a container's details and logs, and restarting `yop-app-N` and `yop-caddy-N`. The agent
+  addresses containers by name for this.
+- **In the Control Center** (group "Operations", for `operations.read`):
+  - *Services & status*: the Compose services with state, health, start time, restarts and
+    image; restart of the app or Caddy (`operations.act`, a code, and the service's name typed
+    as confirmation); host CPU, memory and disk as current values and 24-hour charts (5-minute
+    averages, with a table for each chart); release (version and commit built into the image),
+    the agent's tool versions; database size, connections and largest tables; the scheduled
+    tasks with their last run and result, and "run now" (`jobs.run`; tasks that delete need a
+    code and remove only what their rules already allow); external uptime "not set up"
+    (decision 8).
+  - *Backups*: last backup and drill with result and duration, schedule, retention, the history
+    (with the agent's details and any differences found by a drill), the stored snapshots, and
+    "back up now" / "test a restore" (`operations.act`, code). Restoring the live database is
+    deliberately not offered (decision 10); the procedure is in the operations guide.
+  - *Logs*: the last 100–500 lines of a service, loaded on request, masked by the agent (e-mail
+    and IP addresses, tokens, passwords, cookies, keys), searchable, "warnings and errors only".
+    Every view is in the audit log.
+  - *Domains & TLS*: the certificates Caddy actually serves, checked hourly and on request.
+  - *Dashboard*: services running, last backup and certificates, for those who may read
+    operations.
+- **Collection job** `ops-collect` (every five minutes): the agent's status, new host samples
+  (one per minute, kept 30 days), new events (backups, drills, restarts; kept 12 months), the
+  certificates once an hour, database figures. Then the warnings: agent silent for 15 minutes,
+  a service stopped, unhealthy or missing, a failed backup, drill or restart, no successful
+  backup for 26 hours, a certificate that expires within 14 days or is invalid, disk 90 % full.
+  Warnings go to the bell of everyone with `operations.act` and, if a technical address is set in
+  the e-mail settings, by e-mail; the same warning at most once a day.
+- **Retention job** `ops-retention` (daily 03:50): samples after 30 days, events after 12 months,
+  e-mail delivery entries after 90 days, finished jobs after 30 days (proposals). Finished jobs
+  are now kept (they were deleted at once before), so the status screen can show each task's last
+  run.
+- **E-mail groundwork** (completed in CC-4): every e-mail goes through one adapter that reads the
+  e-mail settings at sending time and writes a delivery entry (template, shortened recipient,
+  result, error code). All e-mail texts are in one file (`src/cms/mail/templates.ts`).
+
+### Security decisions
+
+- The app never holds the Docker socket, host files or backup keys; a compromised app can only
+  trigger the agent's fixed actions, within its limits (3 restarts per service in 15 minutes,
+  4 manual backups or drills per hour, one at a time).
+- Restarts, backups and drills need `operations.act` and a code from the last five minutes;
+  restarts also the typed service name. Board administrators and auditors read operations but
+  cannot act; content editors and membership managers see neither the menu nor the screens, and
+  the API refuses them (tested).
+- Container details (`/containers/{id}/json`) include each container's settings. The agent reads
+  only the state from them and passes nothing else on; the proxy cannot filter answers. The
+  agent already holds the database password for backups, so this adds no new access.
+- The socket proxy listens on IPv4 only: on the internal Docker network its default `[::]`
+  listener stopped it from starting (found by the integration test).
+- Caddy strips a visitor's `X-Admin-Gate` header on the website host and overwrites it on the
+  admin host, and replaces `X-Forwarded-For` with the real client address (the app's rate limits
+  rely on it) — all tested against the real Caddy image.
+
+### Verification (2026-10-22)
+
+- Unit tests: the agent (signatures, replay, masking, Docker frames, schedule, drill comparison,
+  the HTTP interface) and the Control Center side (signed requests accepted by the agent's own
+  check, warnings, 5-minute averages, log lines, e-mail settings, recipients shortened, mail
+  texts, which jobs need a code).
+- Integration tests: backup and drill with the real agent image on a migrated database (exact
+  counts, encrypted repository, drill database removed); the socket proxy's rules against the
+  real proxy image and Docker API (allowed reads and restarts; refused create, exec, delete,
+  images, volumes, archive, export, restart of the database — and the test fails if the proxy
+  allows everything); Caddy with the pinned image (admin gate, allowlist, redirects, forwarded
+  address, access log without full addresses, query strings, cookies or tokens); the collection
+  job against a migrated database and a stand-in agent (samples, events, state, warnings once a
+  day, only to those who may act, agent silence, retention, delivery log with a refused SMTP
+  connection).
+- End-to-end tests with a stand-in agent that checks signatures like the real one: permissions
+  per role through the API and in the interface, code and typed name for restarts, audit entries
+  for restarts, job runs and log views, the four screens' content, the dashboard tiles, axe
+  without violations (light German, dark Arabic), no sideways scrolling on a phone in Arabic.
+- Visual review in German, English and Arabic, light and dark, desktop, tablet and phone. Fixed
+  on the way: the restart dialog inherited end-aligned text from the table cell; sizes appeared
+  as "MB 312" in Arabic (now isolated left to right); the page icon was invisible on every
+  screen that uses it (also export, lists and notifications); time labels of the charts are now
+  "24 h ago … now"; the logs' time column touched the level; four status cards no longer wrap
+  3 + 1 on a tablet; the e-mail settings appeared under "Page texts" (now under Operations).
+
+### Not tested on a real server, and why
+
+| What | Why | Before launch |
+|---|---|---|
+| The production stack as a whole (`docker compose up` with real hosts) | No server yet (decision 2); no change to production without approval | Deploy to the server, open both hosts, check certificates, the admin gate (website host answers 404 for `/admin`) and the allowlist if used |
+| Backups to the real storage with object lock | Storage provider not chosen (decision 9) | Set `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `BACKUP_S3_*`; run "back up now" and "test a restore"; keep the password offline with the board |
+| Media backup from the real S3 bucket (rclone) | Same | Covered by the first manual backup; the drill counts the media files |
+| Host values from a real server's `/proc` and disk | The test environment's values are the sandbox's | Compare the status screen with `free`, `df` on the server once |
+| Real Let's Encrypt certificates | Needs the real hosts and DNS | Domains & TLS screen after the first start |
+| Technical warning e-mails | No mail server here (decision 5) | Set the technical address and send a test e-mail (CC-4) |
+
+### Known limitations
+
+- CPU and memory are the host's (the agent reads `/proc`), not per container.
+- Behind Docker's port publishing, clients connecting over IPv6 to a host without IPv6 in Docker
+  reach Caddy through Docker's userland proxy and appear with the proxy's address: the allowlist
+  and the rate limits then see one address. The operations guide describes enabling IPv6 for
+  the Docker network or disabling the userland proxy.
+- Log masking recognises common patterns (addresses, tokens, keys); a secret in an unusual
+  format could pass. Logs are shown only to `operations.read` and every view is logged.
+- After restarting the app the page reloads itself after about twelve seconds; if the app needs
+  longer, reload by hand.
+- External uptime monitoring is not set up (decision 8); without it, an outage of the whole
+  server is only noticed by people.
 
 ---
 

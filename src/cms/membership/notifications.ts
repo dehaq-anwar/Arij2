@@ -1,6 +1,7 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import { can, type Permission, type PermissionSubject } from '../access/permissions'
+import { OPERATIONS_ALERTS } from '../operations/alerts'
 
 /**
  * In-app notifications (the bell in the Control Center's header). They carry no personal data:
@@ -20,6 +21,9 @@ export const NOTIFICATION_KINDS = [
   'newDevice',
   'memberReviewDue',
   'memberReduced',
+  // Operations (src/cms/operations/alerts.ts) and e-mail delivery (src/cms/email.ts).
+  ...OPERATIONS_ALERTS,
+  'emailFailed',
 ] as const
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 
@@ -29,6 +33,7 @@ export const NOTIFICATION_SUBJECTS = [
   'contact-messages',
   'exports',
   'security',
+  'operations',
 ] as const
 export type NotificationSubject = (typeof NOTIFICATION_SUBJECTS)[number]
 

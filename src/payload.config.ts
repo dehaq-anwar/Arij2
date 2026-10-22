@@ -31,6 +31,7 @@ import { MembershipApplications } from './cms/collections/MembershipApplications
 import { News } from './cms/collections/News'
 import { Pages } from './cms/collections/Pages'
 import { Notifications } from './cms/collections/Notifications'
+import { OperationsState, OpsEvents, OpsSamples } from './cms/collections/Operations'
 import { Partners } from './cms/collections/Partners'
 import { ProcessingPurposes } from './cms/collections/ProcessingPurposes'
 import { Projects } from './cms/collections/Projects'
@@ -58,6 +59,11 @@ import { notificationsRetentionTask } from './cms/jobs/notifications-retention'
 import { retentionTask } from './cms/jobs/retention'
 import { withCheckedSchedule } from './cms/jobs/scheduled-publish'
 import { ensureSystemPages } from './cms/pages/system-pages'
+import { EmailLog } from './cms/mail/log'
+import { EmailSettings } from './cms/mail/settings'
+import { opsCollectTask } from './cms/operations/collect'
+import { operationsEndpoints } from './cms/operations/endpoints'
+import { opsRetentionTask } from './cms/operations/retention'
 import { migrations } from './migrations'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -141,6 +147,27 @@ const config = buildConfig({
           path: '/notifications',
           exact: true,
         },
+        // Operations (CC-3): status, backups, logs, domains; e-mail (CC-4).
+        operations: {
+          Component: '/cms/admin/operations/StatusView#StatusView',
+          path: '/operations',
+          exact: true,
+        },
+        operationsBackups: {
+          Component: '/cms/admin/operations/BackupsView#BackupsView',
+          path: '/operations/backups',
+          exact: true,
+        },
+        operationsLogs: {
+          Component: '/cms/admin/operations/LogsView#LogsView',
+          path: '/operations/logs',
+          exact: true,
+        },
+        operationsDomains: {
+          Component: '/cms/admin/operations/DomainsView#DomainsView',
+          path: '/operations/domains',
+          exact: true,
+        },
       },
       // The interface language (separate from Payload's content language menu) and the bell.
       actions: [
@@ -174,19 +201,32 @@ const config = buildConfig({
     AuthCredentials,
     TrustedDevices,
     RateLimitBuckets,
+    OpsSamples,
+    OpsEvents,
+    EmailLog,
   ],
   globals: [
-    ...[HomePage, AboutPage, MembershipPage, SupportPage, ContactPage].map(legacyPage),
-    Navigation,
-    FormTexts,
-    LegalNotice,
-    PrivacyPolicy,
-    SiteSettings,
-    ControlCenterSettings,
-  ].map((global) => ({
-    ...global,
-    hooks: { ...global.hooks, afterChange: [...(global.hooks?.afterChange ?? []), auditGlobal] },
-  })),
+    ...[
+      ...[HomePage, AboutPage, MembershipPage, SupportPage, ContactPage].map(legacyPage),
+      Navigation,
+      FormTexts,
+      LegalNotice,
+      PrivacyPolicy,
+      SiteSettings,
+      ControlCenterSettings,
+      EmailSettings,
+    ].map((global): GlobalConfig => ({
+      ...global,
+      hooks: {
+        ...global.hooks,
+        afterChange: [...(global.hooks?.afterChange ?? []), auditGlobal],
+      },
+    })),
+    // Rewritten every five minutes by the collection job: not an audited change.
+    OperationsState,
+  ],
+  // The operations actions (src/cms/operations/endpoints.ts), under /api/operations.
+  endpoints: operationsEndpoints,
   // The fixed pages and the form texts moved out of the old page globals (CC-2): built once from
   // them on the first start of the new version, never overwritten afterwards.
   onInit: async (payload) => {
@@ -233,14 +273,25 @@ const config = buildConfig({
       auditRetentionTask,
       membershipRemindersTask,
       notificationsRetentionTask,
+      opsCollectTask,
+      opsRetentionTask,
     ],
     // Checks the maintenance queue every 10 minutes (the tasks' own schedules decide when they
-    // are due) and the default queue, where scheduled publications wait, every minute.
+    // are due), the operations queue every 5 minutes and the default queue, where scheduled
+    // publications wait, every minute.
     autoRun: [
       { cron: '*/10 * * * *', queue: 'maintenance' },
+      { cron: '*/5 * * * *', queue: 'operations' },
       { cron: '* * * * *', queue: 'default' },
     ],
-    access: { run: ({ req }) => allowed(req, 'jobs.run') },
+    // Finished jobs stay 30 days (ops-retention), so the operations screen can show when each
+    // task last ran and with what result.
+    deleteJobOnComplete: false,
+    access: {
+      run: ({ req }) => allowed(req, 'jobs.run'),
+      queue: ({ req }) => allowed(req, 'jobs.run'),
+      cancel: ({ req }) => allowed(req, 'jobs.run'),
+    },
   },
   localization: {
     locales: [

@@ -5,6 +5,7 @@ import { roleLabels } from '../../access/labels'
 import { can, isRole, type PermissionSubject } from '../../access/permissions'
 import { adminLanguage, adminTexts } from '../i18n'
 import type { IconName } from '../icons'
+import { opsTexts } from '../operations/texts'
 import { NavClient, type NavGroupData, type NavItemData } from './NavClient'
 
 const COLLECTION_ICONS: Record<string, IconName> = {
@@ -68,6 +69,8 @@ const GLOBAL_ICONS: Record<string, IconName> = {
 
 /** Globals that are settings of the Control Center, not page texts of the website. */
 const SETTINGS_GLOBALS: string[] = ['control-center-settings']
+/** Globals shown in the operations group instead of with the page texts. */
+const OPERATIONS_GLOBALS: string[] = ['email-settings']
 
 type Props = ServerProps & { visibleEntities?: VisibleEntities; req?: PayloadRequest }
 
@@ -148,7 +151,9 @@ export async function Nav(props: Props) {
         ...payload.config.globals
           .filter(
             (global) =>
-              visible.globals.includes(global.slug) && !SETTINGS_GLOBALS.includes(global.slug),
+              visible.globals.includes(global.slug) &&
+              !SETTINGS_GLOBALS.includes(global.slug) &&
+              !OPERATIONS_GLOBALS.includes(global.slug),
           )
           .map((global) => ({
             id: `nav-global-${global.slug}`,
@@ -184,6 +189,50 @@ export async function Nav(props: Props) {
       }
     }
     if (items.length) groups.push({ key: group.key, label: groupLabel[group.key], items })
+  }
+
+  // Operations (CC-3, CC-4), before Security as in the approved design.
+  const o = opsTexts[language]
+  const operations: NavItemData[] = []
+  if (can(person, 'operations.read')) {
+    operations.push(
+      {
+        id: 'nav-ops-status',
+        href: '/admin/operations',
+        label: o.navStatus,
+        icon: 'server',
+        exact: true,
+      },
+      {
+        id: 'nav-ops-backups',
+        href: '/admin/operations/backups',
+        label: o.navBackups,
+        icon: 'backup',
+      },
+      { id: 'nav-ops-logs', href: '/admin/operations/logs', label: o.navLogs, icon: 'logs' },
+      {
+        id: 'nav-ops-domains',
+        href: '/admin/operations/domains',
+        label: o.navDomains,
+        icon: 'globe',
+      },
+    )
+  }
+  if (can(person, 'email.manage') && (visible.globals as string[]).includes('email-settings')) {
+    operations.push({
+      id: 'nav-ops-email',
+      href: '/admin/globals/email-settings',
+      label: o.navEmail,
+      icon: 'mail',
+    })
+  }
+  if (operations.length) {
+    const at = groups.findIndex((group) => group.key === 'security')
+    groups.splice(at === -1 ? groups.length : at, 0, {
+      key: 'operations',
+      label: o.navOperations,
+      items: operations,
+    })
   }
 
   return (

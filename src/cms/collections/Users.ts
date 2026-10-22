@@ -45,6 +45,7 @@ import { endAllSessions, holdSession, sidOfToken } from '../auth/sessions'
 import { requestDb, SUPER_ADMIN_LOCK } from '../lib/db'
 import { NOT_ALLOWED, refuse, STEP_UP_MESSAGE } from '../lib/errors'
 import { groups, label, localizedMessage } from '../lib/labels'
+import { PASSWORD_RESET_SUBJECT, passwordResetMail } from '../mail/templates'
 
 export const MIN_PASSWORD_LENGTH = 12
 
@@ -432,17 +433,8 @@ const manageFieldOnCreate: FieldAccess = async ({ req }) =>
 const seeSecurity: FieldAccess = async ({ doc, req }) =>
   Boolean(req.user) && (doc?.id === req.user?.id || (await allowed(req, 'users.read')))
 
-const emailHTML = async (args?: { token?: string }) => {
-  const token = args?.token ?? ''
-  const link = `${adminUrl()}/admin/reset/${token}`
-  return [
-    '<p>Sie können ein neues Passwort für Ihr Konto im Youth of Peace Control Center festlegen. Der Link gilt eine Stunde.</p>',
-    '<p>You can set a new password for your Youth of Peace Control Center account. The link is valid for one hour.</p>',
-    '<p dir="rtl">يمكنك تعيين كلمة مرور جديدة لحسابك في مركز التحكم. الرابط صالح لمدة ساعة.</p>',
-    `<p><a href="${link}">${link}</a></p>`,
-    '<p>Falls Sie das nicht angefordert haben, ignorieren Sie diese E-Mail. / If you did not ask for this, ignore this e-mail. / إن لم تطلب ذلك فتجاهل هذه الرسالة.</p>',
-  ].join('\n')
-}
+const emailHTML = async (args?: { token?: string }) =>
+  passwordResetMail(`${adminUrl()}/admin/reset/${args?.token ?? ''}`).html ?? ''
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -466,8 +458,7 @@ export const Users: CollectionConfig = {
     },
     forgotPassword: {
       generateEmailHTML: emailHTML,
-      generateEmailSubject: () =>
-        'Youth of Peace – Passwort zurücksetzen / Reset password / إعادة تعيين كلمة المرور',
+      generateEmailSubject: () => PASSWORD_RESET_SUBJECT,
     },
   },
   endpoints: authEndpoints,

@@ -144,6 +144,7 @@ export class Agent {
         },
         accessLog,
         certificateHosts: config.certificates.hosts,
+        services: config.services,
         restartable: config.restartable,
       },
       docker: { reachable, error: dockerError },

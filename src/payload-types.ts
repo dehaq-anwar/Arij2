@@ -91,6 +91,9 @@ export interface Config {
     'auth-mfa': AuthMfa;
     'trusted-devices': TrustedDevice;
     'rate-limit-buckets': RateLimitBucket;
+    'ops-samples': OpsSample;
+    'ops-events': OpsEvent;
+    'email-log': EmailLog;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -123,6 +126,9 @@ export interface Config {
     'auth-mfa': AuthMfaSelect<false> | AuthMfaSelect<true>;
     'trusted-devices': TrustedDevicesSelect<false> | TrustedDevicesSelect<true>;
     'rate-limit-buckets': RateLimitBucketsSelect<false> | RateLimitBucketsSelect<true>;
+    'ops-samples': OpsSamplesSelect<false> | OpsSamplesSelect<true>;
+    'ops-events': OpsEventsSelect<false> | OpsEventsSelect<true>;
+    'email-log': EmailLogSelect<false> | EmailLogSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -145,6 +151,8 @@ export interface Config {
     'privacy-policy': PrivacyPolicy;
     'site-settings': SiteSetting;
     'control-center-settings': ControlCenterSetting;
+    'email-settings': EmailSetting;
+    'operations-state': OperationsState;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
@@ -159,6 +167,8 @@ export interface Config {
     'privacy-policy': PrivacyPolicySelect<false> | PrivacyPolicySelect<true>;
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'control-center-settings': ControlCenterSettingsSelect<false> | ControlCenterSettingsSelect<true>;
+    'email-settings': EmailSettingsSelect<false> | EmailSettingsSelect<true>;
+    'operations-state': OperationsStateSelect<false> | OperationsStateSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: 'de' | 'en' | 'ar';
@@ -173,6 +183,8 @@ export interface Config {
       'audit-retention': TaskAuditRetention;
       'membership-reminders': TaskMembershipReminders;
       'notifications-retention': TaskNotificationsRetention;
+      'ops-collect': TaskOpsCollect;
+      'ops-retention': TaskOpsRetention;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -1571,8 +1583,17 @@ export interface Notification {
     | 'memberDeleted'
     | 'newDevice'
     | 'memberReviewDue'
-    | 'memberReduced';
-  subjectType: 'membership-applications' | 'members' | 'contact-messages' | 'exports' | 'security';
+    | 'memberReduced'
+    | 'opsAgentUnreachable'
+    | 'opsServiceDown'
+    | 'opsBackupFailed'
+    | 'opsBackupOverdue'
+    | 'opsDrillFailed'
+    | 'opsRestartFailed'
+    | 'opsCertificate'
+    | 'opsDiskFull'
+    | 'emailFailed';
+  subjectType: 'membership-applications' | 'members' | 'contact-messages' | 'exports' | 'security' | 'operations';
   subjectId?: string | null;
   href: string;
   readAt?: string | null;
@@ -1684,6 +1705,57 @@ export interface RateLimitBucket {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ops-samples".
+ */
+export interface OpsSample {
+  id: number;
+  at: string;
+  cpuPercent?: number | null;
+  memoryUsed?: number | null;
+  memoryTotal?: number | null;
+  load1?: number | null;
+  diskUsed?: number | null;
+  diskTotal?: number | null;
+  databaseBytes?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ops-events".
+ */
+export interface OpsEvent {
+  id: number;
+  eventId: string;
+  kind: 'backup' | 'drill' | 'restart';
+  trigger: 'schedule' | 'manual';
+  startedAt: string;
+  finishedAt: string;
+  ok: boolean;
+  detail?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-log".
+ */
+export interface EmailLog {
+  id: number;
+  template: 'newApplication' | 'newMessage' | 'passwordReset' | 'securityNotice' | 'alert' | 'test' | 'other';
+  recipient: string;
+  status: 'sent' | 'failed' | 'notConfigured';
+  errorCode?: string | null;
+  durationMs?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -1758,6 +1830,8 @@ export interface PayloadJob {
           | 'audit-retention'
           | 'membership-reminders'
           | 'notifications-retention'
+          | 'ops-collect'
+          | 'ops-retention'
           | 'schedulePublish';
         taskID: string;
         input?:
@@ -1799,6 +1873,8 @@ export interface PayloadJob {
         | 'audit-retention'
         | 'membership-reminders'
         | 'notifications-retention'
+        | 'ops-collect'
+        | 'ops-retention'
         | 'schedulePublish'
       )
     | null;
@@ -1891,6 +1967,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'rate-limit-buckets';
         value: number | RateLimitBucket;
+      } | null)
+    | ({
+        relationTo: 'ops-samples';
+        value: number | OpsSample;
+      } | null)
+    | ({
+        relationTo: 'ops-events';
+        value: number | OpsEvent;
+      } | null)
+    | ({
+        relationTo: 'email-log';
+        value: number | EmailLog;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -2863,6 +2951,46 @@ export interface RateLimitBucketsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ops-samples_select".
+ */
+export interface OpsSamplesSelect<T extends boolean = true> {
+  at?: T;
+  cpuPercent?: T;
+  memoryUsed?: T;
+  memoryTotal?: T;
+  load1?: T;
+  diskUsed?: T;
+  diskTotal?: T;
+  databaseBytes?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ops-events_select".
+ */
+export interface OpsEventsSelect<T extends boolean = true> {
+  eventId?: T;
+  kind?: T;
+  trigger?: T;
+  startedAt?: T;
+  finishedAt?: T;
+  ok?: T;
+  detail?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-log_select".
+ */
+export interface EmailLogSelect<T extends boolean = true> {
+  template?: T;
+  recipient?: T;
+  status?: T;
+  errorCode?: T;
+  durationMs?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -3408,6 +3536,91 @@ export interface ControlCenterSetting {
   createdAt?: string | null;
 }
 /**
+ * Empty fields use the server settings (.env). The mail server password is kept on the server only (SMTP_PASSWORD). Changes need a code and are recorded in the audit log.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-settings".
+ */
+export interface EmailSetting {
+  id: number;
+  smtp?: {
+    host?: string | null;
+    /**
+     * 465 = TLS, otherwise STARTTLS (required).
+     */
+    port?: number | null;
+    user?: string | null;
+    fromAddress?: string | null;
+    fromName?: string | null;
+  };
+  addresses?: {
+    /**
+     * Receives a notice with a link only, no personal data.
+     */
+    notify?: string | null;
+    /**
+     * Backup or drill failed, service down, certificate expiring, disk almost full. Empty: in the bell only.
+     */
+    technical?: string | null;
+  };
+  domain?: {
+    /**
+     * Empty: the sender address’s domain.
+     */
+    name?: string | null;
+    /**
+     * Given by the mail provider, e.g. “default” or “mail”.
+     */
+    dkimSelector?: string | null;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "operations-state".
+ */
+export interface OperationsState {
+  id: number;
+  lastContactAt?: string | null;
+  lastAttemptAt?: string | null;
+  lastError?: string | null;
+  failingSince?: string | null;
+  lastSampleAt?: string | null;
+  lastEventAt?: string | null;
+  status?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  certificates?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  certificatesCheckedAt?: string | null;
+  database?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  accessCollectedUntil?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
@@ -3669,6 +3882,56 @@ export interface ControlCenterSettingsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "email-settings_select".
+ */
+export interface EmailSettingsSelect<T extends boolean = true> {
+  smtp?:
+    | T
+    | {
+        host?: T;
+        port?: T;
+        user?: T;
+        fromAddress?: T;
+        fromName?: T;
+      };
+  addresses?:
+    | T
+    | {
+        notify?: T;
+        technical?: T;
+      };
+  domain?:
+    | T
+    | {
+        name?: T;
+        dkimSelector?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "operations-state_select".
+ */
+export interface OperationsStateSelect<T extends boolean = true> {
+  lastContactAt?: T;
+  lastAttemptAt?: T;
+  lastError?: T;
+  failingSince?: T;
+  lastSampleAt?: T;
+  lastEventAt?: T;
+  status?: T;
+  certificates?: T;
+  certificatesCheckedAt?: T;
+  database?: T;
+  accessCollectedUntil?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats_select".
  */
 export interface PayloadJobsStatsSelect<T extends boolean = true> {
@@ -3739,6 +4002,33 @@ export interface TaskNotificationsRetention {
   input?: unknown;
   output: {
     removed?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskOps-collect".
+ */
+export interface TaskOpsCollect {
+  input?: unknown;
+  output: {
+    configured?: boolean | null;
+    reachable?: boolean | null;
+    samples?: number | null;
+    events?: number | null;
+    alerts?: number | null;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskOps-retention".
+ */
+export interface TaskOpsRetention {
+  input?: unknown;
+  output: {
+    samples?: number | null;
+    events?: number | null;
+    emailLog?: number | null;
+    jobs?: number | null;
   };
 }
 /**

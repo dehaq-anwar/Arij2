@@ -8,6 +8,8 @@ import { getCredential, unusedRecoveryCodes } from '../../auth/mfa'
 import { listActiveSessions } from '../../auth/sessions'
 import { startOfTomorrowBerlin } from '../../jobs/membership-reminders'
 import { OPEN_STATUSES, stageWhere } from '../../membership/stage'
+import { BACKUP_OVERDUE_MS } from '../../operations/alerts'
+import { lastGoodBackupAt, readOperationsState } from '../../operations/collect'
 import { actionLabel } from '../audit/actions'
 import {
   adminLanguage,
@@ -19,6 +21,7 @@ import {
   type AdminLanguage,
 } from '../i18n'
 import { Icon, type IconName } from '../icons'
+import { opsTexts } from '../operations/texts'
 
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
 
@@ -118,6 +121,38 @@ async function myTasks(req: PayloadRequest, userId: number) {
   }[]
 }
 
+/** Operations at a glance (CC-3): the last known state collected from the agent. */
+async function operationsSummary(req: PayloadRequest) {
+  const [state, lastBackup] = await Promise.all([
+    readOperationsState(req.payload, req),
+    lastGoodBackupAt(req.payload, req),
+  ])
+  const status = state.status ?? null
+  const services = status?.agent.services ?? []
+  const running = services.filter((service) =>
+    status?.containers.some(
+      (c) => c.service === service && c.state === 'running' && c.health !== 'unhealthy',
+    ),
+  ).length
+  const days = (state.certificates ?? [])
+    .map((c) => c.daysLeft)
+    .filter((n): n is number => typeof n === 'number')
+  return {
+    configured: state.lastError !== 'not_configured' || Boolean(status),
+    stale: Boolean(state.failingSince),
+    running,
+    total: services.length,
+    backupConfigured: Boolean(status?.agent.backup.configured),
+    lastBackup,
+    // The same limit as the warning (src/cms/operations/alerts.ts).
+    backupOverdue:
+      Boolean(status?.agent.backup.configured) &&
+      (!lastBackup || Date.now() - lastBackup.getTime() > BACKUP_OVERDUE_MS),
+    certificateDays: days.length ? Math.min(...days) : null,
+    certificatesOk: (state.certificates ?? []).every((c) => c.ok),
+  }
+}
+
 async function membersSummary(req: PayloadRequest) {
   const yearStart = `${new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric' }).format(new Date())}-01-01T00:00:00.000Z`
   const [active, joined] = await Promise.all([
@@ -142,6 +177,7 @@ function Stat({
   href,
   hint,
   tone,
+  small,
 }: {
   icon: IconName
   label: string
@@ -149,6 +185,8 @@ function Stat({
   href?: string
   hint?: string
   tone?: 'warning'
+  /** Words or a date instead of a number. */
+  small?: boolean
 }) {
   const body = (
     <>
@@ -158,7 +196,7 @@ function Stat({
           <Icon name={icon} />
         </span>
       </span>
-      <span className="yop-stat__value">{value}</span>
+      <span className={`yop-stat__value${small ? ' yop-stat__value--small' : ''}`}>{value}</span>
       {hint && <span className="yop-stat__hint">{hint}</span>}
     </>
   )
@@ -174,7 +212,7 @@ function Stat({
 /**
  * The Control Center's start page. Everything on it is read from the database for the signed-in
  * person and limited to what their role may see; sections for areas that are not built yet
- * (operations, e-mail, analytics) are left out instead of being shown with sample data.
+ * (e-mail, analytics) are left out instead of being shown with sample data.
  */
 export async function Dashboard({ initPageResult }: AdminViewServerProps) {
   const { req } = initPageResult
@@ -255,11 +293,13 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
       : null,
   ])
 
-  const [pipeline, tasks, members] = await Promise.all([
+  const [pipeline, tasks, members, operations] = await Promise.all([
     showInbox ? membershipPipeline(req) : null,
     showInbox ? myTasks(req, person.id) : null,
     can(person, 'members.read') ? membersSummary(req) : null,
+    can(person, 'operations.read') ? operationsSummary(req) : null,
   ])
+  const o = opsTexts[language]
 
   const recoveryLeft = credential ? unusedRecoveryCodes(credential) : 0
   const withoutMfa = accounts
@@ -337,6 +377,56 @@ export async function Dashboard({ initPageResult }: AdminViewServerProps) {
             href="/admin/collections/audit-log?where[area][equals]=security"
             tone={failedSignIns.totalDocs > 0 ? 'warning' : undefined}
           />
+        )}
+        {operations && (
+          <>
+            <Stat
+              icon="server"
+              label={o.dashServices}
+              value={
+                operations.total
+                  ? fill(o.dashServicesValue, {
+                      running: operations.running,
+                      total: operations.total,
+                    })
+                  : o.notSetUp
+              }
+              href="/admin/operations"
+              small
+              hint={operations.stale ? o.agentDownTitle : undefined}
+              tone={
+                operations.stale || (operations.total && operations.running < operations.total)
+                  ? 'warning'
+                  : undefined
+              }
+            />
+            <Stat
+              icon="backup"
+              label={o.dashLastBackup}
+              value={
+                operations.lastBackup
+                  ? formatDateTime(operations.lastBackup, language)
+                  : operations.backupConfigured
+                    ? o.never
+                    : o.notSetUp
+              }
+              href="/admin/operations/backups"
+              small
+              tone={operations.backupOverdue ? 'warning' : undefined}
+            />
+            <Stat
+              icon="lock"
+              label={o.dashCertificates}
+              value={
+                operations.certificateDays != null
+                  ? fill(o.dashCertificatesValue, { n: operations.certificateDays })
+                  : o.notSetUp
+              }
+              href="/admin/operations/domains"
+              small
+              tone={operations.certificatesOk ? undefined : 'warning'}
+            />
+          </>
         )}
         {accounts && (
           <Stat
