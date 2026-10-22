@@ -32,6 +32,8 @@ async function admin(url: URL, sql: string) {
 
 export async function startPayload(
   name: string,
+  /** S3 settings (S3_BUCKET, S3_ENDPOINT, …) for uploads; without them, uploads go to MEDIA_DIR. */
+  s3?: Record<string, string>,
 ): Promise<{ payload: Payload; stop: () => Promise<void>; url: string }> {
   const base = baseUrl()
   const url = new URL(base.url)
@@ -51,6 +53,7 @@ export async function startPayload(
   process.env.PAYLOAD_SECRET = base.secret || 'integration-tests-only'
   process.env.MEDIA_DIR = mkdtempSync(path.join(os.tmpdir(), 'yop-it-media-'))
   delete process.env.S3_BUCKET
+  Object.assign(process.env, s3)
   delete process.env.MEMBERSHIP_CONSOLIDATION
 
   const [{ getPayload }, { default: config }, { migrations }] = await Promise.all([

@@ -255,6 +255,32 @@ test.describe('project slots (seed placeholders)', () => {
     }
   })
 
+  test('reach the browser as AVIF or WebP, in the width the layout needs', async ({
+    page,
+    request,
+  }) => {
+    await page.goto('/projekte')
+    const image = page.getByRole('article').filter({ hasText: 'Projekttitel 1' }).locator('img')
+    await image.scrollIntoViewIfNeeded()
+    await expect
+      .poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+      .toBeGreaterThan(0)
+    const src = await image.evaluate((img: HTMLImageElement) => img.currentSrc)
+    const url = new URL(src)
+    expect(url.pathname).toBe('/_next/image')
+    expect(url.searchParams.get('url')).toMatch(/^\/api\/media\/file\/projekt-1[^/]*\.jpg$/)
+    // The original is 1600 px wide; a card in the 1280 px window needs at most half of that.
+    expect(Number(url.searchParams.get('w'))).toBeLessThanOrEqual(828)
+    for (const [accept, type] of [
+      ['image/avif,image/webp,image/*,*/*;q=0.8', 'image/avif'],
+      ['image/webp,image/*,*/*;q=0.8', 'image/webp'],
+    ] as const) {
+      const response = await request.get(src, { headers: { accept } })
+      expect(response.status()).toBe(200)
+      expect(response.headers()['content-type']).toBe(type)
+    }
+  })
+
   test('have their own page in every language', async ({ page }) => {
     await page.goto('/ar/projects/projekt-1')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('عنوان المشروع 1')

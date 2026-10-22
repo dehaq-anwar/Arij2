@@ -68,7 +68,9 @@ jobs:
           for image in $(sed -nE 's/^ *image: ((caddy|tecnativa\/docker-socket-proxy):[^ ]+)$/\1/p' docker-compose.prod.yml); do
             docker pull --quiet "$image"
           done
-      - name: Integration tests (migrations, data transfers, backup and restore drill, proxies)
+          # The S3 stand-in of docker-compose.yml, for the media test (tests/integration/media-s3.test.ts).
+          docker pull --quiet "$(sed -nE 's/^ *image: (chrislusf\/seaweedfs:[^ ]+)$/\1/p' docker-compose.yml | head -1)"
+      - name: Integration tests (migrations, data transfers, media, backup and restore drill, proxies)
         run: npm run test:integration
       - name: End-to-end tests (CMS content, i18n, RTL, navigation, privacy, motion, axe)
         run: npm run test:e2e
